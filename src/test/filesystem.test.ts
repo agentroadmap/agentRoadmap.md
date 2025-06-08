@@ -164,6 +164,7 @@ describe("FileSystem", () => {
 			projectName: "Test Project",
 			defaultAssignee: "@admin",
 			defaultStatus: "Draft",
+			defaultReporter: undefined,
 			statuses: ["Draft", "To Do", "In Progress", "Done"],
 			labels: ["bug", "feature"],
 			milestones: ["v1.0", "v2.0"],
@@ -183,6 +184,20 @@ describe("FileSystem", () => {
 
 			const config = await freshFilesystem.loadConfig();
 			expect(config).toBeNull();
+		});
+
+		it("should handle defaultReporter field", async () => {
+			const cfg: BacklogConfig = {
+				projectName: "Reporter",
+				defaultReporter: "@author",
+				statuses: ["To Do"],
+				labels: [],
+				milestones: [],
+			};
+
+			await filesystem.saveConfig(cfg);
+			const loaded = await filesystem.loadConfig();
+			expect(loaded?.defaultReporter).toBe("@author");
 		});
 	});
 
@@ -320,6 +335,7 @@ describe("FileSystem", () => {
 				projectName: "Full Project",
 				defaultAssignee: "@admin",
 				defaultStatus: "Draft",
+				defaultReporter: undefined,
 				statuses: ["Draft", "To Do", "In Progress", "Done"],
 				labels: ["bug", "feature", "enhancement"],
 				milestones: ["v1.0", "v1.1", "v2.0"],
