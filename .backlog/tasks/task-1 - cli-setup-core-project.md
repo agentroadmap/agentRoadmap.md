@@ -1,8 +1,8 @@
 ---
 id: task-1
 title: "CLI: Setup Core Project (Bun, TypeScript, Git, Linters)"
-status: "To Do"
-assignee: ""
+status: "Done"
+assignee: "@MrLesk"
 reporter: "@MrLesk"
 created_date: 2025-06-03
 labels: ["cli", "setup"]

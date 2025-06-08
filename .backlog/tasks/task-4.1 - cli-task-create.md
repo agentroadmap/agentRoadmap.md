@@ -1,13 +1,14 @@
 ---
 id: task-4.1
 title: "CLI: Task Creation Commands"
-status: "To Do"
-assignee: ""
+status: "Done"
+assignee: "@MrLesk"
 reporter: "@MrLesk"
 created_date: 2025-06-04
 labels: ["cli", "command"]
 milestone: "M1 - CLI"
 dependencies: ["task-3"]
+parent_task_id: task-4
 ---
 
 ## Description

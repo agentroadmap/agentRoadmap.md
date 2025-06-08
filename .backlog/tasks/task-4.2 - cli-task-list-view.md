@@ -8,6 +8,7 @@ created_date: 2025-06-04
 labels: ["cli", "command"]
 milestone: "M1 - CLI"
 dependencies: ["task-4.1"]
+parent_task_id: task-4
 ---
 
 ## Description
