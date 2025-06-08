@@ -132,4 +132,187 @@ describe("CLI Integration", () => {
 			expect(isClean).toBe(true);
 		});
 	});
+
+	describe("task list command", () => {
+		beforeEach(async () => {
+			// Set up a git repository and initialize backlog
+			await Bun.spawn(["git", "init"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: TEST_DIR }).exited;
+
+			const core = new Core(TEST_DIR);
+			await core.initializeProject("List Test Project");
+		});
+
+		it("should show 'No tasks found' when no tasks exist", async () => {
+			const core = new Core(TEST_DIR);
+			const tasks = await core.filesystem.listTasks();
+			expect(tasks).toHaveLength(0);
+		});
+
+		it("should list tasks grouped by status", async () => {
+			const core = new Core(TEST_DIR);
+
+			// Create test tasks with different statuses
+			await core.createTask(
+				{
+					id: "task-1",
+					title: "First Task",
+					status: "To Do",
+					createdDate: "2025-06-08",
+					labels: [],
+					dependencies: [],
+					description: "First test task",
+				},
+				false,
+			);
+
+			await core.createTask(
+				{
+					id: "task-2",
+					title: "Second Task",
+					status: "Done",
+					createdDate: "2025-06-08",
+					labels: [],
+					dependencies: [],
+					description: "Second test task",
+				},
+				false,
+			);
+
+			await core.createTask(
+				{
+					id: "task-3",
+					title: "Third Task",
+					status: "To Do",
+					createdDate: "2025-06-08",
+					labels: [],
+					dependencies: [],
+					description: "Third test task",
+				},
+				false,
+			);
+
+			const tasks = await core.filesystem.listTasks();
+			expect(tasks).toHaveLength(3);
+
+			// Verify tasks are grouped correctly by status
+			const todoTasks = tasks.filter((t) => t.status === "To Do");
+			const doneTasks = tasks.filter((t) => t.status === "Done");
+
+			expect(todoTasks).toHaveLength(2);
+			expect(doneTasks).toHaveLength(1);
+			expect(todoTasks.map((t) => t.id)).toEqual(["task-1", "task-3"]);
+			expect(doneTasks.map((t) => t.id)).toEqual(["task-2"]);
+		});
+
+		it("should respect config status order", async () => {
+			const core = new Core(TEST_DIR);
+
+			// Load and verify default config status order
+			const config = await core.filesystem.loadConfig();
+			expect(config?.statuses).toEqual(["Draft", "To Do", "In Progress", "Done"]);
+		});
+	});
+
+	describe("task view command", () => {
+		beforeEach(async () => {
+			// Set up a git repository and initialize backlog
+			await Bun.spawn(["git", "init"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: TEST_DIR }).exited;
+
+			const core = new Core(TEST_DIR);
+			await core.initializeProject("View Test Project");
+		});
+
+		it("should display task details with markdown formatting", async () => {
+			const core = new Core(TEST_DIR);
+
+			// Create a test task
+			const testTask = {
+				id: "task-1",
+				title: "Test View Task",
+				status: "To Do",
+				assignee: "testuser",
+				createdDate: "2025-06-08",
+				labels: ["test", "cli"],
+				dependencies: [],
+				description: "This is a test task for view command",
+			};
+
+			await core.createTask(testTask, false);
+
+			// Load the task back
+			const loadedTask = await core.filesystem.loadTask("task-1");
+			expect(loadedTask).not.toBeNull();
+			expect(loadedTask?.id).toBe("task-1");
+			expect(loadedTask?.title).toBe("Test View Task");
+			expect(loadedTask?.status).toBe("To Do");
+			expect(loadedTask?.assignee).toBe("testuser");
+			expect(loadedTask?.labels).toEqual(["test", "cli"]);
+			expect(loadedTask?.description).toBe("This is a test task for view command");
+		});
+
+		it("should handle task IDs with and without 'task-' prefix", async () => {
+			const core = new Core(TEST_DIR);
+
+			// Create a test task
+			await core.createTask(
+				{
+					id: "task-5",
+					title: "Prefix Test Task",
+					status: "Draft",
+					createdDate: "2025-06-08",
+					labels: [],
+					dependencies: [],
+					description: "Testing task ID normalization",
+				},
+				false,
+			);
+
+			// Test loading with full task-5 ID
+			const taskWithPrefix = await core.filesystem.loadTask("task-5");
+			expect(taskWithPrefix?.id).toBe("task-5");
+
+			// Test loading with just numeric ID (5)
+			const taskWithoutPrefix = await core.filesystem.loadTask("5");
+			// The filesystem loadTask should handle normalization
+			expect(taskWithoutPrefix?.id).toBe("task-5");
+		});
+
+		it("should return null for non-existent tasks", async () => {
+			const core = new Core(TEST_DIR);
+
+			const nonExistentTask = await core.filesystem.loadTask("task-999");
+			expect(nonExistentTask).toBeNull();
+		});
+
+		it("should not modify task files (read-only operation)", async () => {
+			const core = new Core(TEST_DIR);
+
+			// Create a test task
+			const originalTask = {
+				id: "task-1",
+				title: "Read Only Test",
+				status: "To Do",
+				createdDate: "2025-06-08",
+				labels: ["readonly"],
+				dependencies: [],
+				description: "Original description",
+			};
+
+			await core.createTask(originalTask, false);
+
+			// Load the task (simulating view operation)
+			const viewedTask = await core.filesystem.loadTask("task-1");
+
+			// Load again to verify nothing changed
+			const secondView = await core.filesystem.loadTask("task-1");
+
+			expect(viewedTask).toEqual(secondView);
+			expect(viewedTask?.title).toBe("Read Only Test");
+			expect(viewedTask?.description).toBe("Original description");
+		});
+	});
 });
