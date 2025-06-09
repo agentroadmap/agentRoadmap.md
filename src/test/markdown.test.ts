@@ -170,6 +170,20 @@ title: "Test with mixed criteria"
 
 			expect(task.acceptanceCriteria).toEqual(["Todo item", "Done item", "Another todo"]);
 		});
+
+		it("should parse unquoted assignee names starting with @", () => {
+			const content = `---
+id: task-5
+title: "Assignee Test"
+assignee: @MrLesk
+---
+
+Test task.`;
+
+			const task = parseTask(content);
+
+			expect(task.assignee).toEqual(["@MrLesk"]);
+		});
 	});
 
 	describe("parseDecisionLog", () => {

@@ -1,6 +1,30 @@
 import matter from "gray-matter";
 import type { DecisionLog, Document, ParsedMarkdown, Task } from "../types/index.ts";
 
+function preprocessFrontmatter(frontmatter: string): string {
+	return frontmatter
+		.split("\n")
+		.map((line) => {
+			const match = line.match(/^(\s*assignee:\s*)(.*)$/);
+			if (!match) return line;
+
+			const [, prefix, raw] = match;
+			const value = raw.trim();
+
+			if (
+				value &&
+				!value.startsWith("[") &&
+				!value.startsWith("'") &&
+				!value.startsWith('"') &&
+				!value.startsWith("-")
+			) {
+				return `${prefix}"${value.replace(/"/g, '\\"')}"`;
+			}
+			return line;
+		})
+		.join("\n");
+}
+
 function normalizeDate(value: unknown): string {
 	if (!value) return "";
 	if (value instanceof Date) {
@@ -33,7 +57,16 @@ function normalizeDate(value: unknown): string {
 }
 
 export function parseMarkdown(content: string): ParsedMarkdown {
-	const parsed = matter(content);
+	const fmRegex = /^---\n([\s\S]*?)\n---/;
+	const match = content.match(fmRegex);
+	let toParse = content;
+
+	if (match) {
+		const processed = preprocessFrontmatter(match[1]);
+		toParse = content.replace(fmRegex, `---\n${processed}\n---`);
+	}
+
+	const parsed = matter(toParse);
 	return {
 		frontmatter: parsed.data,
 		content: parsed.content.trim(),
