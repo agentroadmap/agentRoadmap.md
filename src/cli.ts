@@ -6,7 +6,7 @@ import { createInterface } from "node:readline/promises";
 
 import { Command } from "commander";
 import { DEFAULT_STATUSES, FALLBACK_STATUS } from "./constants/index.ts";
-import { Core, generateKanbanBoard, initializeGitRepository, isGitRepository } from "./index.ts";
+import { Core, generateKanbanBoard, initializeGitRepository, isGitRepository, parseTask } from "./index.ts";
 import type { DecisionLog, Document as DocType, Task } from "./types/index.ts";
 
 const program = new Command();
@@ -419,16 +419,47 @@ boardCmd
 	.action(async () => {
 		const cwd = process.cwd();
 		const core = new Core(cwd);
-		const tasks = await core.filesystem.listTasks();
+		const config = await core.filesystem.loadConfig();
+		const statuses = config?.statuses || [];
 
-		if (tasks.length === 0) {
+		const localTasks = await core.filesystem.listTasks();
+		const tasksById = new Map(localTasks.map((t) => [t.id, t]));
+
+		try {
+			await core.gitOps.fetch();
+			const branches = await core.gitOps.listRemoteBranches();
+
+			for (const branch of branches) {
+				const ref = `origin/${branch}`;
+				const files = await core.gitOps.listFilesInTree(ref, ".backlog/tasks");
+				for (const file of files) {
+					const content = await core.gitOps.showFile(ref, file);
+					const task = parseTask(content);
+					const existing = tasksById.get(task.id);
+					if (!existing) {
+						tasksById.set(task.id, task);
+						continue;
+					}
+
+					const currentIdx = statuses.indexOf(existing.status);
+					const newIdx = statuses.indexOf(task.status);
+					if (newIdx > currentIdx || currentIdx === -1 || newIdx === currentIdx) {
+						tasksById.set(task.id, task);
+					}
+				}
+			}
+		} catch {
+			// Ignore remote errors
+		}
+
+		const allTasks = Array.from(tasksById.values());
+
+		if (allTasks.length === 0) {
 			console.log("No tasks found.");
 			return;
 		}
 
-		const config = await core.filesystem.loadConfig();
-		const statuses = config?.statuses || [];
-		const board = generateKanbanBoard(tasks, statuses);
+		const board = generateKanbanBoard(allTasks, statuses);
 		console.log(board);
 	});
 

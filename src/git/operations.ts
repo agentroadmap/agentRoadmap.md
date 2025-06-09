@@ -59,15 +59,6 @@ export class GitOperations {
 		await this.execGit(["fetch", remote]);
 	}
 
-	async listRemoteBranches(remote = "origin"): Promise<string[]> {
-		const { stdout } = await this.execGit(["branch", "-r", "--list", `${remote}/*`]);
-		return stdout
-			.split(/\r?\n/)
-			.map((b) => b.trim())
-			.filter(Boolean)
-			.map((b) => b.replace(`${remote}/`, ""));
-	}
-
 	async listFilesInRemoteBranch(branch: string, path: string): Promise<string[]> {
 		const { stdout } = await this.execGit(["ls-tree", "-r", `origin/${branch}`, "--name-only", "--", path]);
 		return stdout
@@ -99,6 +90,29 @@ export class GitOperations {
 		if (hasChanges) {
 			await this.commitChanges(`backlog: ${message}`);
 		}
+	}
+
+	async listRemoteBranches(remote = "origin"): Promise<string[]> {
+		const { stdout } = await this.execGit(["branch", "-r", "--format=%(refname:strip=2)"]);
+		return stdout
+			.split("\n")
+			.map((l) => l.trim())
+			.filter((b) => b.startsWith(`${remote}/`))
+			.map((b) => b.replace(`${remote}/`, ""))
+			.filter(Boolean);
+	}
+
+	async listFilesInTree(ref: string, path: string): Promise<string[]> {
+		const { stdout } = await this.execGit(["ls-tree", "-r", "--name-only", ref, "--", path]);
+		return stdout
+			.split("\n")
+			.map((l) => l.trim())
+			.filter(Boolean);
+	}
+
+	async showFile(ref: string, filePath: string): Promise<string> {
+		const { stdout } = await this.execGit(["show", `${ref}:${filePath}`]);
+		return stdout;
 	}
 
 	private async execGit(args: string[]): Promise<{ stdout: string; stderr: string }> {
