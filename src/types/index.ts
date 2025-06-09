@@ -44,6 +44,7 @@ export interface BacklogConfig {
 	labels: string[];
 	milestones: string[];
 	defaultStatus?: string;
+	dateFormat: string;
 }
 
 export interface ParsedMarkdown {

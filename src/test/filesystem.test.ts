@@ -169,6 +169,7 @@ describe("FileSystem", () => {
 			statuses: ["Draft", "To Do", "In Progress", "Done"],
 			labels: ["bug", "feature"],
 			milestones: ["v1.0", "v2.0"],
+			dateFormat: "yyyy-mm-dd",
 		};
 
 		it("should save and load config", async () => {
@@ -342,6 +343,7 @@ describe("FileSystem", () => {
 				statuses: ["Draft", "To Do", "In Progress", "Done"],
 				labels: ["bug", "feature", "enhancement"],
 				milestones: ["v1.0", "v1.1", "v2.0"],
+				dateFormat: "yyyy-mm-dd",
 			};
 
 			await filesystem.saveConfig(fullConfig);
@@ -356,6 +358,7 @@ describe("FileSystem", () => {
 				statuses: ["To Do", "Done"],
 				labels: [],
 				milestones: [],
+				dateFormat: "yyyy-mm-dd",
 			};
 
 			await filesystem.saveConfig(minimalConfig);
