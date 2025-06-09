@@ -120,7 +120,7 @@ Subtasks use decimal numbers, e.g., `task-4.1`.
     backlog task archive <task-id>
     backlog draft archive <task-id>
     backlog draft promote <task-id>
-backlog task demote <task-id>
+    backlog task demote <task-id>
 ```
 
 7. Kanban board

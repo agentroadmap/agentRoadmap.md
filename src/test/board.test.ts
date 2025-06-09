@@ -76,11 +76,7 @@ describe("generateKanbanBoard", () => {
 
 	it("handles empty task list", () => {
 		const board = generateKanbanBoard([], ["To Do", "In Progress", "Done"]);
-		const lines = board.split("\n");
-		expect(lines[0]).toContain("To Do");
-		expect(lines[0]).toContain("In Progress");
-		expect(lines[0]).toContain("Done");
-		expect(lines.length).toBe(2); // header + separator only
+		expect(board).toBe(""); // No columns when no tasks
 	});
 
 	it("respects status order from config", () => {
@@ -116,7 +112,7 @@ describe("generateKanbanBoard", () => {
 		expect(todoIndex).toBeLessThan(doneIndex);
 	});
 
-	it("handles long task titles by adjusting column width", () => {
+	it("handles long task titles by wrapping text within max column width", () => {
 		const tasks: Task[] = [
 			{
 				id: "task-1",
@@ -134,11 +130,49 @@ describe("generateKanbanBoard", () => {
 		const lines = board.split("\n");
 		const header = lines[0];
 		const taskIdLine = lines[2]; // First task line (ID)
-		const taskTitleLine = lines[3]; // Second task line (title)
-		// Column should be wide enough for both header and long title
-		expect(header.length).toBeGreaterThan("To Do".length);
+		const firstTitleLine = lines[3]; // First wrapped title line
+		// Column width should be constrained by default maxColumnWidth (20)
+		expect(header.length).toBe(20);
 		expect(taskIdLine).toContain("task-1");
-		expect(taskTitleLine).toContain("This is a very long task title");
+		expect(firstTitleLine).toContain("This is a very long");
+		// Should have multiple lines for the wrapped title
+		expect(lines.length).toBeGreaterThan(4);
+	});
+
+	it("nests subtasks under their parent when statuses match", () => {
+		const tasks: Task[] = [
+			{
+				id: "task-1",
+				title: "Parent",
+				status: "To Do",
+				assignee: [],
+				createdDate: "",
+				labels: [],
+				dependencies: [],
+				description: "",
+			},
+			{
+				id: "task-1.1",
+				title: "Child",
+				status: "To Do",
+				assignee: [],
+				createdDate: "",
+				labels: [],
+				dependencies: [],
+				description: "",
+				parentTaskId: "task-1",
+			},
+		];
+
+		const board = generateKanbanBoard(tasks, ["To Do"]);
+		expect(board).toContain("  |— task-1.1");
+		expect(board).toContain("      Child");
+
+		const lines = board.split("\n");
+		const parentIdx = lines.findIndex((l) => l.includes("task-1") && !l.includes("task-1.1"));
+		const childIdx = lines.findIndex((l) => l.includes("  |— task-1.1"));
+		expect(parentIdx).toBeGreaterThan(-1);
+		expect(childIdx).toBeGreaterThan(parentIdx);
 	});
 
 	it("sorts tasks by numeric id within each status", () => {
