@@ -1,7 +1,7 @@
 ---
 id: task-4.13
 title: 'CLI: Fix config command local/global logic'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2025-06-09'
 labels: []
