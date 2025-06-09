@@ -4,6 +4,14 @@ import { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
 import type { BacklogConfig, Task } from "../types/index.ts";
 
+function ensureDescriptionHeader(description: string): string {
+	const trimmed = description.trim();
+	if (trimmed === "") {
+		return "## Description";
+	}
+	return /^##\s+Description/i.test(trimmed) ? trimmed : `## Description\n\n${trimmed}`;
+}
+
 export class Core {
 	private fs: FileSystem;
 	private git: GitOperations;
@@ -37,6 +45,7 @@ export class Core {
 			(task as any).assignee = [(task as any).assignee];
 		}
 
+		task.description = ensureDescriptionHeader(task.description);
 		await this.fs.saveTask(task);
 
 		if (autoCommit) {
@@ -63,6 +72,7 @@ export class Core {
 			(task as any).assignee = [(task as any).assignee];
 		}
 
+		task.description = ensureDescriptionHeader(task.description);
 		await this.fs.saveDraft(task);
 
 		if (autoCommit) {
@@ -85,6 +95,7 @@ export class Core {
 			(task as any).assignee = [(task as any).assignee];
 		}
 
+		task.description = ensureDescriptionHeader(task.description);
 		await this.fs.saveTask(task);
 
 		if (autoCommit) {
