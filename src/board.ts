@@ -8,6 +8,22 @@ import type { Task } from "./types/index.ts";
 
 export type BoardLayout = "horizontal" | "vertical";
 
+function idSegments(id: string): number[] {
+	const normalized = id.startsWith("task-") ? id.slice(5) : id;
+	return normalized.split(".").map((part) => Number.parseInt(part, 10));
+}
+
+function compareIds(a: Task, b: Task): number {
+	const segA = idSegments(a.id);
+	const segB = idSegments(b.id);
+	const len = Math.max(segA.length, segB.length);
+	for (let i = 0; i < len; i++) {
+		const diff = (segA[i] ?? 0) - (segB[i] ?? 0);
+		if (diff !== 0) return diff;
+	}
+	return 0;
+}
+
 export function generateKanbanBoard(
 	tasks: Task[],
 	statuses: string[] = [],
@@ -27,7 +43,10 @@ export function generateKanbanBoard(
 			? [...statuses.filter((s) => groups.has(s)), ...Array.from(groups.keys()).filter((s) => !statuses.includes(s))]
 			: statuses;
 
-	const columns = ordered.map((status) => groups.get(status) || []);
+	const columns = ordered.map((status) => {
+		const list = groups.get(status) || [];
+		return list.slice().sort(compareIds);
+	});
 
 	if (layout === "vertical") {
 		const rows: string[] = [];
