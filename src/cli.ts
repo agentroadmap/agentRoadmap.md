@@ -6,7 +6,14 @@ import { createInterface } from "node:readline/promises";
 
 import { Command } from "commander";
 import { DEFAULT_STATUSES, FALLBACK_STATUS } from "./constants/index.ts";
-import { Core, generateKanbanBoard, initializeGitRepository, isGitRepository, parseTask } from "./index.ts";
+import {
+	Core,
+	addAgentInstructions,
+	generateKanbanBoard,
+	initializeGitRepository,
+	isGitRepository,
+	parseTask,
+} from "./index.ts";
 import type { DecisionLog, Document as DocType, Task } from "./types/index.ts";
 
 const program = new Command();
@@ -41,11 +48,16 @@ program
 				const scope = (await rl.question("Store reporter name globally? [y/N] ")).trim().toLowerCase();
 				storeGlobal = scope.startsWith("y");
 			}
+			const addAgents = (await rl.question("Add instructions for AI agents? [y/N] ")).trim().toLowerCase();
 			rl.close();
 
 			const core = new Core(cwd);
 			await core.initializeProject(projectName);
 			console.log(`Initialized backlog project: ${projectName}`);
+
+			if (addAgents.startsWith("y")) {
+				await addAgentInstructions(cwd, core.gitOps);
+			}
 
 			if (reporter) {
 				if (storeGlobal) {
