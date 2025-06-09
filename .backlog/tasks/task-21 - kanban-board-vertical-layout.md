@@ -8,6 +8,7 @@ reporter: @MrLesk
 labels: []
 dependencies: []
 ---
+
 ## Description
 
 Add a visualization to the Kanban board where all status columns are displayed vertically in a single column.

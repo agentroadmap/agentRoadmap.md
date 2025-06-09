@@ -7,6 +7,7 @@ created_date: '2025-06-09'
 labels: []
 dependencies: []
 ---
+
 ## Description
 The CLI currently creates tasks in the "Draft" status by default and includes "Draft" in the list of task statuses. Draft tasks should be handled separately.
 

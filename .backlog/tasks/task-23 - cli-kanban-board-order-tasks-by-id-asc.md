@@ -7,6 +7,7 @@ created_date: '2025-06-09'
 labels: []
 dependencies: []
 ---
+
 ## Description
 
 Sort tasks within each status column by numeric task ID in ascending order when rendering the board.
