@@ -429,7 +429,9 @@ const boardCmd = program.command("board");
 boardCmd
 	.command("view")
 	.description("display tasks in a Kanban board")
-	.action(async () => {
+	.option("-l, --layout <layout>", "board layout (horizontal|vertical)", "horizontal")
+	.option("--vertical", "use vertical layout (shortcut for --layout vertical)")
+	.action(async (options) => {
 		const cwd = process.cwd();
 		const core = new Core(cwd);
 		const config = await core.filesystem.loadConfig();
@@ -472,7 +474,8 @@ boardCmd
 			return;
 		}
 
-		const board = generateKanbanBoard(allTasks, statuses);
+		const layout = options.vertical ? "vertical" : (options.layout as "horizontal" | "vertical") || "horizontal";
+		const board = generateKanbanBoard(allTasks, statuses, layout);
 		console.log(board);
 	});
 
