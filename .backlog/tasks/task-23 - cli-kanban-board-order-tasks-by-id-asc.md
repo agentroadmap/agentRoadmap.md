@@ -1,7 +1,7 @@
 ---
 id: task-23
 title: 'CLI: Kanban board order tasks by ID ASC'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2025-06-09'
 labels: []

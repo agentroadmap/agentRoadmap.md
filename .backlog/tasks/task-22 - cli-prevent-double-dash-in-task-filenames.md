@@ -1,7 +1,7 @@
 ---
 id: task-22
 title: 'CLI: Prevent double dash in task filenames'
-status: Draft
+status: To Do
 assignee: []
 created_date: '2025-06-09'
 labels: []

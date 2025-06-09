@@ -1,7 +1,7 @@
 ---
 id: task-24
 title: Handle subtasks in the Kanban view
-status: Draft
+status: To Do
 assignee: []
 created_date: '2025-06-09'
 labels: []
