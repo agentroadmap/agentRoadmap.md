@@ -14,7 +14,8 @@ dependencies: ["task-3"]
 
 Implement basic CLI commands for managing documentation and decision logs:
 
-- `backlog doc create <path> <title>` (to create a new documentation file)
+- `backlog doc create <title> -p <path>` (to create a new documentation file)
+- `backlog doc create <title> --path <path>` (to create a new documentation file)
 - `backlog doc create <title>` (to create a new documentation file in the root folder)
 - `backlog doc list`
 - `backlog decision create <title>`
