@@ -1,8 +1,8 @@
 {
 	"name": "backlog.md",
+	"version": "0.1.0",
 	"module": "src/index.ts",
 	"type": "module",
-	"private": true,
 	"bin": {
 		"backlog": "./cli/index.js"
 	},
@@ -11,9 +11,6 @@
 		"@types/bun": "1.2.15",
 		"husky": "9.1.7",
 		"lint-staged": "16.1.0"
-	},
-	"peerDependencies": {
-		"typescript": "5"
 	},
 	"scripts": {
 		"test": "bun test",
