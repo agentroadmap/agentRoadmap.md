@@ -287,6 +287,13 @@ To publish a new version to npm:
    ```
 3. Push the tag to trigger the GitHub Actions workflow. It will build, test and
    publish the package to npm using the repository `NODE_AUTH_TOKEN` secret.
+## GitHub Issue and Pull Request Templates
+
+This repository includes templates under `.github/` for bug reports, feature requests, and pull requests.
+When opening a pull request, reference the Backlog task IDs being addressed.
+
+## Project Board
+
 | To Do | Done |
 | --- | --- |
 | task-4: CLI: Task Management Commands | task-1: CLI: Setup Core Project (Bun, TypeScript, Git, Linters) |
@@ -301,21 +308,25 @@ To publish a new version to npm:
 | task-16: Improve docs readme with generic example and CLI command reference | task-4.7: CLI: Parse unquoted created_date |
 | task-17: Improve drafts readme with generic example and CLI command reference | task-4.8: CLI: enforce description header |
 | task-18: Improve decisions readme with generic example and CLI command reference | task-4.9: CLI: Normalize task-id inputs |
-| task-20: Add agent guideline to mark tasks In Progress on start | task-4.10: CLI: enforce Agents to use backlog CLI to mark tasks Done |
-| task-24.1: CLI: Kanban board milestone view | task-4.11: Docs: add definition of done to agent guidelines |
-| task-26: Agents: add board export step to agent DoD | task-4.12: CLI: Handle task ID conflicts across branches |
-| task-28: Add CODE OF CONDUCT | task-4.13: CLI: Fix config command local/global logic |
-| task-29: Add GitHub templates | task-5: CLI: Implement Docs & Decisions CLI Commands (Basic) |
-| task-30: Create CHANGELOG | task-6: CLI: Argument Parsing, Help, and Packaging |
-| task-31: Update README for open source |   |— task-6.1:       CLI: Local installation support for bunx/npx |
+| task-24.1: CLI: Kanban board milestone view | task-4.10: CLI: enforce Agents to use backlog CLI to mark tasks Done |
+| task-26: Agents: add board export step to agent DoD | task-4.11: Docs: add definition of done to agent guidelines |
+| task-28: Add CODE OF CONDUCT | task-4.12: CLI: Handle task ID conflicts across branches |
+| task-30: Create CHANGELOG | task-4.13: CLI: Fix config command local/global logic |
+|  | task-5: CLI: Implement Docs & Decisions CLI Commands (Basic) |
+|  | task-6: CLI: Argument Parsing, Help, and Packaging |
+|  |   |— task-6.1:       CLI: Local installation support for bunx/npx |
 |  |   |— task-6.2:       CLI: GitHub Actions for Build & Publish |
 |  | task-7: Kanban Board: Implement CLI Text-Based Kanban Board View |
 |  |   |— task-7.1:       CLI: Kanban board detect remote task status |
 |  | task-13: CLI: Add Agent Instruction Prompt |
 |  | task-19: CLI - fix default task status and remove Draft from statuses |
+|  | task-20: Add agent guideline to mark tasks In Progress on start |
 |  | task-21: Kanban board vertical layout |
 |  | task-22: CLI: Prevent double dash in task filenames |
 |  | task-23: CLI: Kanban board order tasks by ID ASC |
 |  | task-24: Handle subtasks in the Kanban view |
 |  | task-25: CLI: Export Kanban board to README |
 |  | task-27: Add CONTRIBUTING guidelines |
+|  | task-29: Add GitHub templates |
+|  | task-31: Update README for open source |
+|  | task-32: CLI: Hide empty 'No Status' column |
