@@ -1,5 +1,5 @@
 ---
-id: task-20
+id: task-22
 title: 'CLI: Prevent double dash in task filenames'
 status: Draft
 assignee: []
