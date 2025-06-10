@@ -227,21 +227,8 @@ export function generateKanbanBoard(
 		// Add empty row between tasks for better separation (except after last task)
 		// Skip empty row if next task is a subtask (to keep parent and child together)
 		if (taskIdx < maxTasks - 1) {
-			let shouldAddEmptyRow = true;
-
-			// Check if any column has a subtask as the next item
-			for (let cIdx = 0; cIdx < ordered.length; cIdx++) {
-				const nextTask = columns[cIdx][taskIdx + 1];
-				if (nextTask?.id.startsWith("  |—") || nextTask?.id.startsWith("  └─")) {
-					shouldAddEmptyRow = false;
-					break;
-				}
-			}
-
-			if (shouldAddEmptyRow) {
-				const emptyRow = ordered.map((_, cIdx) => pad("", colWidths[cIdx])).join(" | ");
-				rows.push(emptyRow);
-			}
+			const emptyRow = ordered.map((_, cIdx) => pad("", colWidths[cIdx])).join(" | ");
+			rows.push(emptyRow);
 		}
 	}
 
