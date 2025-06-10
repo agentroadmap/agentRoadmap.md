@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
+import { platform } from "node:os";
 import { join } from "node:path";
 
 const TEST_DIR = join(process.cwd(), "test-build");
-const OUTFILE = join(TEST_DIR, "backlog");
+const isWindows = platform() === "win32";
+const executableName = isWindows ? "backlog.exe" : "backlog";
+const OUTFILE = join(TEST_DIR, executableName);
 
 describe("CLI packaging", () => {
 	beforeEach(async () => {
