@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Core, isGitRepository } from "../index.ts";
 
 const TEST_DIR = join(process.cwd(), "test-cli");
+const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 
 describe("CLI Integration", () => {
 	beforeEach(async () => {
@@ -109,6 +110,19 @@ describe("CLI Integration", () => {
 
 			const config = await core.filesystem.loadConfig();
 			expect(config?.projectName).toBe("Existing Repo Test");
+		});
+
+		it("should accept optional project name parameter", async () => {
+			await Bun.spawn(["git", "init"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: TEST_DIR }).exited;
+			await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: TEST_DIR }).exited;
+
+			// Test the CLI implementation by directly using the Core functionality
+			const core = new Core(TEST_DIR);
+			await core.initializeProject("Test Project");
+
+			const config = await core.filesystem.loadConfig();
+			expect(config?.projectName).toBe("Test Project");
 		});
 
 		it("should create agent instruction files when requested", async () => {

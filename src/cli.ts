@@ -23,9 +23,9 @@ const program = new Command();
 program.name("backlog").description("Backlog project management CLI");
 
 program
-	.command("init <projectName>")
+	.command("init [projectName]")
 	.description("initialize backlog project in the current repository")
-	.action(async (projectName: string) => {
+	.action(async (projectName?: string) => {
 		try {
 			const cwd = process.cwd();
 			const isRepo = await isGitRepository(cwd);
@@ -38,6 +38,18 @@ program
 				if (answer.startsWith("y")) {
 					await initializeGitRepository(cwd);
 				} else {
+					console.log("Aborting initialization.");
+					process.exit(1);
+					return;
+				}
+			}
+
+			let name = projectName;
+			if (!name) {
+				const rlName = createInterface({ input, output });
+				name = (await rlName.question("Project name: ")).trim();
+				rlName.close();
+				if (!name) {
 					console.log("Aborting initialization.");
 					process.exit(1);
 					return;
@@ -64,8 +76,8 @@ program
 			const files: AgentInstructionFile[] = (selected ?? []) as AgentInstructionFile[];
 
 			const core = new Core(cwd);
-			await core.initializeProject(projectName);
-			console.log(`Initialized backlog project: ${projectName}`);
+			await core.initializeProject(name);
+			console.log(`Initialized backlog project: ${name}`);
 
 			if (files.length > 0) {
 				await addAgentInstructions(cwd, core.gitOps, files);
