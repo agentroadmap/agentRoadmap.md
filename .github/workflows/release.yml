@@ -142,6 +142,12 @@ jobs:
           const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           pkg.bin = { backlog: 'cli.js' };
           pkg.files = ['bin/', 'cli.js'];
+          // Remove scripts that shouldn't run during install
+          delete pkg.scripts.prepare;
+          delete pkg.scripts.postinstall;
+          delete pkg.scripts.preinstall;
+          // Remove dev dependencies
+          delete pkg.devDependencies;
           fs.writeFileSync('dist/package.json', JSON.stringify(pkg, null, 2));
           "
           
