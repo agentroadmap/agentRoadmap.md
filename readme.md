@@ -29,7 +29,7 @@
 npm i -g backlog.md
 
 # global – Bun
-bun add -g backlog.md
+bun add -g backlog.md    # Bun 1.0+
 ```
 
 > Prefer per‑project installs? `npm i -D backlog.md` → `npx backlog …`
