@@ -7,7 +7,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { type BoardLayout, compareIds, generateKanbanBoard } from "../board.ts";
 import { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
-import { formatStatusWithIcon, getStatusIcon } from "./status-icon.ts";
+import { formatStatusWithIcon, getStatusColor, getStatusIcon } from "./status-icon.ts";
 import { createTaskPopup } from "./task-viewer.ts";
 
 // Load blessed dynamically
@@ -146,15 +146,18 @@ export async function renderBoardTui(
 						fg: "white",
 					},
 				},
+				tags: true, // Enable tag parsing for colors
 			});
 
-			// Populate tasks
+			// Populate tasks with enhanced styling
 			const tasksInStatus = (tasksByStatus.get(status) || []).sort(compareIds);
 			const items = tasksInStatus.map((task) => {
-				const assignee = task.assignee?.length
-					? ` ${task.assignee[0].startsWith("@") ? task.assignee[0] : `@${task.assignee[0]}`}`
+				const assigneeText = task.assignee?.length
+					? ` {cyan-fg}${task.assignee[0].startsWith("@") ? task.assignee[0] : `@${task.assignee[0]}`}{/}`
 					: "";
-				return `${task.id} - ${task.title}${assignee}`;
+				const labelsText = task.labels?.length ? ` {yellow-fg}[${task.labels.join(", ")}]{/}` : "";
+
+				return `{bold}${task.id}{/bold} - ${task.title}${assigneeText}${labelsText}`;
 			});
 			taskList.setItems(items);
 

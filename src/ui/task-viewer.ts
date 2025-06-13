@@ -279,16 +279,39 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 
 		// Description section
 		bodyContent.push(formatHeading("Description", 2));
-		const descriptionContent = currentSelectedTask.description
-			? transformCodePaths(currentSelectedTask.description)
+		// Extract only the Description section content, not the full markdown
+		const extractedDescription = extractDescriptionSection(currentSelectedTask.description);
+		const descriptionContent = extractedDescription
+			? transformCodePaths(extractedDescription)
 			: "{gray-fg}No description provided{/}";
 		bodyContent.push(descriptionContent);
 		bodyContent.push("");
 
 		// Acceptance criteria section
 		bodyContent.push(formatHeading("Acceptance Criteria", 2));
-		if (currentSelectedTask.acceptanceCriteria?.length) {
-			const criteriaContent = styleCodePaths(currentSelectedTask.acceptanceCriteria.join("\n"));
+		// Extract checkbox lines from raw content to preserve checkbox state
+		const checkboxLines = extractAcceptanceCriteriaWithCheckboxes(currentSelectedContent);
+		if (checkboxLines.length > 0) {
+			const formattedCriteria = checkboxLines.map((line) => {
+				const checkboxItem = parseCheckboxLine(line);
+				if (checkboxItem) {
+					// Use nice Unicode symbols for checkboxes in TUI
+					return formatChecklistItem(checkboxItem, {
+						padding: " ",
+						checkedSymbol: "{green-fg}✓{/}",
+						uncheckedSymbol: "{gray-fg}○{/}",
+					});
+				}
+				// Handle non-checkbox lines
+				return ` ${line}`;
+			});
+			const criteriaContent = styleCodePaths(formattedCriteria.join("\n"));
+			bodyContent.push(criteriaContent);
+		} else if (currentSelectedTask.acceptanceCriteria?.length) {
+			// Fallback to parsed criteria if no checkboxes found in raw content
+			const criteriaContent = styleCodePaths(
+				currentSelectedTask.acceptanceCriteria.map((text) => ` • ${text}`).join("\n"),
+			);
 			bodyContent.push(criteriaContent);
 		} else {
 			bodyContent.push("{gray-fg}No acceptance criteria defined{/}");
@@ -548,7 +571,7 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 		top: 3, // Start below the fixed header
 		left: 0,
 		width: "100%-2", // Account for border
-		height: "100%-4", // Reset to normal height since popup is smaller
+		height: "100%-5", // Leave more space for bottom border
 		scrollable: true,
 		alwaysScroll: false,
 		keys: true,
