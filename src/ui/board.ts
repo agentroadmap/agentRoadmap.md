@@ -99,31 +99,40 @@ export async function renderBoardTui(
 		// Create columns
 		// biome-ignore lint/suspicious/noExplicitAny: blessed column structure
 		const columns: any[] = [];
-		let leftOffset = 0;
 
 		nonEmptyStatuses.forEach((status, index) => {
+			// Calculate exact position for each column
+			const left = index * columnWidth;
 			const isLast = index === nonEmptyStatuses.length - 1;
-			const width = isLast ? `${100 - leftOffset}%` : `${columnWidth}%`;
+
+			// For the last column, extend to the right edge to avoid gaps
+			const width = isLast ? `${100 - left}%` : `${columnWidth}%`;
 
 			// Column container
 			const column = blessed.box({
 				parent: container,
-				left: `${leftOffset}%`,
+				left: `${left}%`,
 				top: 0,
 				width,
-				height: "100%",
-				border: "line",
+				height: "100%-1", // Leave space for footer
+				border: {
+					type: "line",
+				},
+				style: {
+					border: {
+						fg: "gray",
+					},
+				},
 				label: ` ${getStatusIcon(status)} ${status || "No Status"} (${tasksByStatus.get(status)?.length || 0}) `,
-				padding: { left: 1, right: 1, top: 1 },
 			});
 
 			// Task list for this column
 			const taskList = blessed.list({
 				parent: column,
-				top: 0,
-				left: 0,
-				width: "100%-2",
-				height: "100%-2",
+				top: 1, // Start below the border
+				left: 1, // Start after the border
+				width: "100%-4", // Account for borders and padding
+				height: "100%-3", // Account for borders
 				items: [],
 				keys: false, // Disable built-in key handling
 				vi: false,
@@ -151,7 +160,6 @@ export async function renderBoardTui(
 
 			// Store reference for navigation
 			columns.push({ box: column, list: taskList, status, tasks: tasksInStatus });
-			leftOffset += columnWidth;
 		});
 
 		// Current column index and popup state
