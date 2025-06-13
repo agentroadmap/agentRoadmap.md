@@ -1,7 +1,7 @@
 ---
 id: task-37
 title: 'CLI: Board view open tasks in IDE'
-status: To Do
+status: In Progress
 assignee:
   - '@AI'
 created_date: '2025-06-10'

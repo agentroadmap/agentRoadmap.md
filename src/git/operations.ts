@@ -115,6 +115,27 @@ export class GitOperations {
 		return stdout;
 	}
 
+	async getFileLastModifiedTime(ref: string, filePath: string): Promise<Date | null> {
+		try {
+			// Get the last commit that modified this file in the given ref
+			const { stdout } = await this.execGit([
+				"log",
+				"-1",
+				"--format=%aI", // Author date in ISO 8601 format
+				ref,
+				"--",
+				filePath,
+			]);
+			const timestamp = stdout.trim();
+			if (timestamp) {
+				return new Date(timestamp);
+			}
+			return null;
+		} catch {
+			return null;
+		}
+	}
+
 	private async execGit(args: string[]): Promise<{ stdout: string; stderr: string }> {
 		try {
 			const proc = Bun.spawn(["git", ...args], {

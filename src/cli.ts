@@ -10,6 +10,12 @@ import { multiSelect, promptText, scrollableViewer, selectList } from "./ui/tui.
 // Kanban TUI renderer
 import { renderBoardTui } from "./ui/board.ts";
 
+// Loading screen utilities
+import { createLoadingScreen, withLoadingScreen } from "./ui/loading.ts";
+
+// Remote task loading utilities
+import { type TaskWithMetadata, loadRemoteTasks, resolveTaskConflict } from "./core/remote-tasks.ts";
+
 import { Command } from "commander";
 import { DEFAULT_STATUSES, FALLBACK_STATUS } from "./constants/index.ts";
 import {
@@ -101,20 +107,29 @@ program
 	});
 
 async function generateNextId(core: Core, parent?: string): Promise<string> {
-	const tasks = await core.filesystem.listTasks();
-	const drafts = await core.filesystem.listDrafts();
+	// Load local tasks and drafts in parallel
+	const [tasks, drafts] = await Promise.all([core.filesystem.listTasks(), core.filesystem.listDrafts()]);
 	const all = [...tasks, ...drafts];
 
 	const remoteIds: string[] = [];
 	try {
 		await core.gitOps.fetch();
 		const branches = await core.gitOps.listRemoteBranches();
-		for (const branch of branches) {
+
+		// Load files from all branches in parallel
+		const branchFilePromises = branches.map(async (branch) => {
 			const files = await core.gitOps.listFilesInRemoteBranch(branch, ".backlog/tasks");
-			for (const file of files) {
-				const match = file.match(/task-([\d.]+)/);
-				if (match) remoteIds.push(`task-${match[1]}`);
-			}
+			return files
+				.map((file) => {
+					const match = file.match(/task-([\d.]+)/);
+					return match ? `task-${match[1]}` : null;
+				})
+				.filter((id): id is string => id !== null);
+		});
+
+		const branchResults = await Promise.all(branchFilePromises);
+		for (const branchIds of branchResults) {
+			remoteIds.push(...branchIds);
 		}
 	} catch {}
 
@@ -483,43 +498,39 @@ function addBoardOptions(cmd: Command) {
 		.option("--vertical", "use vertical layout (shortcut for --layout vertical)");
 }
 
+// TaskWithMetadata and resolveTaskConflict are now imported from remote-tasks.ts
+
 async function handleBoardView(options: { layout?: string; vertical?: boolean }) {
 	const cwd = process.cwd();
 	const core = new Core(cwd);
 	const config = await core.filesystem.loadConfig();
 	const statuses = config?.statuses || [];
+	const resolutionStrategy = config?.taskResolutionStrategy || "most_progressed";
 
-	const localTasks = await core.filesystem.listTasks();
-	const tasksById = new Map(localTasks.map((t) => [t.id, t]));
+	// Load tasks with loading screen
+	const allTasks = await withLoadingScreen("Loading tasks from local and remote branches", async () => {
+		// Load local tasks
+		const localTasks = await core.filesystem.listTasksWithMetadata();
+		const tasksById = new Map<string, TaskWithMetadata>(
+			localTasks.map((t) => [t.id, { ...t, source: "local" } as TaskWithMetadata]),
+		);
 
-	try {
-		await core.gitOps.fetch();
-		const branches = await core.gitOps.listRemoteBranches();
+		// Load remote tasks in parallel
+		const remoteTasks = await loadRemoteTasks(core.gitOps);
 
-		for (const branch of branches) {
-			const ref = `origin/${branch}`;
-			const files = await core.gitOps.listFilesInTree(ref, ".backlog/tasks");
-			for (const file of files) {
-				const content = await core.gitOps.showFile(ref, file);
-				const task = parseTask(content);
-				const existing = tasksById.get(task.id);
-				if (!existing) {
-					tasksById.set(task.id, task);
-					continue;
-				}
-
-				const currentIdx = statuses.indexOf(existing.status);
-				const newIdx = statuses.indexOf(task.status);
-				if (newIdx > currentIdx || currentIdx === -1 || newIdx === currentIdx) {
-					tasksById.set(task.id, task);
-				}
+		// Merge remote tasks with local tasks
+		for (const remoteTask of remoteTasks) {
+			const existing = tasksById.get(remoteTask.id);
+			if (!existing) {
+				tasksById.set(remoteTask.id, remoteTask);
+			} else {
+				const resolved = resolveTaskConflict(existing, remoteTask, statuses, resolutionStrategy);
+				tasksById.set(remoteTask.id, resolved);
 			}
 		}
-	} catch {
-		// Ignore remote errors
-	}
 
-	const allTasks = Array.from(tasksById.values());
+		return Array.from(tasksById.values());
+	});
 
 	if (allTasks.length === 0) {
 		console.log("No tasks found.");
@@ -545,45 +556,53 @@ boardCmd
 		const core = new Core(cwd);
 		const config = await core.filesystem.loadConfig();
 		const statuses = config?.statuses || [];
+		const resolutionStrategy = config?.taskResolutionStrategy || "most_progressed";
 
-		const localTasks = await core.filesystem.listTasks();
-		const tasksById = new Map(localTasks.map((t) => [t.id, t]));
+		// Load tasks with progress tracking
+		const loadingScreen = await createLoadingScreen("Loading tasks for export");
 
 		try {
-			await core.gitOps.fetch();
-			const branches = await core.gitOps.listRemoteBranches();
+			// Load local tasks
+			loadingScreen?.update("Loading local tasks...");
+			const localTasks = await core.filesystem.listTasksWithMetadata();
+			const tasksById = new Map<string, TaskWithMetadata>(
+				localTasks.map((t) => [t.id, { ...t, source: "local" } as TaskWithMetadata]),
+			);
+			loadingScreen?.update(`Found ${localTasks.length} local tasks`);
 
-			for (const branch of branches) {
-				const ref = `origin/${branch}`;
-				const files = await core.gitOps.listFilesInTree(ref, ".backlog/tasks");
-				for (const file of files) {
-					const content = await core.gitOps.showFile(ref, file);
-					const task = parseTask(content);
-					const existing = tasksById.get(task.id);
-					if (!existing) {
-						tasksById.set(task.id, task);
-						continue;
-					}
+			// Load remote tasks in parallel
+			loadingScreen?.update("Loading remote tasks...");
+			const remoteTasks = await loadRemoteTasks(core.gitOps, (msg) => loadingScreen?.update(msg));
 
-					const currentIdx = statuses.indexOf(existing.status);
-					const newIdx = statuses.indexOf(task.status);
-					if (newIdx > currentIdx || currentIdx === -1 || newIdx === currentIdx) {
-						tasksById.set(task.id, task);
-					}
+			// Merge remote tasks with local tasks
+			loadingScreen?.update("Merging tasks...");
+			for (const remoteTask of remoteTasks) {
+				const existing = tasksById.get(remoteTask.id);
+				if (!existing) {
+					tasksById.set(remoteTask.id, remoteTask);
+				} else {
+					const resolved = resolveTaskConflict(existing, remoteTask, statuses, resolutionStrategy);
+					tasksById.set(remoteTask.id, resolved);
 				}
 			}
-		} catch {
-			// Ignore remote errors
-		}
 
-		const allTasks = Array.from(tasksById.values());
-		// Priority: filename argument > --output option > default readme.md
-		const outputFile = filename || options.output || "readme.md";
-		const outputPath = join(cwd, outputFile as string);
-		const maxColumnWidth = config?.maxColumnWidth || 30; // Default for export
-		const addTitle = !filename && !options.output; // Add title only for default readme export
-		await exportKanbanBoardToFile(allTasks, statuses, outputPath, maxColumnWidth, addTitle);
-		console.log(`Exported board to ${outputPath}`);
+			const allTasks = Array.from(tasksById.values());
+			loadingScreen?.update(`Total tasks: ${allTasks.length}`);
+
+			// Close loading screen before export
+			loadingScreen?.close();
+
+			// Priority: filename argument > --output option > default readme.md
+			const outputFile = filename || options.output || "readme.md";
+			const outputPath = join(cwd, outputFile as string);
+			const maxColumnWidth = config?.maxColumnWidth || 30; // Default for export
+			const addTitle = !filename && !options.output; // Add title only for default readme export
+			await exportKanbanBoardToFile(allTasks, statuses, outputPath, maxColumnWidth, addTitle);
+			console.log(`Exported board to ${outputPath}`);
+		} catch (error) {
+			loadingScreen?.close();
+			throw error;
+		}
 	});
 
 const docCmd = program.command("doc");
