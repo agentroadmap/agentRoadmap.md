@@ -88,7 +88,20 @@ export class GitOperations {
 
 		const hasChanges = !(await this.isClean());
 		if (hasChanges) {
-			await this.commitChanges(`backlog: ${message}`);
+			try {
+				await this.commitChanges(`backlog: ${message}`);
+			} catch (error) {
+				// Check if the error is due to missing git config
+				if (error instanceof Error && error.message.includes("Please tell me who you are")) {
+					throw new Error(
+						"Git user configuration is missing. Please configure git with:\n" +
+							'  git config --global user.name "Your Name"\n' +
+							'  git config --global user.email "your.email@example.com"\n' +
+							"Then try again.",
+					);
+				}
+				throw error;
+			}
 		}
 	}
 

@@ -41,122 +41,95 @@ async function loadBlessed(): Promise<any | null> {
 
 // Ask the user for a single line of input.  Falls back to readline.
 export async function promptText(message: string, defaultValue = ""): Promise<string> {
-	const blessed = await loadBlessed();
-	if (!blessed) {
-		// Fallback to readline prompt
-		const { createInterface } = await import("node:readline/promises");
-		const rl = createInterface({ input, output });
-		const answer = (await rl.question(`${message} `)).trim();
-		rl.close();
-		return answer || defaultValue;
-	}
-
-	return new Promise<string>((resolve) => {
-		const screen = blessed.screen({ smartCSR: true });
-
-		const form = blessed.form({
-			parent: screen,
-			keys: true,
-			left: "center",
-			top: "center",
-			width: "50%",
-			height: 5,
-			border: "line",
-			label: ` ${message} `,
-		});
-
-		const textbox = blessed.textbox({
-			parent: form,
-			name: "input",
-			inputOnFocus: true,
-			top: 1,
-			left: 1,
-			width: "95%",
-			height: 1,
-			padding: { left: 1, right: 1 },
-			border: "line",
-			value: defaultValue,
-		});
-
-		textbox.focus();
-
-		form.on("submit", (data: { input: string }) => {
-			screen.destroy();
-			resolve(data.input.trim());
-		});
-
-		screen.key(["enter"], () => {
-			form.submit();
-		});
-
-		screen.key(["escape", "C-c"], () => {
-			screen.destroy();
-			resolve("");
-		});
-
-		screen.render();
-	});
+	// Always use readline for simple text input to avoid blessed rendering quirks
+	const { createInterface } = await import("node:readline/promises");
+	const rl = createInterface({ input, output });
+	const answer = (await rl.question(`${message} `)).trim();
+	rl.close();
+	return answer || defaultValue;
 }
 
 // Multi-select check-box style prompt.  Returns the values selected by the user.
 export async function multiSelect<T extends string>(message: string, options: T[]): Promise<T[]> {
-	const blessed = await loadBlessed();
-	if (!blessed) {
-		// Non-interactive fallback: nothing selected.
-		return [];
-	}
+	// Use simple console-based interface for reliability
+	console.log(`\n${message}`);
+	console.log("Use ↑/↓ to navigate, SPACE to select/deselect, ENTER to confirm\n");
+
+	const selected = new Set<number>();
+	let currentIndex = 0;
+
+	const renderOptions = () => {
+		// Clear previous output
+		process.stdout.write("\x1B[2J\x1B[0f");
+		console.log(`\n${message}`);
+		console.log("Use ↑/↓ to navigate, SPACE to select/deselect, ENTER to confirm\n");
+
+		options.forEach((option, index) => {
+			const isSelected = selected.has(index);
+			const isCurrent = index === currentIndex;
+			const checkbox = isSelected ? "[✓]" : "[ ]";
+			const pointer = isCurrent ? "❯" : " ";
+			const highlight = isCurrent ? "\x1b[36m" : ""; // cyan for current
+			const reset = isCurrent ? "\x1b[0m" : "";
+
+			console.log(`${pointer} ${highlight}${checkbox} ${option}${reset}`);
+		});
+
+		console.log("\nPress ENTER to continue...");
+	};
 
 	return new Promise<T[]>((resolve) => {
-		const screen = blessed.screen({ smartCSR: true });
-
-		const list = blessed.list({
-			parent: screen,
-			label: ` ${message} `,
-			width: "50%",
-			height: "60%",
-			top: "center",
-			left: "center",
-			border: "line",
-			items: options.map((o) => `[ ] ${o}`),
-			keys: true,
-			vi: true,
-			mouse: true,
-		});
-
-		const selected = new Set<number>();
-
-		// biome-ignore lint/suspicious/noExplicitAny: blessed event handler
-		list.on("select", (item: any, idx: number) => {
-			if (selected.has(idx)) {
-				selected.delete(idx);
-			} else {
-				selected.add(idx);
-			}
-			// Toggle indicator
-			const prefix = selected.has(idx) ? "[x]" : "[ ]";
-			list.setItem(idx, `${prefix} ${options[idx]}`);
-			screen.render();
-		});
-
-		screen.key(["space"], () => {
-			// emulate select event for current item
-			const idx = list.selected ?? 0;
-			list.emit("select", null, idx);
-		});
-
-		screen.key(["enter"], () => {
-			const values = Array.from(selected).map((i) => options[i]);
-			screen.destroy();
-			resolve(values);
-		});
-
-		screen.key(["escape", "C-c"], () => {
-			screen.destroy();
+		if (options.length === 0) {
 			resolve([]);
-		});
+			return;
+		}
 
-		list.focus();
-		screen.render();
+		renderOptions();
+
+		process.stdin.setRawMode(true);
+		process.stdin.resume();
+		process.stdin.setEncoding("utf8");
+
+		const onKeyPress = (key: string) => {
+			switch (key) {
+				case "\u001b[A": // Up arrow
+					currentIndex = currentIndex > 0 ? currentIndex - 1 : options.length - 1;
+					renderOptions();
+					break;
+				case "\u001b[B": // Down arrow
+					currentIndex = currentIndex < options.length - 1 ? currentIndex + 1 : 0;
+					renderOptions();
+					break;
+				case " ": // Space
+					if (selected.has(currentIndex)) {
+						selected.delete(currentIndex);
+					} else {
+						selected.add(currentIndex);
+					}
+					renderOptions();
+					break;
+				case "\r": // Enter
+				case "\n": {
+					process.stdin.setRawMode(false);
+					process.stdin.pause();
+					process.stdin.removeListener("data", onKeyPress);
+					const selectedOptions = Array.from(selected).map((i) => options[i]);
+					console.log(`\nSelected: ${selectedOptions.length > 0 ? selectedOptions.join(", ") : "none"}\n`);
+					resolve(selectedOptions);
+					break;
+				}
+				case "\u0003": // Ctrl+C
+				case "\u001b": // Escape
+					process.stdin.setRawMode(false);
+					process.stdin.pause();
+					process.stdin.removeListener("data", onKeyPress);
+					console.log("\nCancelled.\n");
+					resolve([]);
+					break;
+			}
+		};
+
+		process.stdin.on("data", onKeyPress);
 	});
 }
 
@@ -169,7 +142,10 @@ export async function scrollableViewer(content: string): Promise<void> {
 	}
 
 	return new Promise<void>((resolve) => {
-		const screen = blessed.screen({ smartCSR: true });
+		const screen = blessed.screen({
+			smartCSR: true,
+			style: { fg: "white", bg: "black" },
+		});
 
 		const box = blessed.box({
 			parent: screen,
@@ -207,7 +183,10 @@ export async function selectList<T extends { id: string; title: string }>(
 	}
 
 	return new Promise<T | null>((resolve) => {
-		const screen = blessed.screen({ smartCSR: true });
+		const screen = blessed.screen({
+			smartCSR: true,
+			style: { fg: "white", bg: "black" },
+		});
 
 		// Group items if groupBy is provided
 		const groups = new Map<string, T[]>();
@@ -261,10 +240,9 @@ export async function selectList<T extends { id: string; title: string }>(
 			alwaysScroll: true,
 			tags: true,
 			style: {
-				selected: {
-					bg: "blue",
-					fg: "white",
-				},
+				item: { fg: "white", bg: "black" },
+				selected: { bg: "blue", fg: "white" },
+				border: { fg: "white" },
 			},
 		});
 
