@@ -31,7 +31,7 @@ To publish a new version to npm:
    git push origin v<version>
    ```
 3. Push the tag to trigger the GitHub Actions workflow. It will build, test and
-   publish the package to npm using the repository `NODE_AUTH_TOKEN` secret.
+   publish the package to npm using the repository `NPM_TOKEN` secret.
 
 [← Back to README](README.md)
 
