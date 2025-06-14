@@ -1,15 +1,14 @@
 /* Enhanced task viewer for displaying task details in a structured format */
 
-import { stdin as input, stdout as output } from "node:process";
+import { stdout as output } from "node:process";
 import blessed from "blessed";
 import { Core } from "../core/backlog.ts";
-import { parseMarkdown } from "../markdown/parser.ts";
 import type { Task } from "../types/index.ts";
 import { formatChecklistItem, parseCheckboxLine } from "./checklist.ts";
 import { transformCodePaths, transformCodePathsPlain } from "./code-path.ts";
+import { createGenericList } from "./components/generic-list.ts";
 import { formatHeading } from "./heading.ts";
-import { formatStatusWithIcon, getStatusColor, getStatusIcon } from "./status-icon.ts";
-import { TaskList } from "./task-list.ts";
+import { formatStatusWithIcon, getStatusColor } from "./status-icon.ts";
 
 /**
  * Extract only the Description section content from markdown, avoiding duplication
@@ -43,16 +42,25 @@ function extractAcceptanceCriteriaWithCheckboxes(content: string): string[] {
 /**
  * Display task details in a split-pane UI with task list on left and detail on right
  */
-export async function viewTaskEnhanced(task: Task, content: string): Promise<void> {
+export async function viewTaskEnhanced(
+	task: Task,
+	content: string,
+	options: {
+		tasks?: Task[];
+		core?: Core;
+		title?: string;
+		filterDescription?: string;
+	} = {},
+): Promise<void> {
 	if (output.isTTY === false) {
 		console.log(formatTaskPlainText(task, content));
 		return;
 	}
 
-	// Get project root and load all tasks
+	// Get project root and load tasks
 	const cwd = process.cwd();
-	const core = new Core(cwd);
-	const allTasks = await core.filesystem.listTasks();
+	const core = options.core || new Core(cwd);
+	const allTasks = options.tasks || (await core.filesystem.listTasks());
 
 	// Find the initial selected task index
 	const initialIndex = allTasks.findIndex((t) => t.id === task.id);
@@ -61,7 +69,7 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 
 	const screen = blessed.screen({
 		smartCSR: true,
-		title: "Backlog Tasks",
+		title: options.title || "Backlog Tasks",
 	});
 
 	// Main container using grid layout
@@ -101,12 +109,25 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 		// },
 	});
 
-	// Create task list
-	const taskList = new TaskList({
+	// Create task list using generic list component
+	const taskList = createGenericList<Task>({
 		parent: taskListPane,
-		tasks: allTasks,
+		title: options.title || "Tasks",
+		items: allTasks,
 		selectedIndex: Math.max(0, initialIndex),
-		onSelect: (selectedTask: Task, index: number) => {
+		itemRenderer: (task: Task) => {
+			const statusIcon = formatStatusWithIcon(task.status);
+			const statusColor = getStatusColor(task.status);
+			const assigneeText = task.assignee?.length
+				? ` {cyan-fg}${task.assignee[0]?.startsWith("@") ? task.assignee[0] : `@${task.assignee[0]}`}{/}`
+				: "";
+			const labelsText = task.labels?.length ? ` {yellow-fg}[${task.labels.join(", ")}]{/}` : "";
+
+			return `{${statusColor}-fg}${statusIcon}{/} {bold}${task.id}{/bold} - ${task.title}${assigneeText}${labelsText}`;
+		},
+		onSelect: (selected: Task | Task[]) => {
+			const selectedTask = Array.isArray(selected) ? selected[0] : selected;
+			if (!selectedTask) return;
 			currentSelectedTask = selectedTask;
 			// Load the content for the selected task asynchronously
 			(async () => {
@@ -129,6 +150,9 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 				refreshDetailPane();
 			})();
 		},
+		width: "100%",
+		height: "100%",
+		showHelp: false, // We'll show help in the footer
 	});
 
 	// Detail pane components
@@ -305,13 +329,7 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 		screen.render();
 	}
 
-	await taskList.create({
-		parent: taskListPane,
-		tasks: allTasks,
-		selectedIndex: Math.max(0, initialIndex),
-		width: "100%",
-		height: "100%",
-	});
+	// Generic list is already created and initialized above
 
 	// Initial render of detail pane
 	refreshDetailPane();
@@ -325,7 +343,9 @@ export async function viewTaskEnhanced(task: Task, content: string): Promise<voi
 			width: "100%",
 			height: 1,
 			border: "line",
-			content: " ↑/↓ navigate · Tab switch pane · ←/→ scroll · q/Esc quit ",
+			content: options.filterDescription
+				? ` Filter: ${options.filterDescription} · ↑/↓ navigate · Tab switch · q/Esc quit `
+				: " ↑/↓ navigate · Tab switch pane · ←/→ scroll · q/Esc quit ",
 			style: {
 				fg: "gray",
 				border: { fg: "gray" },

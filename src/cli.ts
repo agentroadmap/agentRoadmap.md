@@ -3,9 +3,10 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { genericMultiSelect, genericSelectList } from "./ui/components/generic-list.ts";
 import { viewTaskEnhanced } from "./ui/task-viewer.ts";
 // Interactive TUI helpers (bblessed based)
-import { multiSelect, promptText, scrollableViewer, selectList } from "./ui/tui.ts";
+import { promptText, scrollableViewer } from "./ui/tui.ts";
 
 // Kanban TUI renderer
 import { renderBoardTui } from "./ui/board.ts";
@@ -79,9 +80,9 @@ program
 				storeGlobal = store.startsWith("y");
 			}
 
-			const options = [".cursorrules", "CLAUDE.md", "AGENTS.md", "readme.md"] as const;
-			const selected = await multiSelect("Select agent instruction files to update", options as unknown as string[]);
-			const files: AgentInstructionFile[] = (selected ?? []) as AgentInstructionFile[];
+			const options = [".cursorrules", "CLAUDE.md", "AGENTS.md", "readme.md"].map((name) => ({ id: name }));
+			const selected = await genericMultiSelect("Select agent instruction files to update", options);
+			const files: AgentInstructionFile[] = selected.map((item) => item.id) as AgentInstructionFile[];
 
 			const core = new Core(cwd);
 			await core.initializeProject(name);
@@ -310,17 +311,46 @@ taskCmd
 			return;
 		}
 
-		// Interactive UI
-		const selected = await selectList("Select a task", filtered, (task) => task.status || "No Status");
-		if (selected) {
-			// Show task details
+		// Interactive UI - use enhanced viewer directly for unified presentation
+		if (filtered.length > 0) {
+			// Use the first task as the initial selection and load its content
+			const firstTask = filtered[0];
+			if (!firstTask) {
+				console.log("No tasks found.");
+				return;
+			}
+
 			const files = await Array.fromAsync(new Bun.Glob("*.md").scan({ cwd: core.filesystem.tasksDir }));
-			const taskFile = files.find((f) => f.startsWith(`${selected.id} -`));
+			const taskFile = files.find((f) => f.startsWith(`${firstTask.id} -`));
+
+			let initialContent = "";
 			if (taskFile) {
 				const filePath = join(core.filesystem.tasksDir, taskFile);
-				const content = await Bun.file(filePath).text();
-				await viewTaskEnhanced(selected, content);
+				initialContent = await Bun.file(filePath).text();
 			}
+
+			// Build filter description for the footer and title
+			let filterDescription = "";
+			let title = "Tasks";
+
+			if (options.status && options.assignee) {
+				filterDescription = `Status: ${options.status}, Assignee: ${options.assignee}`;
+				title = `Tasks (${options.status} • ${options.assignee})`;
+			} else if (options.status) {
+				filterDescription = `Status: ${options.status}`;
+				title = `Tasks (${options.status})`;
+			} else if (options.assignee) {
+				filterDescription = `Assignee: ${options.assignee}`;
+				title = `Tasks (${options.assignee})`;
+			}
+
+			// Use enhanced viewer with filtered tasks and custom title
+			await viewTaskEnhanced(firstTask, initialContent, {
+				tasks: filtered,
+				core,
+				title,
+				filterDescription,
+			});
 		}
 	});
 
@@ -637,7 +667,7 @@ docCmd
 		const id = await generateNextDocId(core);
 		const document: DocType = {
 			id,
-			title,
+			title: title as string,
 			type: (options.type || "other") as DocType["type"],
 			createdDate: new Date().toISOString().split("T")[0],
 			content: "",
@@ -667,7 +697,7 @@ docCmd
 		}
 
 		// Interactive UI
-		const selected = await selectList("Select a document", docs);
+		const selected = await genericSelectList("Select a document", docs);
 		if (selected) {
 			// Show document details
 			const files = await Array.fromAsync(new Bun.Glob("*.md").scan({ cwd: core.filesystem.docsDir }));
@@ -714,7 +744,7 @@ decisionCmd
 		const id = await generateNextDecisionId(core);
 		const decision: DecisionLog = {
 			id,
-			title,
+			title: title as string,
 			date: new Date().toISOString().split("T")[0],
 			status: (options.status || "proposed") as DecisionLog["status"],
 			context: "",
@@ -746,7 +776,7 @@ decisionCmd
 		}
 
 		// Interactive UI
-		const selected = await selectList("Select a decision", decisions);
+		const selected = await genericSelectList("Select a decision", decisions);
 		if (selected) {
 			// Show decision details
 			const files = await Array.fromAsync(new Bun.Glob("*.md").scan({ cwd: core.filesystem.decisionsDir }));
