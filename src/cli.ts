@@ -78,7 +78,7 @@ program
 				storeGlobal = store.startsWith("y");
 			}
 
-			const agentOptions = [".cursorrules", "CLAUDE.md", "AGENTS.md", "readme.md"] as const;
+			const agentOptions = [".cursorrules", "CLAUDE.md", "AGENTS.md"] as const;
 			const { files: selected } = await prompts({
 				type: "multiselect",
 				name: "files",
