@@ -8,7 +8,7 @@
   <a href="https://bun.sh">
     <img src="https://badgen.net/badge/bun/add%20backlog.md/black?icon=bun">
   </a>
-  <a href="LICENSE"><img src="https://badgen.net/github/license/your-org/backlog.md"></a>
+  <a href="LICENSE"><img src="https://badgen.net/github/license/MrLesk/backlog.md"></a>
 </p>
 
 ---
