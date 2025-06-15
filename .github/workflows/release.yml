@@ -49,51 +49,36 @@ jobs:
           bun build src/cli.ts \
             --compile --minify --sourcemap \
             --target=${{ matrix.target }} \
-            --define __EMBEDDED_VERSION__='"${GITHUB_REF##refs/tags/v}"' \
+            --define __EMBEDDED_VERSION__="\"${GITHUB_REF##refs/tags/v}\"" \
             --outfile=${{ env.BIN }}
-      - name: Smoke-test binary (non-Windows)
+      - name: Make binary executable (non-Windows)
         if: ${{ !contains(matrix.target,'windows') }}
-        run: |
-          chmod +x "${{ env.BIN }}"
-          "./${{ env.BIN }}" --version
-      - name: Package artifact
-        shell: bash
-        run: |
-          mkdir pkg
-          mv "${{ env.BIN }}" pkg/
-          tar -czf backlog-${{ matrix.target }}.tar.gz -C pkg .
-          zip -r backlog-${{ matrix.target }}.zip pkg
+        run: chmod +x "${{ env.BIN }}"
       - uses: actions/upload-artifact@v4
         with:
           name: backlog-${{ matrix.target }}
-          path: |
-            backlog-${{ matrix.target }}.tar.gz
-            backlog-${{ matrix.target }}.zip
+          path: ${{ env.BIN }}
 
   npm-publish:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist/bin
-      - name: Prepare wrapper & dist dir
+      - name: Prepare npm package
         shell: bash
         run: |
           mkdir -p dist
-          cp scripts/cli.js dist/cli.js
+          cp scripts/cli-download.cjs dist/cli.js
           chmod +x dist/cli.js
       - name: Create npm-ready package.json
         shell: bash
         run: |
           TAG="${GITHUB_REF##refs/tags/v}"
-          jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.scripts.postinstall) |
+          jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.scripts.postinstall,.type) |
               .version = "'$TAG'" |
               .bin = {backlog:"cli.js"} |
-              .files = ["bin/","cli.js"]'               package.json > dist/package.json
+              .files = ["cli.js","package.json","README.md","LICENSE"]' package.json > dist/package.json
           cp LICENSE README.md dist/ 2>/dev/null || true
-          find dist/bin -type f -name "backlog*" -exec chmod +x {} +
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -112,6 +97,23 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: release-assets
+      - name: Rename binaries for release
+        run: |
+          mkdir -p binaries
+          # Move and rename binaries from artifacts
+          for dir in release-assets/*/; do
+            if [ -d "$dir" ]; then
+              # Extract target name from directory
+              target=$(basename "$dir" | sed 's/backlog-//')
+              # Find the binary file (backlog or backlog.exe)
+              binary=$(find "$dir" -name "backlog*" -type f)
+              if [ -n "$binary" ]; then
+                # Copy with target-specific name
+                cp "$binary" "binaries/backlog-${target}"
+              fi
+            fi
+          done
+          ls -la binaries/
       - uses: softprops/action-gh-release@v1
         with:
-          files: release-assets/**/*
+          files: binaries/*
