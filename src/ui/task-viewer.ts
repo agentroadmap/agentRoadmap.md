@@ -31,7 +31,7 @@ function extractAcceptanceCriteriaWithCheckboxes(content: string): string[] {
 	// Look for ## Acceptance Criteria section
 	const regex = /## Acceptance Criteria\s*\n([\s\S]*?)(?=\n## |$)/i;
 	const match = content.match(regex);
-	if (!match) return [];
+	if (!match || !match[1]) return [];
 
 	return match[1]
 		.split("\n")
@@ -342,13 +342,12 @@ export async function viewTaskEnhanced(
 			left: 0,
 			width: "100%",
 			height: 1,
-			border: "line",
 			content: options.filterDescription
 				? ` Filter: ${options.filterDescription} · ↑/↓ navigate · Tab switch · q/Esc quit `
 				: " ↑/↓ navigate · Tab switch pane · ←/→ scroll · q/Esc quit ",
 			style: {
 				fg: "gray",
-				border: { fg: "gray" },
+				bg: "black",
 			},
 		});
 
