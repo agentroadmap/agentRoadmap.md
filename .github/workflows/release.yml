@@ -69,6 +69,7 @@ jobs:
         run: |
           mkdir -p dist
           cp scripts/cli-download.cjs dist/cli.js
+          cp scripts/getBinaryName.cjs dist/getBinaryName.cjs
           chmod +x dist/cli.js
       - name: Create npm-ready package.json
         shell: bash
@@ -77,7 +78,7 @@ jobs:
           jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.scripts.postinstall,.type) |
               .version = "'$TAG'" |
               .bin = {backlog:"cli.js"} |
-              .files = ["cli.js","package.json","README.md","LICENSE"]' package.json > dist/package.json
+              .files = ["cli.js","getBinaryName.cjs","package.json","README.md","LICENSE"]' package.json > dist/package.json
           cp LICENSE README.md dist/ 2>/dev/null || true
       - uses: actions/setup-node@v4
         with:
@@ -108,8 +109,12 @@ jobs:
               # Find the binary file (backlog or backlog.exe)
               binary=$(find "$dir" -name "backlog*" -type f)
               if [ -n "$binary" ]; then
-                # Copy with target-specific name
-                cp "$binary" "binaries/backlog-${target}"
+                # Preserve .exe extension for Windows binaries
+                if [[ "$target" == *"windows"* ]] && [[ "$binary" == *".exe" ]]; then
+                  cp "$binary" "binaries/backlog-${target}.exe"
+                else
+                  cp "$binary" "binaries/backlog-${target}"
+                fi
               fi
             fi
           done
