@@ -2,12 +2,8 @@
 <p align="center">✏️ Markdown‑native Task Manager &amp; Kanban visualizer for any Git repository</p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/backlog.md">
-    <img src="https://badgen.net/npm/v/backlog.md?icon=npm&label=npm">
-  </a>
-  <a href="https://bun.sh">
-    <img src="https://badgen.net/badge/bun/add%20backlog.md/black?icon=bun">
-  </a>
+  <a href="https://www.npmjs.com/package/backlog.md"><img src="https://badgen.net/npm/v/backlog.md?icon=npm&label=npm&color=blue"></a>
+  <a href="https://bun.sh"><img src="https://badgen.net/badge/bun/add%20backlog.md/black?icon=bun"></a>
   <a href="LICENSE"><img src="https://badgen.net/github/license/MrLesk/backlog.md"></a>
 </p>
 
