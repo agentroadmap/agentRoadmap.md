@@ -22,6 +22,14 @@ import {
 import type { DecisionLog, Document as DocType, Task } from "./types/index.ts";
 import { getVersion } from "./utils/version.ts";
 
+// Windows color fix
+if (process.platform === "win32") {
+	const term = process.env.TERM;
+	if (!term || /^(xterm|dumb|ansi|vt100)$/i.test(term)) {
+		process.env.TERM = "xterm-256color";
+	}
+}
+
 // Get version from package.json
 const version = await getVersion();
 

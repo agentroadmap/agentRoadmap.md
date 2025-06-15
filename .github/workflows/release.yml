@@ -46,11 +46,7 @@ jobs:
       - name: Compile standalone binary
         shell: bash
         run: |
-          bun build src/cli.ts \
-            --compile --minify --sourcemap \
-            --target=${{ matrix.target }} \
-            --define __EMBEDDED_VERSION__="\"${GITHUB_REF##refs/tags/v}\"" \
-            --outfile=${{ env.BIN }}
+          bun build src/cli.ts --compile --minify --sourcemap --target=${{ matrix.target }} --define __EMBEDDED_VERSION__="\"${GITHUB_REF##refs/tags/v}\"" --outfile=${{ env.BIN }}
       - name: Make binary executable (non-Windows)
         if: ${{ !contains(matrix.target,'windows') }}
         run: chmod +x "${{ env.BIN }}"
@@ -78,13 +74,15 @@ jobs:
           jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.scripts.postinstall,.type) |
               .version = "'$TAG'" |
               .bin = {backlog:"cli.js"} |
-              .files = ["cli.js","resolveBinary.cjs","package.json","README.md","LICENSE"] |
-              .optionalDependencies."backlog.md-linux-x64" = "'$TAG'" |
-              .optionalDependencies."backlog.md-linux-arm64" = "'$TAG'" |
-              .optionalDependencies."backlog.md-darwin-x64" = "'$TAG'" |
-              .optionalDependencies."backlog.md-darwin-arm64" = "'$TAG'" |
-              .optionalDependencies."backlog.md-windows-x64" = "'$TAG'"' package.json > dist/package.json
-          cp LICENSE README.md dist/ 2>/dev/null || true
+              .files = ["cli.js","resolveBinary.cjs","package.json","readme.md","LICENSE"] |
+              .dependencies = {
+                "backlog.md-linux-x64"  : "'$TAG'",
+                "backlog.md-linux-arm64": "'$TAG'",
+                "backlog.md-darwin-x64" : "'$TAG'",
+                "backlog.md-darwin-arm64": "'$TAG'",
+                "backlog.md-windows-x64": "'$TAG'"
+              }' package.json > dist/package.json
+          cp LICENSE readme.md dist/ 2>/dev/null || true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -133,7 +131,7 @@ jobs:
           TAG="${GITHUB_REF##refs/tags/v}"
           mkdir -p pkg
           mv backlog* pkg/
-          cp LICENSE README.md pkg/ 2>/dev/null || true
+          cp LICENSE readme.md pkg/ 2>/dev/null || true
           cat <<EOF > pkg/package.json
           {
             "name": "${{ matrix.package }}",
@@ -165,15 +163,11 @@ jobs:
       - name: Rename binaries for release
         run: |
           mkdir -p binaries
-          # Move and rename binaries from artifacts
           for dir in release-assets/*/; do
             if [ -d "$dir" ]; then
-              # Extract target name from directory
               target=$(basename "$dir" | sed 's/backlog-//')
-              # Find the binary file (backlog or backlog.exe)
               binary=$(find "$dir" -name "backlog*" -type f)
               if [ -n "$binary" ]; then
-                # Preserve .exe extension for Windows binaries
                 if [[ "$target" == *"windows"* ]] && [[ "$binary" == *".exe" ]]; then
                   cp "$binary" "binaries/backlog-${target}.exe"
                 else
