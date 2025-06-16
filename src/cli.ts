@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";

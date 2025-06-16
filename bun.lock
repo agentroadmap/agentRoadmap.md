@@ -2,11 +2,13 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
+      "dependencies": {
+        "blessed": "github:MrLesk/neo-neo-blessed#6be9a720ad3973e439cbb93298a6c9a88d5dece1",
+      },
       "devDependencies": {
         "@biomejs/biome": "1.9.4",
         "@types/bun": "1.2.15",
         "@types/prompts": "2.4.9",
-        "blessed": "0.1.81",
         "commander": "14.0.0",
         "gray-matter": "4.0.3",
         "husky": "9.1.7",
@@ -68,7 +70,7 @@
 
     "backlog.md-windows-x64": ["backlog.md-windows-x64@0.1.25", "", { "os": "win32", "cpu": "x64", "bin": { "backlog": "backlog.exe" } }, "sha512-xlfc9kiK45CqrVnR5W0ERUvSBmYk5fG7DOvp4Wuz6FV38mtQHJ7Hb/5Kv1y1xolu40ZjaJq97oETNvcoi9rWJQ=="],
 
-    "blessed": ["blessed@0.1.81", "", { "bin": { "blessed": "./bin/tput.js" } }, "sha512-LoF5gae+hlmfORcG1M5+5XZi4LBmvlXTzwJWzUlPryN/SJdSflZvROM2TwkT0GMpq7oqT48NRd4GS7BiVBc5OQ=="],
+    "blessed": ["neo-neo-blessed@github:MrLesk/neo-neo-blessed#6be9a72", { "dependencies": { "term.js": "0.0.7" }, "bin": "./bin/tput.js" }, "MrLesk-neo-neo-blessed-6be9a72"],
 
     "braces": ["braces@3.0.3", "", { "dependencies": { "fill-range": "^7.1.1" } }, "sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA=="],
 
@@ -161,6 +163,8 @@
     "strip-ansi": ["strip-ansi@7.1.0", "", { "dependencies": { "ansi-regex": "^6.0.1" } }, "sha512-iq6eVVI64nQQTRYq2KtEg2d2uU7LElhTJwsH4YzIHZshxlgZms/wIc4VoDQTlG/IvVIrBKG06CrZnp0qv7hkcQ=="],
 
     "strip-bom-string": ["strip-bom-string@1.0.0", "", {}, "sha512-uCC2VHvQRYu+lMh4My/sFNmF2klFymLX1wHJeXnbEJERpV/ZsVuonzerjfrGpIGF7LBVa1O7i9kjiWvJiFck8g=="],
+
+    "term.js": ["term.js@0.0.7", "", {}, "sha512-c65+7Z/51TDl/owjT2BrPHhMtJu5MjcvPWTC2oAV/ybzuwUCuj5/OQ08urfEHkQpfphyXs/zZRCjZfnSC3bntA=="],
 
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
 
