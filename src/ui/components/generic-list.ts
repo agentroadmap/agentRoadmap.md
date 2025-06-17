@@ -134,7 +134,7 @@ export class GenericList<T extends GenericListItem> implements GenericListContro
 
 		this.listBox = blessed.list({
 			parent,
-			label: this.options.title ? `  ${this.options.title}  ` : undefined,
+			label: this.options.title ? `\u00A0${this.options.title}\u00A0` : undefined,
 			top: this.options.top || 0,
 			left: this.options.left || 0,
 			width: this.options.width || (parent === this.screen ? "90%" : "100%"),
