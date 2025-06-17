@@ -67,7 +67,7 @@ export async function renderBoardTui(
 				height: "100%-1",
 				border: { type: "line" },
 				style: { border: { fg: "gray" } },
-				label: ` ${getStatusIcon(status)} ${status || "No Status"} (${tasksByStatus.get(status)?.length ?? 0}) `,
+				label: `  ${getStatusIcon(status)} ${status || "No Status"} (${tasksByStatus.get(status)?.length ?? 0})  `,
 			});
 
 			const taskList = blessed.list({
