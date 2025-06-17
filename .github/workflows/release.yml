@@ -66,16 +66,18 @@ jobs:
           mkdir -p dist
           cp scripts/cli.cjs dist/cli.js
           cp scripts/resolveBinary.cjs dist/resolveBinary.cjs
+          cp scripts/postuninstall.cjs dist/postuninstall.cjs
           chmod +x dist/cli.js
       - name: Create npm-ready package.json
         shell: bash
         run: |
           TAG="${GITHUB_REF##refs/tags/v}"
-          jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.scripts.postinstall,.type) |
+          jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.type) |
               .version = "'$TAG'" |
               .bin = {backlog:"cli.js"} |
-              .files = ["cli.js","resolveBinary.cjs","package.json","readme.md","LICENSE"] |
-              .dependencies = {
+              .files = ["cli.js","resolveBinary.cjs","postuninstall.cjs","package.json","readme.md","LICENSE"] |
+              .scripts = {"postuninstall": "node postuninstall.cjs"} |
+              .optionalDependencies = {
                 "backlog.md-linux-x64"  : "'$TAG'",
                 "backlog.md-linux-arm64": "'$TAG'",
                 "backlog.md-darwin-x64" : "'$TAG'",
