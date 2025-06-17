@@ -6,7 +6,7 @@
 		"backlog": "cli/index.js"
 	},
 	"dependencies": {
-		"blessed": "npm:neo-neo-bblessed@1.0.2"
+		"blessed": "npm:neo-neo-bblessed@1.0.3"
 	},
 	"optionalDependencies": {
 		"backlog.md-darwin-arm64": "*",
