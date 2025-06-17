@@ -6,7 +6,7 @@
 		"backlog": "cli/index.js"
 	},
 	"dependencies": {
-		"blessed": "github:MrLesk/neo-neo-blessed#6be9a720ad3973e439cbb93298a6c9a88d5dece1"
+		"blessed": "npm:neo-neo-bblessed@1.0.2"
 	},
 	"optionalDependencies": {
 		"backlog.md-darwin-arm64": "*",
