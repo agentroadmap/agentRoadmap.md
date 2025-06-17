@@ -1,4 +1,6 @@
-# Project structure
+# Instructions for AI Agents Using Backlog.md CLI Tool
+
+## Project structure
 
 backlog.md/ (Root folder for "Backlog.md" project)
 └── .backlog/ ("Backlog.md" folder for managing tasks and docs)
@@ -15,21 +17,58 @@ Instructions for using the Backlog.md tool are available in the `readme.md` file
 
 Each folder contains a `readme.md` file with instructions on how to use the Backlog.md tool for that specific folder.
 
-## AI Agent Guidelines
+## 1. Source of Truth
+- Tasks live under **`.backlog/tasks/`** (drafts under **`.backlog/drafts/`**).
+- Each has YAML frontmatter & markdown content.
+- The task **markdown file** defines what to implement.
 
-- Use the markdown task files under `.backlog/tasks/` to decide what to implement.
-- Reference the task `id` in commit messages and PR titles when closing a task.
-- Subtasks use decimal numbering (e.g., `task-4.1`). Reference these IDs the same way.
-- Each task must include a `## Description` section followed by a `## Acceptance Criteria` checklist.
-- Include relevant tests when implementing new functionality or fixing bugs.
-- Keep all project documentation in Markdown format and update the related `readme.md` files when necessary.
-- Ensure the working tree is clean (`git status`) before committing changes.
-- The branch name should reflect the task being worked on, e.g., `<task-id> feature description`.
-- When beginning work on a task, immediately set its status to `In Progress`, assign yourself as the `assignee`, and push the change.
-- After implementing and testing a task, mark it as **Done** using the CLI:
-
+## 2. Your Workflow
 ```bash
-backlog task edit <task-id> --status Done
+# 1 Find something to work on
+backlog task list --status "To Do"
+
+# 2 Read details
+backlog task 42
+
+# 3 Start work: assign yourself & move column
+backlog task edit 42 -a @AI-Agent -s "In Progress" -d "Implementation Plan"
+
+# 4 Break work down if needed
+backlog task create "Refactor DB layer" -p 42 -a @AI-Agent -d "Description + Acceptance Criteria"
+
+# 5 Complete and mark Done
+backlog task edit 42 -s Done
+```
+
+## 3. Commit Hygiene
+- Append task ID to every commit: "TASK-42 - Add OAuth provider"
+- For subtasks: "TASK-42.1 - Configure Google OAuth"
+- Branch names: `tasks/task-42-oauth-provider`
+- **Clean git status** before any commit (no untracked files, no uncommitted changes)
+
+## 4. Task Files Must Have
+
+```markdown
+---
+id: task-42
+title: Add OAuth Provider
+status: In Progress
+assignee: ['@AI-Agent']
+---
+
+## Description
+Short, imperative explanation of the work.
+
+## Acceptance Criteria
+- [ ] OAuth flow triggers on `/auth`
+- [ ] Google & GitHub providers configured
+- [ ] Refresh tokens handled
+- [ ] P95 latency ≤ 50 ms under 100 RPS
+
+## Implementation Notes (only added after working on the task)
+- Added `src/graphql/resolvers/user.ts`
+- Considered DataLoader but deferred
+- Follow‑up: integrate cache layer
 ```
 
 ## Definition of Done
@@ -46,19 +85,19 @@ A task is **Done** only when **all** of the following hold:
 6. **Task hygiene**: status set to **Done** via CLI.  
 7. **No regressions**: performance, security and licence checks green.
 
-## Backlog.md Tool - CLI usage
+## Task CLI Reference
 | Purpose | Command |
 |---------|---------|
-| Create task | `backlog task create "Add OAuth"`                    |
-| Create sub task | `backlog task create --parent 14 "Add Google auth"`                    |
+| Create task | `backlog task create "Add OAuth System"`                    |
+| Create sub task | `backlog task create -p 14 "Add Login with Google"`                    |
 | List tasks  | `backlog task list`                                  |
 | View detail | `backlog task 7`                                     |
-| Edit        | `backlog task edit 7 -a @sara -l auth,backend`       |
+| Edit        | `backlog task edit 7 -a @AI-Agent -l auth,backend`       |
 | Archive     | `backlog task archive 7`                             |
 | Draft flow  | `backlog draft create "Spike GraphQL"` → `backlog draft promote 3.1` |
 | Demote to draft| `backlog task demote <id>` |
 
-## Backlog.md Tool - Tips for AI Agents
+## Tips for AI Agents
 - Keep tasks **small, atomic, and testable**; create subtasks liberally.  
 - Prefer **idempotent** changes so reruns remain safe.  
 - Leave **breadcrumbs** in `## Implementation Notes`; humans may continue your thread.  

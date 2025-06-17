@@ -1,8 +1,4 @@
-# AI Agent Guidelines
-
-*How to collaborate on Backlog.md–driven projects*
-
----
+# Instructions for the usage of Backlog.md CLI Tool
 
 ## 1. Source of Truth
 - Tasks live under **`.backlog/tasks/`** (drafts under **`.backlog/drafts/`**).
@@ -15,13 +11,13 @@
 backlog task list --status "To Do"
 
 # 2 Read details
-backlog task view 42
+backlog task 42
 
 # 3 Start work: assign yourself & move column
-backlog task edit 42 -a @ai-bot -s "In Progress"
+backlog task edit 42 -a @Claude -s "In Progress" -d "Implementation Plan"
 
 # 4 Break work down if needed
-backlog task create "Refactor DB layer" --parent 42 -a @ai-bot
+backlog task create "Refactor DB layer" -p 42 -a @Claude -d "Description + Acceptance Criteria"
 
 # 5 Complete and mark Done
 backlog task edit 42 -s Done
@@ -55,8 +51,6 @@ Short, imperative explanation of the work.
 - [ ] P95 latency ≤ 50 ms under 100 RPS
 
 ## Implementation Notes (only added after working on the task)
-*Created by @ai-bot on 2025‑06‑13*
-
 - Added `src/graphql/resolvers/user.ts`
 - Considered DataLoader but deferred
 - Follow‑up: integrate cache layer
@@ -66,11 +60,11 @@ Short, imperative explanation of the work.
 
 | Purpose | Command |
 |---------|---------|
-| Create task | `backlog task create "Add OAuth"`                    |
-| Create sub task | `backlog task create --parent 14 "Add Google auth"`                    |
+| Create task | `backlog task create "Add OAuth System"`                    |
+| Create sub task | `backlog task create -p 14 "Add Login with Google"`                    |
 | List tasks  | `backlog task list`                                  |
 | View detail | `backlog task 7`                                     |
-| Edit        | `backlog task edit 7 -a @sara -l auth,backend`       |
+| Edit        | `backlog task edit 7 -a @Claude -l auth,backend`       |
 | Archive     | `backlog task archive 7`                             |
 | Draft flow  | `backlog draft create "Spike GraphQL"` → `backlog draft promote 3.1` |
 | Demote to draft| `backlog task demote <id>` |

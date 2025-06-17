@@ -57,6 +57,6 @@ describe("addAgentInstructions", () => {
 	it("loads guideline content from file paths", async () => {
 		const pathGuideline = join(__dirname, "../guidelines/AGENTS.md");
 		const content = await _loadAgentGuideline(pathGuideline);
-		expect(content).toContain("AI Agent Guidelines");
+		expect(content).toContain("# Instructions for the usage of Backlog.md CLI Tool");
 	});
 });

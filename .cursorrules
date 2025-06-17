@@ -1,5 +1,4 @@
-# Cursor Agent Rules for Backlog.md Project
-# These rules are designed to ensure high-quality contributions and maintain project consistency
+# Instructions for Cursor AI Using Backlog.md CLI Tool
 
 ## Table of Contents
 1. Project Structure and Navigation
@@ -30,20 +29,30 @@
 - Always verify file locations before making changes
 
 ## 2. Task Management
-- Always check .backlog/tasks/ for current tasks before starting work
-- Reference task IDs in all commit messages and PR titles
-- Follow the task status workflow defined in config.yml
-- Never modify task files directly - use the backlog CLI commands
-- When creating new tasks, ensure they follow the established format
-- Subtasks must use decimal numbering (e.g., task-4.1) to indicate their parentage.
-- Subtasks are created using the CLI with the --parent <task-id> flag; the next decimal ID is assigned automatically.
-- Always reference subtasks by their full decimal ID in commit messages, PR titles, and documentation.
-- Subtasks are stored in the same .backlog/tasks/ directory as main tasks.
-- After completing and testing a task, set its status to Done via CLI:
+### 2.1 Source of Truth
+- Tasks live under **`.backlog/tasks/`** (drafts under **`.backlog/drafts/`**)
+- Each has YAML frontmatter & markdown content
+- The task **markdown file** defines what to implement
 
+### 2.2 Your Workflow
 ```bash
-backlog task edit <task-id> --status Done
+# 1 Find something to work on
+backlog task list --status "To Do"
+
+# 2 Read details
+backlog task 42
+
+# 3 Start work: assign yourself & move column
+backlog task edit 42 -a @Cursor -s "In Progress" -d "Implementation Plan"
+
+# 4 Break work down if needed
+backlog task create "Refactor DB layer" -p 42 -a @Cursor -d "Description + Acceptance Criteria"
+
+# 5 Complete and mark Done
+backlog task edit 42 -s Done
 ```
+
+### 2.3 Never modify task files directly - use the backlog CLI commands
 
 ## 3. Documentation
 3.1 All documentation must be in Markdown format
@@ -60,11 +69,12 @@ backlog task edit <task-id> --status Done
 - Add comments for complex logic
 
 ## 5. Git Workflow
-- Always check git status before committing
-- Use branch names that reflect the task being worked on (tasks/<task-id> feature description)
+### 5.1 Commit Hygiene
+- Append task ID to every commit: "TASK-42 - Add OAuth provider"
+- For subtasks: "TASK-42.1 - Configure Google OAuth"
+- Branch names: `tasks/task-42-oauth-provider`
+- **Clean git status** before any commit (no untracked files, no uncommitted changes)
 - Keep commits atomic and focused
-- Write clear, descriptive commit messages
-- Reference task IDs in commit messages
 
 ## 6. AI Agent Guidelines
 6.1 Always verify task requirements before implementation
@@ -139,16 +149,38 @@ backlog task edit <task-id> --status Done
 - Document recovery steps
 
 ## 15. Project-Specific Rules
+### 15.1 Task Files Must Have
+
+```markdown
+---
+id: task-42
+title: Add OAuth Provider
+status: In Progress
+assignee: ['@Cursor']
+---
+
+## Description
+Short, imperative explanation of the work.
+
+## Acceptance Criteria
+- [ ] OAuth flow triggers on `/auth`
+- [ ] Google & GitHub providers configured
+- [ ] Refresh tokens handled
+- [ ] P95 latency ≤ 50 ms under 100 RPS
+
+## Implementation Notes (only added after working on the task)
+- Added `src/graphql/resolvers/user.ts`
+- Considered DataLoader but deferred
+- Follow‑up: integrate cache layer
+```
+
+### 15.2 Other Rules
 - Follow Backlog.md CLI conventions
 - Use proper task status transitions
 - Maintain task history
 - Follow project naming conventions
 - Use appropriate labels for tasks
-- Keep task descriptions clear and complete
-- Include a `## Description` section and `## Acceptance Criteria` checklist in each task
 - Write relevant tests when implementing new functionality or fixing bugs
-- Follow the established workflow
-- When starting work on a task, set its status to `In Progress`, assign yourself, and push the change before continuing
 - Use proper task prioritization
 - Maintain task dependencies
 - Follow project branching strategy
@@ -207,11 +239,11 @@ A task is **Done** only when **all** of the following hold:
 ## Backlog.md Tool - CLI usage
 | Purpose | Command |
 |---------|---------|
-| Create task | `backlog task create "Add OAuth"`                    |
-| Create sub task | `backlog task create --parent 14 "Add Google auth"`                    |
+| Create task | `backlog task create "Add OAuth System"`                    |
+| Create sub task | `backlog task create -p 14 "Add Login with Google"`                    |
 | List tasks  | `backlog task list`                                  |
 | View detail | `backlog task 7`                                     |
-| Edit        | `backlog task edit 7 -a @sara -l auth,backend`       |
+| Edit        | `backlog task edit 7 -a @Cursor -l auth,backend`       |
 | Archive     | `backlog task archive 7`                             |
 | Draft flow  | `backlog draft create "Spike GraphQL"` → `backlog draft promote 3.1` |
 | Demote to draft| `backlog task demote <id>` |

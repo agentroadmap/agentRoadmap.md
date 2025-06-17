@@ -13,8 +13,15 @@
 > powered by plain Markdown files and a zero‑config CLI.
 
 * 100 % offline‑friendly – your backlog lives *inside* your repository  
-* Works on **macOS, Linux and Windows** (Node ≥ 18 / Bun ≥ 1.0)  
+* Works on **macOS, Linux and Windows**
 * Completely free & open‑source (MIT)
+* AI friendly - "Claude, create a task using backlog for my project"
+
+---
+
+<div align="center">
+    <img src="backlog.jpg" alt="Backlog.md Screenshot">
+</div>
 
 ---
 
@@ -53,15 +60,15 @@ All data is saved under `.backlog` folder as human‑readable Markdown (`task‑
 
 | Action      | Example                                              |
 |-------------|------------------------------------------------------|
-| Create task | `backlog task create "Add OAuth"`                    |
-| Create sub task | `backlog task create --parent 14 "Add Google auth"`|
+| Create task | `backlog task create "Add OAuth System" [-l <label1>,<label2>]`                    |
+| Create sub task | `backlog task create -p 14 "Add Login with Google"`|
 | List tasks  | `backlog task list [-s <status>] [-a <assignee>`     |
 | View detail | `backlog task 7`                                     |
 | Edit        | `backlog task edit 7 -a @sara -l auth,backend`       |
 | Archive     | `backlog task archive 7`                             |
 | Draft flow  | `backlog draft create "Spike GraphQL"` → `backlog draft promote 3.1` |
 | Demote to draft| `backlog task demote <id>` |
-| Kanban      | `backlog board view`            |
+| Kanban board      | `backlog board`            |
 
 Full help: `backlog --help`
 
