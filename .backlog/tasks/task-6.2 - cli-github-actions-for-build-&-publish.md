@@ -44,7 +44,7 @@ Set up continuous integration for the CLI. Use GitHub Actions to build the proje
 - Package configured with `"name": "backlog.md"` and proper `bin` entry pointing to `./cli/index.js`
 - Version controlled via `package.json` version field (currently 0.1.0)
 
-**Documentation & Release Process (readme.md:245-257):**
+**Documentation & Release Process (README.md:245-257):**
 - Added comprehensive "Release" section with step-by-step instructions
 - **Process**: Update version in package.json → Commit changes → Create git tag → Push tag
 - **Automation**: Git tag push automatically triggers GitHub Actions workflow

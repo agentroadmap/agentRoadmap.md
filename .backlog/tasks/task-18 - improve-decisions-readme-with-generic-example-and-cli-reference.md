@@ -11,7 +11,7 @@ dependencies: []
 
 ## Description
 
-Refine `.backlog/decisions/readme.md` with a generic decision log example and provide a list of `backlog decision` commands.
+Refine `.backlog/decisions/README.md` with a generic decision log example and provide a list of `backlog decision` commands.
 
 ## Acceptance Criteria
 

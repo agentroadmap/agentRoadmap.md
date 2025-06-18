@@ -657,8 +657,8 @@ boardCmd
 			// Close loading screen before export
 			loadingScreen?.close();
 
-			// Priority: filename argument > --output option > default readme.md
-			const outputFile = filename || options.output || "readme.md";
+			// Priority: filename argument > --output option > default README.md
+			const outputFile = filename || options.output || "README.md";
 			const outputPath = join(cwd, outputFile as string);
 			const maxColumnWidth = config?.maxColumnWidth || 30; // Default for export
 			const addTitle = !filename && !options.output; // Add title only for default readme export

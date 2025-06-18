@@ -43,7 +43,7 @@ Fix config commands to correctly use local or global config files
 2. **Global config fallback**: Checks `~/.backlog/.user` for user-wide settings
 3. **Built-in defaults**: Falls back to hardcoded values for core settings like statuses
 
-**Documentation Updates (readme.md:176-179):**
+**Documentation Updates (README.md:176-179):**
 - Added explanation of `--local` (default) and `--global` flags
 - Documented priority order: local → global → defaults
 - Updated usage examples to show flag usage

@@ -1,41 +1,33 @@
 <h1 align="center">Backlog.md</h1>
-<p align="center">✏️ Markdown‑native Task Manager &amp; Kanban visualizer for any Git repository</p>
+<p align="center">Markdown‑native Task Manager &amp; Kanban visualizer for any Git repository</p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/backlog.md"><img src="https://badgen.net/npm/v/backlog.md?icon=npm&label=npm&color=blue"></a>
-  <a href="https://bun.sh"><img src="https://badgen.net/badge/bun/add%20backlog.md/black?icon=bun"></a>
-  <a href="LICENSE"><img src="https://badgen.net/github/license/MrLesk/backlog.md"></a>
+<code>npm i -g backlog.md</code> or <code>bun add -g backlog.md</code>
 </p>
+
+![Backlog demo GIF using: backlog board](./.github/backlog.gif)
+
 
 ---
 
 > **Backlog.md** turns any folder with a Git repo into a **self‑contained project board**  
 > powered by plain Markdown files and a zero‑config CLI.
 
-* 100 % offline‑friendly – your backlog lives *inside* your repository  
-* Works on **macOS, Linux and Windows**
-* Completely free & open‑source (MIT)
-* AI friendly - "Claude, create a task using backlog for my project"
 
----
+## Features
 
-<div align="center">
-    <img src="backlog.jpg" alt="Backlog.md Screenshot">
-</div>
+* 📝 **Markdown-native tasks** -- manage every issue as a plain `.md` file
 
----
+* 🔒 **100 % private & offline** -- backlog lives entirely inside your repo
+* 📊 **Instant terminal Kanban** -- `backlog board` paints a live board in your shell
 
-### Quick install
+* 🤖 **AI-ready CLI** -- "Claude, please take over task 33"
 
-```bash
-# global – Node
-npm i -g backlog.md
+* 🔍 **Rich query commands** -- view, list, filter, or archive tasks with ease
 
-# global – Bun
-bun add -g backlog.md    # Bun 1.0+
-```
+* 💻 **Cross-platform** -- runs on macOS, Linux, and Windows
 
-> Prefer per‑project installs? `npm i -D backlog.md` → `npx backlog …`
+* 🆓 **MIT-licensed & open-source** -- free for personal or commercial use
 
 ---
 

@@ -24,5 +24,5 @@ Create issue and pull request templates under .github/.
 
 - Added `.github/ISSUE_TEMPLATE` with bug and feature request templates.
 - Created `PULL_REQUEST_TEMPLATE.md` requesting Backlog task references.
-- Documented templates in `readme.md`.
+- Documented templates in `README.md`.
 

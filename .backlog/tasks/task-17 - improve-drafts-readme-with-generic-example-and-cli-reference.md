@@ -11,7 +11,7 @@ dependencies: []
 
 ## Description
 
-Update `.backlog/drafts/readme.md` to show a generic draft task example. Document available `backlog draft` commands.
+Update `.backlog/drafts/README.md` to show a generic draft task example. Document available `backlog draft` commands.
 
 ## Acceptance Criteria
 

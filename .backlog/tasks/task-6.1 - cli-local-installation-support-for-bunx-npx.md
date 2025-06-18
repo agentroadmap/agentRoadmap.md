@@ -36,7 +36,7 @@ Allow installing Backlog.md locally in JS projects so agents can run bunx/npx ba
 - Works from any directory within the project after local installation
 
 **Documentation:**
-- `readme.md` includes comprehensive local installation section (lines 15-30)
+- `README.md` includes comprehensive local installation section (lines 15-30)
 - Documents both npm and bun installation methods
 - Provides clear usage examples for npx/bunx execution
 

@@ -11,7 +11,7 @@ dependencies: []
 
 ## Description
 
-Update `.backlog/tasks/readme.md` so the task example demonstrates a generic template rather than the current specific example. Include a section listing all task-related CLI commands with a short description for each.
+Update `.backlog/tasks/README.md` so the task example demonstrates a generic template rather than the current specific example. Include a section listing all task-related CLI commands with a short description for each.
 
 ## Acceptance Criteria
 

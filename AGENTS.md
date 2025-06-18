@@ -13,9 +13,9 @@ backlog.md/ (Root folder for "Backlog.md" project)
     ├── decisions/ (team decisions regarding architecture/technologies)
     └── config.yml ("Backlog.md" configuration file)
 
-Instructions for using the Backlog.md tool are available in the `readme.md` file in the root folder.
+Instructions for using the Backlog.md tool are available in the `README.md` file in the root folder.
 
-Each folder contains a `readme.md` file with instructions on how to use the Backlog.md tool for that specific folder.
+Each folder contains a `README.md` file with instructions on how to use the Backlog.md tool for that specific folder.
 
 ## 1. Source of Truth
 - Tasks live under **`.backlog/tasks/`** (drafts under **`.backlog/drafts/`**).

@@ -21,6 +21,6 @@ Add installation badges, link to license and contributing guide. Document global
 - [x] Task committed to repository
 
 ## Implementation Notes
-- Added npm and bun badge images with links in `readme.md`.
+- Added npm and bun badge images with links in `README.md`.
 - Inserted license and contribution links near the top of the README.
 - Added new Quick Start section showing global install and example commands.

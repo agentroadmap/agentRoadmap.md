@@ -24,4 +24,4 @@ Create CONTRIBUTING.md with guidelines for contributing to Backlog.md.
 - Added `CONTRIBUTING.md` with sections on opening issues and submitting
   pull requests.
 - Documented test and lint commands (`bun test` and `npx biome check .`).
-- Linked to the new guidelines from `readme.md`.
+- Linked to the new guidelines from `README.md`.

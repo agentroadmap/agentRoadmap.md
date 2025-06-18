@@ -20,7 +20,7 @@ Replace the existing yes/no prompt in `backlog init` with a multi-select menu. U
 - `.cursorrules`
 - `CLAUDE.md`
 - `AGENTS.md`
-- `readme.md`
+- `README.md`
 
 ## Acceptance Criteria
 
@@ -32,7 +32,7 @@ Replace the existing yes/no prompt in `backlog init` with a multi-select menu. U
 ## Implementation Notes
 
 * Replaced yes/no prompt with numbered multi-select menu in `src/cli.ts:52-65`.
-* Users can select from `.cursorrules`, `CLAUDE.md`, `AGENTS.md`, and `readme.md` files.
+* Users can select from `.cursorrules`, `CLAUDE.md`, `AGENTS.md`, and `README.md` files.
 * Menu displays numbered options (1-4) and accepts comma-separated selections.
 * Blank input skips agent instruction file creation entirely.
 * Implementation uses `addAgentInstructions()` function to handle file creation/appending.

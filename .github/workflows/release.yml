@@ -75,7 +75,7 @@ jobs:
           jq 'del(.devDependencies,.scripts.prepare,.scripts.preinstall,.type) |
               .version = "'$TAG'" |
               .bin = {backlog:"cli.js"} |
-              .files = ["cli.js","resolveBinary.cjs","postuninstall.cjs","package.json","readme.md","LICENSE"] |
+              .files = ["cli.js","resolveBinary.cjs","postuninstall.cjs","package.json","README.md","LICENSE"] |
               .scripts = {"postuninstall": "node postuninstall.cjs"} |
               .optionalDependencies = {
                 "backlog.md-linux-x64"  : "'$TAG'",
@@ -84,7 +84,7 @@ jobs:
                 "backlog.md-darwin-arm64": "'$TAG'",
                 "backlog.md-windows-x64": "'$TAG'"
               }' package.json > dist/package.json
-          cp LICENSE readme.md dist/ 2>/dev/null || true
+          cp LICENSE README.md dist/ 2>/dev/null || true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -133,7 +133,7 @@ jobs:
           TAG="${GITHUB_REF##refs/tags/v}"
           mkdir -p pkg
           mv backlog* pkg/
-          cp LICENSE readme.md pkg/ 2>/dev/null || true
+          cp LICENSE README.md pkg/ 2>/dev/null || true
           cat <<EOF > pkg/package.json
           {
             "name": "${{ matrix.package }}",

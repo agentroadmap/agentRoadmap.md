@@ -35,7 +35,7 @@ The CLI currently creates tasks in the "Draft" status by default and includes "D
 - Default status set to `"To Do"` in configuration files
 - Draft tasks are managed separately from the main workflow statuses
 
-**Documentation Updates (readme.md):**
+**Documentation Updates (README.md):**
 - Line 74: Added `--draft` option documentation for task creation
 - Line 199: Added explanation that "Draft tasks are stored separately under `.backlog/drafts`"
 - Clear distinction between workflow statuses and draft storage location

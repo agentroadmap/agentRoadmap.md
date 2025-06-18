@@ -263,7 +263,7 @@ describe("generateKanbanBoard", () => {
 describe("exportKanbanBoardToFile", () => {
 	it("creates file and appends board content", async () => {
 		const dir = await mkdtemp(join(tmpdir(), "board-export-"));
-		const file = join(dir, "readme.md");
+		const file = join(dir, "README.md");
 		const tasks: Task[] = [
 			{
 				id: "task-1",

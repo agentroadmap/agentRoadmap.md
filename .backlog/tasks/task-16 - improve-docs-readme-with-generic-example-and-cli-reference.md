@@ -11,7 +11,7 @@ dependencies: []
 
 ## Description
 
-Refine `.backlog/docs/readme.md` with a generic documentation example. Add a list of all `backlog doc` commands and their purpose.
+Refine `.backlog/docs/README.md` with a generic documentation example. Add a list of all `backlog doc` commands and their purpose.
 
 ## Acceptance Criteria
 

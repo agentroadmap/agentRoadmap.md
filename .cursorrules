@@ -56,7 +56,7 @@ backlog task edit 42 -s Done
 
 ## 3. Documentation
 3.1 All documentation must be in Markdown format
-3.2 Update relevant `readme.md` files when making changes
+3.2 Update relevant `README.md` files when making changes
 3.3 Document architectural decisions in `.backlog/decisions/`
 3.4 Maintain clear and concise documentation
 3.5 Include examples in documentation where appropriate 

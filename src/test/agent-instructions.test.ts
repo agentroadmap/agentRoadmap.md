@@ -41,12 +41,12 @@ describe("addAgentInstructions", () => {
 	});
 
 	it("creates only selected files", async () => {
-		await addAgentInstructions(TEST_DIR, undefined, ["AGENTS.md", "readme.md"]);
+		await addAgentInstructions(TEST_DIR, undefined, ["AGENTS.md", "README.md"]);
 
 		const agentsExists = await Bun.file(join(TEST_DIR, "AGENTS.md")).exists();
 		const claudeExists = await Bun.file(join(TEST_DIR, "CLAUDE.md")).exists();
 		const cursorExists = await Bun.file(join(TEST_DIR, ".cursorrules")).exists();
-		const readme = await Bun.file(join(TEST_DIR, "readme.md")).text();
+		const readme = await Bun.file(join(TEST_DIR, "README.md")).text();
 
 		expect(agentsExists).toBe(true);
 		expect(claudeExists).toBe(false);

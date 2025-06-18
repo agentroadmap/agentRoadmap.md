@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { AGENT_GUIDELINES, CLAUDE_GUIDELINES, CURSOR_GUIDELINES, README_GUIDELINES } from "./constants/index.ts";
 import type { GitOperations } from "./git/operations.ts";
 
-export type AgentInstructionFile = "AGENTS.md" | "CLAUDE.md" | ".cursorrules" | "readme.md";
+export type AgentInstructionFile = "AGENTS.md" | "CLAUDE.md" | ".cursorrules" | "README.md";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -26,7 +26,7 @@ export async function addAgentInstructions(
 		"AGENTS.md": AGENT_GUIDELINES,
 		"CLAUDE.md": CLAUDE_GUIDELINES,
 		".cursorrules": CURSOR_GUIDELINES,
-		"readme.md": README_GUIDELINES,
+		"README.md": README_GUIDELINES,
 	};
 
 	const paths: string[] = [];

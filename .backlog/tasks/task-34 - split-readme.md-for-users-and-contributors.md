@@ -1,6 +1,6 @@
 ---
 id: task-34
-title: Split readme.md for users and contributors
+title: Split README.md for users and contributors
 status: Done
 assignee:
   - "@codex"
@@ -22,5 +22,5 @@ Split the current README.md into two separate files: one focused on how to use t
 
 ## Implementation Notes
 - Created `DEVELOPMENT.md` with instructions for running and testing the project locally.
-- Removed development sections from `readme.md` and added a link to the new document.
-- Added reciprocal link back to `readme.md` from `DEVELOPMENT.md`.
+- Removed development sections from `README.md` and added a link to the new document.
+- Added reciprocal link back to `README.md` from `DEVELOPMENT.md`.
