@@ -147,7 +147,7 @@ export class GenericList<T extends GenericListItem> implements GenericListContro
 			vi: true,
 			mouse: true,
 			scrollable: true,
-			alwaysScroll: true,
+			alwaysScroll: false,
 		});
 
 		this.refreshList();
@@ -247,21 +247,10 @@ export class GenericList<T extends GenericListItem> implements GenericListContro
 		// Custom key bindings
 		const keys = this.options.keys || {};
 
-		// Navigation - additional key bindings
-		this.listBox.key(keys.up || ["k"], () => {
-			const current = this.listBox.selected ?? 0;
-			if (current > 0) {
-				this.listBox.up();
-				this.selectedIndex = current - 1;
-			}
-		});
-
-		this.listBox.key(keys.down || ["j"], () => {
-			const current = this.listBox.selected ?? 0;
-			if (current < this.listBox.items.length - 1) {
-				this.listBox.down();
-				this.selectedIndex = current + 1;
-			}
+		// Let blessed handle navigation automatically with keys: true
+		// Add listener to track selection changes
+		this.listBox.on("select", () => {
+			this.selectedIndex = this.listBox.selected ?? 0;
 		});
 
 		// Selection/Toggle
