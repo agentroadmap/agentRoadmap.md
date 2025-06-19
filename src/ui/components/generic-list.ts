@@ -30,6 +30,7 @@ export interface GenericListOptions<T extends GenericListItem> {
 	height?: string | number;
 	top?: string | number;
 	left?: string | number;
+	border?: boolean;
 	keys?: {
 		up?: string[];
 		down?: string[];
@@ -139,14 +140,14 @@ export class GenericList<T extends GenericListItem> implements GenericListContro
 			left: this.options.left || 0,
 			width: this.options.width || (parent === this.screen ? "90%" : "100%"),
 			height: this.options.height || (parent === this.screen ? "80%" : "100%"),
-			border: "line",
+			border: this.options.border !== false ? "line" : undefined,
 			style,
 			tags: true,
-			keys: false,
-			vi: false,
+			keys: true,
+			vi: true,
 			mouse: true,
 			scrollable: true,
-			alwaysScroll: false,
+			alwaysScroll: true,
 		});
 
 		this.refreshList();
@@ -246,19 +247,19 @@ export class GenericList<T extends GenericListItem> implements GenericListContro
 		// Custom key bindings
 		const keys = this.options.keys || {};
 
-		// Navigation - disable built-in keys and use manual control like board view
-		this.listBox.key(keys.up || ["up", "k"], () => {
+		// Navigation - additional key bindings
+		this.listBox.key(keys.up || ["k"], () => {
 			const current = this.listBox.selected ?? 0;
 			if (current > 0) {
-				this.listBox.select(current - 1);
+				this.listBox.up();
 				this.selectedIndex = current - 1;
 			}
 		});
 
-		this.listBox.key(keys.down || ["down", "j"], () => {
+		this.listBox.key(keys.down || ["j"], () => {
 			const current = this.listBox.selected ?? 0;
 			if (current < this.listBox.items.length - 1) {
-				this.listBox.select(current + 1);
+				this.listBox.down();
 				this.selectedIndex = current + 1;
 			}
 		});
