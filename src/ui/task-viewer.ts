@@ -41,6 +41,30 @@ function extractAcceptanceCriteriaWithCheckboxes(content: string): string[] {
 }
 
 /**
+ * Extract Implementation Plan section content from markdown
+ */
+function extractImplementationPlanSection(content: string): string | null {
+	if (!content) return null;
+
+	// Look for ## Implementation Plan section
+	const regex = /## Implementation Plan\s*\n([\s\S]*?)(?=\n## |$)/i;
+	const match = content.match(regex);
+	return match?.[1]?.trim() || null;
+}
+
+/**
+ * Extract Implementation Notes section content from markdown
+ */
+function extractImplementationNotesSection(content: string): string | null {
+	if (!content) return null;
+
+	// Look for ## Implementation Notes section
+	const regex = /## Implementation Notes\s*\n([\s\S]*?)(?=\n## |$)/i;
+	const match = content.match(regex);
+	return match?.[1]?.trim() || null;
+}
+
+/**
  * Display task details in a split-pane UI with task list on left and detail on right
  */
 export async function viewTaskEnhanced(
@@ -51,6 +75,7 @@ export async function viewTaskEnhanced(
 		core?: Core;
 		title?: string;
 		filterDescription?: string;
+		startWithDetailFocus?: boolean;
 	} = {},
 ): Promise<void> {
 	if (output.isTTY === false) {
@@ -78,41 +103,49 @@ export async function viewTaskEnhanced(
 		autoPadding: true,
 	});
 
-	// Task list pane (left 40%)
+	// Task list pane (left 40%) with border
 	const taskListPane = blessed.box({
 		parent: container,
 		top: 0,
 		left: 0,
 		width: "40%",
 		height: "100%-1", // Leave space for help bar
+		border: {
+			type: "line",
+		},
+		style: {
+			border: { fg: "gray" },
+		},
+		label: ` ${options.title || "Tasks"} `,
 	});
 
-	// Detail pane (right 60%) with border and padding
+	// Detail pane (right 60%) with border
 	const detailPane = blessed.box({
 		parent: container,
 		top: 0,
 		left: "40%",
-		// left: taskListPane.width,
-		// left : "0%",
 		width: "60%",
 		height: "100%-1", // Leave space for help bar
-		// border: {
-		// 	type: "line",
-		// },
-		// padding: {
-		// 	left: 1,
-		// },
-		// style: {
-		// 	border: { fg: "gray" },
-		// },
+		border: {
+			type: "line",
+		},
+		style: {
+			border: { fg: "gray" },
+		},
+		label: " Details ",
 	});
 
 	// Create task list using generic list component
 	const taskList = createGenericList<Task>({
 		parent: taskListPane,
-		title: options.title || "Tasks",
+		title: "", // Empty title since pane has label
 		items: allTasks,
 		selectedIndex: Math.max(0, initialIndex),
+		border: false, // Disable border since pane has one
+		top: 1,
+		left: 1,
+		width: "100%-4",
+		height: "100%-3",
 		itemRenderer: (task: Task) => {
 			const statusIcon = formatStatusWithIcon(task.status);
 			const statusColor = getStatusColor(task.status);
@@ -148,8 +181,6 @@ export async function viewTaskEnhanced(
 				refreshDetailPane();
 			})();
 		},
-		width: "100%",
-		height: "100%",
 		showHelp: false, // We'll show help in the footer
 	});
 
@@ -157,126 +188,125 @@ export async function viewTaskEnhanced(
 	// biome-ignore lint/suspicious/noExplicitAny: blessed components don't have proper types
 	let headerBox: any;
 	// biome-ignore lint/suspicious/noExplicitAny: blessed components don't have proper types
-	let metadataBox: any;
+	let divider: any;
 	// biome-ignore lint/suspicious/noExplicitAny: blessed components don't have proper types
 	let descriptionBox: any;
-	// biome-ignore lint/suspicious/noExplicitAny: blessed components don't have proper types
-	let bottomBox: any;
 
 	function refreshDetailPane() {
 		// Clear existing detail pane content
 		if (headerBox) headerBox.destroy();
-		if (metadataBox) metadataBox.destroy();
+		if (divider) divider.destroy();
 		if (descriptionBox) descriptionBox.destroy();
-		if (bottomBox) bottomBox.destroy();
 
 		// Update screen title
 		screen.title = `Task ${currentSelectedTask.id} - ${currentSelectedTask.title}`;
 
-		// Fixed header section with task ID, title, status, date, and tags
+		// Header section with task ID, title, and status
 		headerBox = blessed.box({
 			parent: detailPane,
 			top: 0,
 			left: 0,
-			width: "100%-2", // Account for border
-			height: 3,
-			border: "line",
-			style: {
-				border: { fg: "blue" },
-			},
+			width: "100%-2", // Account for left and right borders
+			height: "shrink",
 			tags: true,
 			wrap: true,
-			scrollable: false, // Header should never scroll
+			scrollable: false,
+			padding: { left: 1, right: 1 },
 		});
 
-		// Format header content with key metadata
-		const headerContent = [];
-		headerContent.push(` {bold}{blue-fg}${currentSelectedTask.id}{/blue-fg}{/bold} - ${currentSelectedTask.title}`);
+		// Format header content - just status and title
+		const headerContent = `{${getStatusColor(currentSelectedTask.status)}-fg}${formatStatusWithIcon(currentSelectedTask.status)}{/} {bold}{blue-fg}${currentSelectedTask.id}{/blue-fg}{/bold} - ${currentSelectedTask.title}`;
 
-		// Second line with status, date, and assignee
-		const statusLine = [];
-		statusLine.push(
-			`{${getStatusColor(currentSelectedTask.status)}-fg}${formatStatusWithIcon(currentSelectedTask.status)}{/}`,
-		);
-		statusLine.push(`{gray-fg}${currentSelectedTask.createdDate}{/}`);
+		headerBox.setContent(headerContent);
 
-		if (currentSelectedTask.assignee?.length) {
-			const assigneeList = currentSelectedTask.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ");
-			statusLine.push(`{cyan-fg}${assigneeList}{/}`);
-		}
-
-		// Add labels to header if they exist
-		if (currentSelectedTask.labels?.length) {
-			statusLine.push(`${currentSelectedTask.labels.map((l) => `{yellow-fg}[${l}]{/}`).join(" ")}`);
-		}
-
-		headerContent.push(` ${statusLine.join(" • ")}`);
-
-		headerBox.setContent(headerContent.join("\n"));
+		// Create a divider line
+		divider = blessed.line({
+			parent: detailPane,
+			top: headerBox.bottom,
+			left: 0,
+			width: "100%-2", // Account for left and right borders
+			orientation: "horizontal",
+			style: {
+				fg: "gray",
+			},
+		});
 
 		// Scrollable body container beneath the header
 		const bodyContainer = blessed.box({
 			parent: detailPane,
-			top: 3, // Start below the fixed header
+			top: headerBox.bottom + 1,
 			left: 0,
-			width: "100%-2", // Account for border
-			height: "100%-4", // Fill remaining space below header
+			width: "100%-2", // Account for left and right borders
+			bottom: 1, // Leave space for bottom border
 			scrollable: true,
 			alwaysScroll: true,
 			keys: true,
+			vi: true,
 			mouse: true,
 			tags: true,
 			wrap: true,
-			padding: { left: 1, right: 1, top: 1 },
+			padding: { left: 1, right: 1, top: 0, bottom: 0 },
 		});
 
 		// Build the scrollable body content
 		const bodyContent = [];
 
-		// Add additional metadata section
-		if (
-			currentSelectedTask.reporter ||
-			currentSelectedTask.updatedDate ||
-			currentSelectedTask.milestone ||
-			currentSelectedTask.parentTaskId ||
-			currentSelectedTask.subtasks?.length ||
-			currentSelectedTask.dependencies?.length
-		) {
-			bodyContent.push(formatHeading("Details", 2));
+		// Add details section with all metadata
+		bodyContent.push(formatHeading("Details", 2));
 
-			const metadata = [];
-			if (currentSelectedTask.reporter) {
-				const reporterText = currentSelectedTask.reporter.startsWith("@")
-					? currentSelectedTask.reporter
-					: `@${currentSelectedTask.reporter}`;
-				metadata.push(`{bold}Reporter:{/bold} {cyan-fg}${reporterText}{/}`);
-			}
+		const metadata = [];
 
-			if (currentSelectedTask.updatedDate) {
-				metadata.push(`{bold}Updated:{/bold} ${currentSelectedTask.updatedDate}`);
-			}
+		// Always show created date
+		metadata.push(`{bold}Created:{/bold} ${currentSelectedTask.createdDate}`);
 
-			if (currentSelectedTask.milestone) {
-				metadata.push(`{bold}Milestone:{/bold} {magenta-fg}${currentSelectedTask.milestone}{/}`);
-			}
-
-			if (currentSelectedTask.parentTaskId) {
-				metadata.push(`{bold}Parent:{/bold} {blue-fg}${currentSelectedTask.parentTaskId}{/}`);
-			}
-
-			if (currentSelectedTask.subtasks?.length) {
-				metadata.push(
-					`{bold}Subtasks:{/bold} ${currentSelectedTask.subtasks.length} task${currentSelectedTask.subtasks.length > 1 ? "s" : ""}`,
-				);
-			}
-
-			if (currentSelectedTask.dependencies?.length) {
-				metadata.push(`{bold}Dependencies:{/bold} ${currentSelectedTask.dependencies.join(", ")}`);
-			}
-
-			bodyContent.push(metadata.join("\n"));
-			bodyContent.push("");
+		// Show updated date if different from created
+		if (currentSelectedTask.updatedDate && currentSelectedTask.updatedDate !== currentSelectedTask.createdDate) {
+			metadata.push(`{bold}Updated:{/bold} ${currentSelectedTask.updatedDate}`);
 		}
+
+		// Assignee
+		if (currentSelectedTask.assignee?.length) {
+			const assigneeList = currentSelectedTask.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ");
+			metadata.push(`{bold}Assignee:{/bold} {cyan-fg}${assigneeList}{/}`);
+		}
+
+		// Labels
+		if (currentSelectedTask.labels?.length) {
+			metadata.push(`{bold}Labels:{/bold} ${currentSelectedTask.labels.map((l) => `{yellow-fg}[${l}]{/}`).join(" ")}`);
+		}
+
+		// Reporter
+		if (currentSelectedTask.reporter) {
+			const reporterText = currentSelectedTask.reporter.startsWith("@")
+				? currentSelectedTask.reporter
+				: `@${currentSelectedTask.reporter}`;
+			metadata.push(`{bold}Reporter:{/bold} {cyan-fg}${reporterText}{/}`);
+		}
+
+		// Milestone
+		if (currentSelectedTask.milestone) {
+			metadata.push(`{bold}Milestone:{/bold} {magenta-fg}${currentSelectedTask.milestone}{/}`);
+		}
+
+		// Parent task
+		if (currentSelectedTask.parentTaskId) {
+			metadata.push(`{bold}Parent:{/bold} {blue-fg}${currentSelectedTask.parentTaskId}{/}`);
+		}
+
+		// Subtasks
+		if (currentSelectedTask.subtasks?.length) {
+			metadata.push(
+				`{bold}Subtasks:{/bold} ${currentSelectedTask.subtasks.length} task${currentSelectedTask.subtasks.length > 1 ? "s" : ""}`,
+			);
+		}
+
+		// Dependencies
+		if (currentSelectedTask.dependencies?.length) {
+			metadata.push(`{bold}Dependencies:{/bold} ${currentSelectedTask.dependencies.join(", ")}`);
+		}
+
+		bodyContent.push(metadata.join("\n"));
+		bodyContent.push("");
 
 		// Description section
 		bodyContent.push(formatHeading("Description", 2));
@@ -317,9 +347,29 @@ export async function viewTaskEnhanced(
 		} else {
 			bodyContent.push("{gray-fg}No acceptance criteria defined{/}");
 		}
+		bodyContent.push("");
+
+		// Implementation Plan section
+		const implementationPlan = extractImplementationPlanSection(currentSelectedContent);
+		if (implementationPlan) {
+			bodyContent.push(formatHeading("Implementation Plan", 2));
+			bodyContent.push(transformCodePaths(implementationPlan));
+			bodyContent.push("");
+		}
+
+		// Implementation Notes section
+		const implementationNotes = extractImplementationNotesSection(currentSelectedContent);
+		if (implementationNotes) {
+			bodyContent.push(formatHeading("Implementation Notes", 2));
+			bodyContent.push(transformCodePaths(implementationNotes));
+			bodyContent.push("");
+		}
 
 		// Set the complete body content
 		bodyContainer.setContent(bodyContent.join("\n"));
+
+		// Reset scroll position to top
+		bodyContainer.setScrollPerc(0);
 
 		// Store reference to body container for focus management
 		descriptionBox = bodyContainer;
@@ -341,8 +391,8 @@ export async function viewTaskEnhanced(
 			width: "100%",
 			height: 1,
 			content: options.filterDescription
-				? ` Filter: ${options.filterDescription} · ↑/↓ navigate · Tab switch · q/Esc quit `
-				: " ↑/↓ navigate · Tab switch pane · ←/→ scroll · q/Esc quit ",
+				? ` Filter: ${options.filterDescription} · ↑/↓ navigate · ←/→ switch pane · q/Esc quit `
+				: " ↑/↓ navigate · ←/→ or Tab switch pane · q/Esc quit ",
 			style: {
 				fg: "gray",
 				bg: "black",
@@ -350,21 +400,47 @@ export async function viewTaskEnhanced(
 		});
 
 		// Focus management
-		const focusableElements = [taskList.getListBox(), descriptionBox];
-		let focusIndex = 0; // Start with task list
-		focusableElements[focusIndex].focus();
+		let focusIndex = 0; // 0 = task list, 1 = detail pane
 
-		// Tab navigation between panes
-		screen.key(["tab"], () => {
-			focusIndex = (focusIndex + 1) % focusableElements.length;
-			focusableElements[focusIndex].focus();
+		const updateFocus = (newIndex: number) => {
+			if (newIndex < 0 || newIndex > 1) return;
+
+			focusIndex = newIndex;
+
+			// Get the task list's actual list box
+			const listBox = taskList.getListBox();
+
+			// Update border colors
+			if (focusIndex === 0) {
+				taskListPane.style.border.fg = "yellow";
+				detailPane.style.border.fg = "gray";
+				listBox.focus();
+			} else {
+				taskListPane.style.border.fg = "gray";
+				detailPane.style.border.fg = "yellow";
+				descriptionBox.focus();
+				// Ensure we start at the top when focusing detail pane
+				descriptionBox.setScrollPerc(0);
+			}
+
 			screen.render();
+		};
+
+		// Initialize focus based on whether we're viewing a specific task or list
+		const initialFocus = options.startWithDetailFocus === true ? 1 : 0;
+
+		// Ensure the screen is rendered before setting initial focus
+		process.nextTick(() => {
+			updateFocus(initialFocus);
 		});
 
-		screen.key(["S-tab"], () => {
-			focusIndex = (focusIndex - 1 + focusableElements.length) % focusableElements.length;
-			focusableElements[focusIndex].focus();
-			screen.render();
+		// Navigation between panes
+		screen.key(["tab", "right", "l"], () => {
+			updateFocus(focusIndex === 0 ? 1 : 0);
+		});
+
+		screen.key(["S-tab", "left", "h"], () => {
+			updateFocus(focusIndex === 0 ? 1 : 0);
 		});
 
 		// Exit keys
@@ -381,70 +457,66 @@ export async function viewTaskEnhanced(
  * Generate enhanced detail content structure (reusable)
  */
 function generateDetailContent(task: Task, rawContent = ""): { headerContent: string[]; bodyContent: string[] } {
-	// Format header content with key metadata
-	const headerContent = [];
-	headerContent.push(` {bold}{blue-fg}${task.id}{/blue-fg}{/bold} - ${task.title}`);
-
-	// Second line with status, date, and assignee
-	const statusLine = [];
-	statusLine.push(`{${getStatusColor(task.status)}-fg}${formatStatusWithIcon(task.status)}{/}`);
-	statusLine.push(`{gray-fg}${task.createdDate}{/}`);
-
-	if (task.assignee?.length) {
-		const assigneeList = task.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ");
-		statusLine.push(`{cyan-fg}${assigneeList}{/}`);
-	}
-
-	// Add labels to header if they exist
-	if (task.labels?.length) {
-		statusLine.push(`${task.labels.map((l) => `{yellow-fg}[${l}]{/}`).join(" ")}`);
-	}
-
-	headerContent.push(` ${statusLine.join(" • ")}`);
+	// Format header content - just status and title
+	const headerContent = [
+		` {${getStatusColor(task.status)}-fg}${formatStatusWithIcon(task.status)}{/} {bold}{blue-fg}${task.id}{/blue-fg}{/bold} - ${task.title}`,
+	];
 
 	// Build the scrollable body content
 	const bodyContent = [];
 
-	// Add additional metadata section
-	if (
-		task.reporter ||
-		task.updatedDate ||
-		task.milestone ||
-		task.parentTaskId ||
-		task.subtasks?.length ||
-		task.dependencies?.length
-	) {
-		bodyContent.push(formatHeading("Details", 2));
+	// Add details section with all metadata
+	bodyContent.push(formatHeading("Details", 2));
 
-		const metadata = [];
-		if (task.reporter) {
-			const reporterText = task.reporter.startsWith("@") ? task.reporter : `@${task.reporter}`;
-			metadata.push(`{bold}Reporter:{/bold} {cyan-fg}${reporterText}{/}`);
-		}
+	const metadata = [];
 
-		if (task.updatedDate) {
-			metadata.push(`{bold}Updated:{/bold} ${task.updatedDate}`);
-		}
+	// Always show created date
+	metadata.push(`{bold}Created:{/bold} ${task.createdDate}`);
 
-		if (task.milestone) {
-			metadata.push(`{bold}Milestone:{/bold} {magenta-fg}${task.milestone}{/}`);
-		}
-
-		if (task.parentTaskId) {
-			metadata.push(`{bold}Parent:{/bold} {blue-fg}${task.parentTaskId}{/}`);
-		}
-
-		if (task.subtasks?.length) {
-			metadata.push(`{bold}Subtasks:{/bold} ${task.subtasks.length} task${task.subtasks.length > 1 ? "s" : ""}`);
-		}
-
-		if (task.dependencies?.length) {
-			metadata.push(`{bold}Dependencies:{/bold} ${task.dependencies.join(", ")}`);
-		}
-
-		bodyContent.push(metadata.join("\n"));
-		bodyContent.push("");
+	// Show updated date if different from created
+	if (task.updatedDate && task.updatedDate !== task.createdDate) {
+		metadata.push(`{bold}Updated:{/bold} ${task.updatedDate}`);
 	}
+
+	// Assignee
+	if (task.assignee?.length) {
+		const assigneeList = task.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ");
+		metadata.push(`{bold}Assignee:{/bold} {cyan-fg}${assigneeList}{/}`);
+	}
+
+	// Labels
+	if (task.labels?.length) {
+		metadata.push(`{bold}Labels:{/bold} ${task.labels.map((l) => `{yellow-fg}[${l}]{/}`).join(" ")}`);
+	}
+
+	// Reporter
+	if (task.reporter) {
+		const reporterText = task.reporter.startsWith("@") ? task.reporter : `@${task.reporter}`;
+		metadata.push(`{bold}Reporter:{/bold} {cyan-fg}${reporterText}{/}`);
+	}
+
+	// Milestone
+	if (task.milestone) {
+		metadata.push(`{bold}Milestone:{/bold} {magenta-fg}${task.milestone}{/}`);
+	}
+
+	// Parent task
+	if (task.parentTaskId) {
+		metadata.push(`{bold}Parent:{/bold} {blue-fg}${task.parentTaskId}{/}`);
+	}
+
+	// Subtasks
+	if (task.subtasks?.length) {
+		metadata.push(`{bold}Subtasks:{/bold} ${task.subtasks.length} task${task.subtasks.length > 1 ? "s" : ""}`);
+	}
+
+	// Dependencies
+	if (task.dependencies?.length) {
+		metadata.push(`{bold}Dependencies:{/bold} ${task.dependencies.join(", ")}`);
+	}
+
+	bodyContent.push(metadata.join("\n"));
+	bodyContent.push("");
 
 	// Description section
 	bodyContent.push(formatHeading("Description", 2));
@@ -482,6 +554,23 @@ function generateDetailContent(task: Task, rawContent = ""): { headerContent: st
 		bodyContent.push(criteriaContent);
 	} else {
 		bodyContent.push("{gray-fg}No acceptance criteria defined{/}");
+	}
+	bodyContent.push("");
+
+	// Implementation Plan section
+	const implementationPlan = extractImplementationPlanSection(rawContent);
+	if (implementationPlan) {
+		bodyContent.push(formatHeading("Implementation Plan", 2));
+		bodyContent.push(transformCodePaths(implementationPlan));
+		bodyContent.push("");
+	}
+
+	// Implementation Notes section
+	const implementationNotes = extractImplementationNotesSection(rawContent);
+	if (implementationNotes) {
+		bodyContent.push(formatHeading("Implementation Notes", 2));
+		bodyContent.push(transformCodePaths(implementationNotes));
+		bodyContent.push("");
 	}
 
 	return { headerContent, bodyContent };
@@ -529,21 +618,30 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 	// Generate enhanced detail content
 	const { headerContent, bodyContent } = generateDetailContent(task, content);
 
-	// Fixed header section with task ID, title, status, date, and tags
+	// Header section with task info
 	const headerBox = blessed.box({
 		parent: popup,
 		top: 0,
 		left: 0,
-		width: "100%-2", // Account for border
-		height: 3,
-		border: "line",
-		style: {
-			border: { fg: "blue" },
-		},
+		width: "100%",
+		height: "shrink",
 		tags: true,
 		wrap: true,
-		scrollable: false, // Header should never scroll
+		scrollable: false,
+		padding: { left: 1, right: 1 },
 		content: headerContent.join("\n"),
+	});
+
+	// Divider line
+	const dividerLine = blessed.line({
+		parent: popup,
+		top: headerBox.bottom,
+		left: 0,
+		width: "100%",
+		orientation: "horizontal",
+		style: {
+			fg: "gray",
+		},
 	});
 
 	// Escape indicator
@@ -563,17 +661,18 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 	// Scrollable body container beneath the header
 	const contentArea = blessed.box({
 		parent: popup,
-		top: 3, // Start below the fixed header
+		top: headerBox.bottom + 1,
 		left: 0,
-		width: "100%-2", // Account for border
-		height: "100%-5", // Leave more space for bottom border
+		width: "100%",
+		bottom: 0,
 		scrollable: true,
-		alwaysScroll: false,
+		alwaysScroll: true,
 		keys: true,
+		vi: true,
 		mouse: true,
 		tags: true,
 		wrap: true,
-		padding: { left: 1, right: 1, top: 1 },
+		padding: { left: 1, right: 1, top: 0, bottom: 0 },
 		content: bodyContent.join("\n"),
 	});
 
@@ -595,7 +694,7 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 	};
 }
 
-function formatTaskPlainText(task: Task, content: string): string {
+export function formatTaskPlainText(task: Task, content: string): string {
 	const lines = [];
 	lines.push(`Task ${task.id} - ${task.title}`);
 	lines.push("=".repeat(50));
@@ -612,21 +711,50 @@ function formatTaskPlainText(task: Task, content: string): string {
 	if (task.subtasks?.length) lines.push(`Subtasks: ${task.subtasks.length}`);
 	if (task.dependencies?.length) lines.push(`Dependencies: ${task.dependencies.join(", ")}`);
 	lines.push("");
+
+	// Description section
 	lines.push("Description:");
 	lines.push("-".repeat(50));
-	lines.push(transformCodePathsPlain(task.description || "No description provided"));
+	const description = extractDescriptionSection(content);
+	lines.push(transformCodePathsPlain(description || "No description provided"));
 	lines.push("");
-	if (task.acceptanceCriteria?.length) {
-		lines.push("Acceptance Criteria:");
-		lines.push("-".repeat(50));
-		for (const c of task.acceptanceCriteria) {
-			lines.push(transformCodePathsPlain(c));
+
+	// Acceptance Criteria section with checkboxes
+	lines.push("Acceptance Criteria:");
+	lines.push("-".repeat(50));
+	const checkboxLines = extractAcceptanceCriteriaWithCheckboxes(content);
+	if (checkboxLines.length > 0) {
+		for (const line of checkboxLines) {
+			lines.push(line);
 		}
+	} else if (task.acceptanceCriteria?.length) {
+		// Fallback to parsed criteria if no checkboxes found
+		for (const c of task.acceptanceCriteria) {
+			lines.push(`• ${transformCodePathsPlain(c)}`);
+		}
+	} else {
+		lines.push("No acceptance criteria defined");
+	}
+	lines.push("");
+
+	// Implementation Plan section
+	const implementationPlan = extractImplementationPlanSection(content);
+	if (implementationPlan) {
+		lines.push("Implementation Plan:");
+		lines.push("-".repeat(50));
+		lines.push(transformCodePathsPlain(implementationPlan));
 		lines.push("");
 	}
-	lines.push("Content:");
-	lines.push("-".repeat(50));
-	lines.push(transformCodePathsPlain(content));
+
+	// Implementation Notes section
+	const implementationNotes = extractImplementationNotesSection(content);
+	if (implementationNotes) {
+		lines.push("Implementation Notes:");
+		lines.push("-".repeat(50));
+		lines.push(transformCodePathsPlain(implementationNotes));
+		lines.push("");
+	}
+
 	return lines.join("\n");
 }
 
