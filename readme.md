@@ -55,6 +55,7 @@ All data is saved under `.backlog` folder as human‑readable Markdown with the 
 | Create task | `backlog task create "Add OAuth System" [-l <label1>,<label2>]`                    |
 | Create with plan | `backlog task create "Feature" --plan "1. Research\n2. Implement"`     |
 | Create with AC | `backlog task create "Feature" --ac "Must work,Must be tested"` |
+| Create with deps | `backlog task create "Feature" --dep task-1,task-2` |
 | Create sub task | `backlog task create -p 14 "Add Login with Google"`|
 | List tasks  | `backlog task list [-s <status>] [-a <assignee>]`     |
 | View detail | `backlog task 7`                                     |
@@ -62,6 +63,7 @@ All data is saved under `.backlog` folder as human‑readable Markdown with the 
 | Edit        | `backlog task edit 7 -a @sara -l auth,backend`       |
 | Add plan    | `backlog task edit 7 --plan "Implementation approach"`    |
 | Add AC      | `backlog task edit 7 --ac "New criterion,Another one"`    |
+| Add deps    | `backlog task edit 7 --dep task-1 --dep task-2`     |
 | Archive     | `backlog task archive 7`                             |
 | Draft flow  | `backlog draft create "Spike GraphQL"` → `backlog draft promote 3.1` |
 | Demote to draft| `backlog task demote <id>` |
