@@ -14,11 +14,11 @@ import { createScreen } from "./tui.ts";
 function getPriorityDisplay(priority?: "high" | "medium" | "low"): string {
 	switch (priority) {
 		case "high":
-			return " {red-fg}🔴{/}";
+			return " {red-fg}●{/}";
 		case "medium":
-			return " {yellow-fg}🟡{/}";
+			return " {yellow-fg}●{/}";
 		case "low":
-			return " {green-fg}🟢{/}";
+			return " {green-fg}●{/}";
 		default:
 			return "";
 	}
@@ -278,6 +278,13 @@ export async function viewTaskEnhanced(
 			metadata.push(`{bold}Updated:{/bold} ${currentSelectedTask.updatedDate}`);
 		}
 
+		// Priority
+		if (currentSelectedTask.priority) {
+			const priorityDisplay = getPriorityDisplay(currentSelectedTask.priority);
+			const priorityText = currentSelectedTask.priority.charAt(0).toUpperCase() + currentSelectedTask.priority.slice(1);
+			metadata.push(`{bold}Priority:{/bold} ${priorityText}${priorityDisplay}`);
+		}
+
 		// Assignee
 		if (currentSelectedTask.assignee?.length) {
 			const assigneeList = currentSelectedTask.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ");
@@ -499,6 +506,13 @@ function generateDetailContent(task: Task, rawContent = ""): { headerContent: st
 	// Show updated date if different from created
 	if (task.updatedDate && task.updatedDate !== task.createdDate) {
 		metadata.push(`{bold}Updated:{/bold} ${task.updatedDate}`);
+	}
+
+	// Priority
+	if (task.priority) {
+		const priorityDisplay = getPriorityDisplay(task.priority);
+		const priorityText = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+		metadata.push(`{bold}Priority:{/bold} ${priorityText}${priorityDisplay}`);
 	}
 
 	// Assignee

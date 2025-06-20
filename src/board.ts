@@ -19,11 +19,11 @@ interface DisplayTask {
 function getPriorityIndicator(priority?: "high" | "medium" | "low"): string {
 	switch (priority) {
 		case "high":
-			return "🔴";
+			return "●";
 		case "medium":
-			return "🟡";
+			return "●";
 		case "low":
-			return "🟢";
+			return "●";
 		default:
 			return "";
 	}
