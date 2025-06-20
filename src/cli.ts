@@ -761,66 +761,56 @@ async function handleBoardView(options: { layout?: string; vertical?: boolean })
 	const cwd = process.cwd();
 	const core = new Core(cwd);
 	const config = await core.filesystem.loadConfig();
-	const statuses = config?.statuses || [];
-	const resolutionStrategy = config?.taskResolutionStrategy || "most_progressed";
+	const statuses = config?.statuses || ["To Do", "In Progress", "Done"];
 
-	// Load tasks with loading screen
-	const allTasks = await withLoadingScreen("Loading tasks from local and remote branches", async () => {
-		// Load local tasks
+	await withLoadingScreen("Loading tasks from local and remote branches", async () => {
+		// Get the latest state of all tasks across all branches
+		const branches = await core.gitOps.listAllBranches();
+		const taskStates = new Map<string, { state: "task" | "draft" | "archived"; date: Date }>();
+
 		const localTasks = await core.listTasksWithMetadata();
-		const tasksById = new Map<string, TaskWithMetadata>(
-			localTasks.map((t) => [t.id, { ...t, source: "local" } as TaskWithMetadata]),
-		);
 
-		// Load remote tasks in parallel
-		const remoteTasks = await loadRemoteTasks(core.gitOps);
+		for (const branch of branches) {
+			const taskTypes = [
+				{ path: ".backlog/tasks", state: "task" },
+				{ path: ".backlog/drafts", state: "draft" },
+				{ path: ".backlog/archive/tasks", state: "archived" },
+			] as const;
 
-		// Merge remote tasks with local tasks
-		for (const remoteTask of remoteTasks) {
-			const existing = tasksById.get(remoteTask.id);
-			if (!existing) {
-				tasksById.set(remoteTask.id, remoteTask);
-			} else {
-				const resolved = resolveTaskConflict(existing, remoteTask, statuses, resolutionStrategy);
-				tasksById.set(remoteTask.id, resolved);
+			for (const { path, state } of taskTypes) {
+				const files = await core.gitOps.listFilesInTree(branch, path);
+				for (const file of files) {
+					const match = file.match(/task-([\\d.]+)/);
+					if (match) {
+						const taskId = `task-${match[1]}`;
+						const modTime = await core.gitOps.getFileLastModifiedTime(branch, file);
+						if (modTime) {
+							const existing = taskStates.get(taskId);
+							if (!existing || modTime > existing.date) {
+								taskStates.set(taskId, { state, date: modTime });
+							}
+						}
+					}
+				}
 			}
 		}
 
-		// Collect all draft and archived task IDs to filter them out from all branches
-		const branches = await core.gitOps.listAllBranches();
-		const invalidIdPromises = branches.map(async (branch) => {
-			const [draftFiles, archivedFiles] = await Promise.all([
-				core.gitOps.listFilesInTree(branch, ".backlog/drafts"),
-				core.gitOps.listFilesInTree(branch, ".backlog/archive/tasks"),
-			]);
-			const files = [...draftFiles, ...archivedFiles];
-			return files
-				.map((file) => {
-					const match = file.match(/task-([\\d.]+)/);
-					return match ? match[1] : null;
-				})
-				.filter((id): id is string => id !== null)
-				.map((id) => `task-${id}`);
+		// Filter tasks based on the latest state
+		const finalTasks = localTasks.filter((task) => {
+			const latestState = taskStates.get(task.id);
+			return latestState?.state === "task";
 		});
 
-		const invalidIdArrays = await Promise.all(invalidIdPromises);
-		const invalidIds = new Set(invalidIdArrays.flat());
+		if (finalTasks.length === 0) {
+			console.log("No tasks found.");
+			return;
+		}
 
-		// Filter out tasks that are in drafts or archived
-		const finalTasks = Array.from(tasksById.values()).filter((task) => !invalidIds.has(task.id));
-
-		return finalTasks;
+		const layout = options.vertical ? "vertical" : (options.layout as "horizontal" | "vertical") || "horizontal";
+		const maxColumnWidth = config?.maxColumnWidth || 20;
+		// Render board
+		await renderBoardTui(finalTasks, statuses, layout, maxColumnWidth);
 	});
-
-	if (allTasks.length === 0) {
-		console.log("No tasks found.");
-		return;
-	}
-
-	const layout = options.vertical ? "vertical" : (options.layout as "horizontal" | "vertical") || "horizontal";
-	const maxColumnWidth = config?.maxColumnWidth || 20; // Default for terminal display
-	// Always use renderBoardTui which falls back to plain text if blessed is not available
-	await renderBoardTui(allTasks, statuses, layout, maxColumnWidth);
 }
 
 addBoardOptions(boardCmd).description("display tasks in a Kanban board").action(handleBoardView);

@@ -33,8 +33,9 @@ dependencies: []
 
 ## Implementation Notes
 
-- Updated `handleBoardView` in `src/cli.ts` to check for demoted or archived tasks across all local and remote branches.
-- The new logic fetches all branches, then scans the `.backlog/drafts` and `.backlog/archive/tasks` directories in each branch.
-- It collects the IDs of all demoted and archived tasks and uses them to filter the board view, ensuring that these tasks are not displayed.
-- This approach avoids modifying the `loadRemoteTasks` function and its associated tests, which were causing issues in the previous implementation.
-- All tests are passing with this new implementation.
+- **Correction:** The board filtering logic has been completely reworked to correctly handle demoted and archived tasks based on the last commit date.
+- The `handleBoardView` function in `src/cli.ts` now determines the definitive state of each task (task, draft, or archived) by finding the most recent version across all local and remote branches.
+- It iterates through all branches, finds all task files in the `tasks`, `drafts`, and `archive/tasks` directories, and uses `getFileLastModifiedTime` to get the last commit date for each file.
+- It then builds a map of the latest state for each task ID.
+- Finally, the board is rendered showing only the tasks whose latest state is 'task', ensuring that any task that has been more recently demoted or archived on any branch is correctly hidden.
+- This approach is more robust and correctly implements the intended behavior.
