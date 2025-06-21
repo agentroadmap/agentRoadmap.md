@@ -2,7 +2,7 @@
 
 ## Project structure
 
-```
+```markdown
 backlog.md/ (Root folder for "Backlog.md" project)
 └── .backlog/ ("Backlog.md" folder for managing tasks and docs)
     ├── drafts/ (list of tasks that are not ready to be implemented)
@@ -20,11 +20,13 @@ Instructions for using the Backlog.md tool are available in the `README.md` file
 Each folder contains a `README.md` file with instructions on how to use the Backlog.md tool for that specific folder.
 
 ## 1. Source of Truth
+
 - Tasks live under **`.backlog/tasks/`** (drafts under **`.backlog/drafts/`**).
 - Each has YAML frontmatter & markdown content.
 - The task **markdown file** defines what to implement.
 
 ## 2. Your Workflow
+
 ```bash
 # 1 Read details (use --plain for AI-friendly output)
 backlog task 42 --plain
@@ -43,13 +45,16 @@ backlog task edit 42 -s Done
 ```
 
 ### Before Marking a Task as Done
+
 Always ensure you have:
+
 1. ✅ Marked all acceptance criteria as completed (change `- [ ]` to `- [x]`)
 2. ✅ Added an `## Implementation Notes` section documenting your approach
 3. ✅ Run all tests and linting checks
 4. ✅ Updated relevant documentation
 
 ## 3. Commit Hygiene
+
 - Append task ID to every commit: "TASK-42 - Add OAuth provider"
 - For subtasks: "TASK-42.1 - Configure Google OAuth"
 - Branch names: `tasks/task-42-oauth-provider`
@@ -69,12 +74,21 @@ assignee: ['@AI-Agent']
 Short, imperative explanation of the work.
 
 ## Acceptance Criteria
+**Focus on outcomes, not implementation steps.** Good ACs are testable and verify *what* the system should do.
+- *Good Example:* `- [ ] User is redirected to the dashboard after successful login.`
+- *Good Example:* `- [ ] An error message is displayed if login fails due to incorrect password.`
+- *Bad Example (Implementation Step):* `- [ ] Modify the `loginUser` function in `authController.js`.`
+- *Bad Example (Too Vague):* `- [ ] Login works.`
+
+**Detailed steps on *how* to achieve the criteria belong in the `## Implementation Plan` section.** If your task involves a sequence of actions to build the feature, list them in the Implementation Plan. The Acceptance Criteria should validate that the feature behaves as expected once those steps are done.
+
 - [ ] OAuth flow triggers on `/auth`
 - [ ] Google & GitHub providers configured
 - [ ] Refresh tokens handled
 - [ ] P95 latency ≤ 50 ms under 100 RPS
 
 ## Implementation Plan
+**This section outlines *how* you will achieve the acceptance criteria.** It should be created *before* starting significant coding.
 1. Research OAuth 2.0 flow requirements
 2. Set up provider configurations
 3. Implement authentication middleware
@@ -107,10 +121,12 @@ A task is **Done** only when **ALL** of the following are complete:
 8. **No regressions**: performance, security and licence checks green.
 
 ⚠️ **IMPORTANT**: Never mark a task as Done without completing ALL items above, especially:
+
 - Marking acceptance criteria checkboxes as complete
 - Adding comprehensive Implementation Notes
 
 ## Task CLI Reference
+
 | Purpose | Command |
 |---------|---------|
 | Create task | `backlog task create "Add OAuth System"`                    |
@@ -127,10 +143,12 @@ A task is **Done** only when **ALL** of the following are complete:
 | Demote to draft| `backlog task demote <id>` |
 
 ## Tips for AI Agents
+
 - Keep tasks **small, atomic, and testable**; create subtasks liberally.  
 - Prefer **idempotent** changes so reruns remain safe.  
-- Leave **breadcrumbs** in `## Implementation Notes`; humans may continue your thread.  
+- Leave brief **breadcrumbs** in `## Implementation Notes`; humans may continue your thread.  
 - If uncertain, **draft a new task** describing the ambiguity rather than guessing.
 - **Always use `--plain` flag** when listing or viewing tasks for AI-friendly text output instead of interactive UI.
 - **Draft an Implementation Plan** before starting work using `--plan` flag to outline your approach.
-- Update the plan if significant changes occur during implementation.  
+- Update the plan if significant changes occur during implementation.
+- **When to add an Implementation Plan:** Create this section if the task requires multiple steps, complex logic, or if outlining the approach upfront helps in understanding the path to achieving the acceptance criteria. Simple, single-step tasks might not require a detailed implementation plan.
