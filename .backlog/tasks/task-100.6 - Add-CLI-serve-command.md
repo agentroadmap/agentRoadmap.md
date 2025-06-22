@@ -16,115 +16,57 @@ Integrate web server into CLI with new serve command. This will provide users wi
 
 ## Implementation Details
 
-### CLI Command Structure
+### CLI Command Requirements
 
-```typescript
-// Add to src/cli.ts
-const serveCmd = program.command("serve");
+**Command Structure:**
+- Add `serve` command to existing CLI in `src/cli.ts`
+- Support port configuration option (default: 3000)
+- Support host binding option (default: localhost)
+- Support browser auto-open option (default: true)
 
-serveCmd
-  .description("start web server for Backlog UI")
-  .option("-p, --port <number>", "port to run server on", "3000")
-  .option("-h, --host <string>", "host to bind server to", "localhost")
-  .option("-o, --open", "open browser automatically")
-  .option("--no-open", "don't open browser (useful for remote servers)")
-  .action(async (options) => {
-    // Implementation
-  });
-```
+### Command Implementation Requirements
 
-### Command Implementation
+**Core Functionality:**
+- Validate Backlog project exists before starting server
+- Create and configure BacklogServer instance
+- Handle port configuration and fallback
+- Provide clear startup messaging
+- Support graceful shutdown on Ctrl+C/SIGTERM
 
-```typescript
-import { BacklogServer } from "./server/index.ts";
-import { spawn } from "node:child_process";
+**User Experience:**
+- Show clear messaging during server startup
+- Display actual URL when port differs from requested
+- Optionally open browser automatically
+- Handle startup errors gracefully
 
-async function handleServeCommand(options: ServeOptions) {
-  const cwd = process.cwd();
-  const port = parseInt(options.port) || 3000;
-  const host = options.host || "localhost";
-  
-  // Check if project is initialized
-  try {
-    const core = new Core(cwd);
-    await core.filesystem.loadConfig();
-  } catch (error) {
-    console.error("No Backlog project found. Run 'backlog init' first.");
-    process.exit(1);
-  }
-  
-  // Create and start server
-  const server = new BacklogServer(cwd);
-  
-  console.log(`Starting Backlog server...`);
-  
-  await server.start({
-    port,
-    host,
-    isDevelopment: process.env.NODE_ENV === "development",
-    onStart: () => {
-      const url = `http://${host}:${port}`;
-      console.log(`\n✨ Backlog server running at ${url}\n`);
-      
-      // Open browser if requested
-      if (options.open !== false) {
-        openBrowser(url);
-      }
-      
-      console.log("Press Ctrl+C to stop the server\n");
-    }
-  });
-  
-  // Handle graceful shutdown
-  process.on("SIGINT", async () => {
-    console.log("\nStopping server...");
-    await server.stop();
-    process.exit(0);
-  });
-  
-  process.on("SIGTERM", async () => {
-    await server.stop();
-    process.exit(0);
-  });
-}
-```
+### Browser Integration Requirements
 
-### Browser Opening Logic
-
-```typescript
-function openBrowser(url: string) {
-  const platform = process.platform;
-  let command: string;
-  
-  switch (platform) {
-    case "darwin":
-      command = "open";
-      break;
-    case "win32":
-      command = "start";
-      break;
-    default:
-      command = "xdg-open";
-  }
-  
-  try {
-    spawn(command, [url], { 
-      detached: true, 
-      stdio: "ignore" 
-    }).unref();
-  } catch (error) {
-    // Silently fail if browser can't be opened
-    console.log(`Visit ${url} in your browser`);
-  }
-}
-```
+**Cross-Platform Support:**
+- Detect platform (macOS, Windows, Linux)
+- Use appropriate browser opening command for each platform
+- Handle cases where browser opening fails gracefully
+- Fallback to showing URL in console if automatic opening fails
 
 ### Error Handling
 
-- **Port already in use**: Suggest alternative port or kill process
+- **Port already in use**: Automatically try next available port (3001, 3002, etc.)
+- **No available ports**: Show clear error after trying 10 ports
 - **Permission denied**: Suggest using higher port number (>1024)
 - **Network issues**: Clear error messages with troubleshooting tips
 - **Missing dependencies**: Check for required build artifacts
+
+### Expected User Experience
+
+**Successful Startup:**
+- Clear "Starting server..." message
+- Port fallback notification if needed
+- Server URL with emoji for visibility
+- Browser opens automatically (unless disabled)
+
+**Error Cases:**
+- Project not initialized: Clear message to run `backlog init`
+- No available ports: Error after trying 10 sequential ports
+- Permission issues: Helpful suggestions for resolution
 
 ### Development Mode
 
@@ -144,7 +86,10 @@ In production, the server will:
 ## Acceptance Criteria
 
 - [ ] `backlog serve` starts the web server
-- [ ] --port option configures port
-- [ ] --open option opens browser automatically
+- [ ] --port option configures starting port
+- [ ] Automatically finds next available port if requested port is busy
+- [ ] Shows clear message when using different port than requested
+- [ ] --open option opens browser automatically with correct URL
 - [ ] --host option configures binding address
 - [ ] Server stops gracefully on Ctrl+C
+- [ ] Clear error message when no ports are available after 10 attempts

@@ -24,220 +24,54 @@ Document web UI usage and development setup. Comprehensive documentation is esse
 
 ### 1. README.md Updates
 
-Add new section after CLI commands:
+Add comprehensive web interface documentation including:
 
-```markdown
-## Web Interface
+**README.md Updates:**
+- New "Web Interface" section after CLI commands
+- Command usage examples with all options
+- Feature list highlighting key capabilities
+- Screenshots showing main interface views
 
-Backlog.md includes a built-in web server that provides a modern UI for managing tasks.
+**Content Requirements:**
+- Clear command examples for different use cases
+- Feature descriptions from user perspective
+- Visual documentation with screenshots
+- Setup and troubleshooting guidance
 
-### Starting the Web Server
+### 2. Development Guide Requirements
 
-```bash
-# Start server on default port (3000)
-backlog serve
+**Create comprehensive development documentation:**
+- Prerequisites and setup instructions
+- Architecture overview with tech stack
+- Project structure explanation
+- Component development guidelines
+- API integration patterns
+- Build and deployment instructions
 
-# Start on custom port
-backlog serve --port 8080
+**Content Should Cover:**
+- Development environment setup
+- Adding new shadcn/ui components
+- Custom hook creation patterns
+- API client usage
+- Testing strategies
+- Build optimization
 
-# Start without opening browser
-backlog serve --no-open
+### 3. API Documentation Requirements
 
-# Bind to all interfaces (for remote access)
-backlog serve --host 0.0.0.0
-```
+**Create complete API reference documentation:**
+- Base URL and authentication information
+- All endpoint specifications with examples
+- Request/response format documentation
+- Error handling and status codes
+- Example requests and responses for each endpoint
 
-### Features
-
-- **Interactive Kanban Board**: Drag and drop tasks between statuses
-- **Task Management**: Create, edit, and archive tasks with a rich form interface
-- **Search & Filter**: Quickly find tasks by title, status, assignee, or labels
-- **Markdown Support**: Full markdown rendering with syntax highlighting
-- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile
-- **Dark Mode**: Automatic theme detection with manual toggle
-
-### Screenshots
-
-![Kanban Board View](docs/images/web-board.png)
-![Task Detail Modal](docs/images/web-task-detail.png)
-![Task List View](docs/images/web-task-list.png)
-```
-
-### 2. Development Guide (docs/web-development.md)
-
-```markdown
-# Web UI Development Guide
-
-## Prerequisites
-
-- Bun 1.0+ installed
-- Node.js 18+ (for some tooling compatibility)
-
-## Setup
-
-1. Clone the repository
-2. Install dependencies: `bun install`
-3. Start development server: `bun run dev:web`
-
-## Architecture
-
-### Frontend Stack
-- React 18 with TypeScript
-- shadcn/ui components with Tailwind CSS
-- Vite for development and building
-- Native fetch API for server communication
-
-### Project Structure
-```
-src/web/
-├── components/     # React components
-├── hooks/          # Custom React hooks
-├── lib/            # Utilities and API client
-└── styles/         # Global CSS
-```
-
-### Adding New Components
-
-1. Install shadcn/ui component:
-   ```bash
-   bunx shadcn@latest add button
-   ```
-
-2. Use in your component:
-   ```tsx
-   import { Button } from "@/components/ui/button"
-   ```
-
-### API Integration
-
-All API calls go through `lib/api.ts`:
-
-```typescript
-import { api } from '@/lib/api';
-
-// In your component
-const { tasks, error, isLoading, refetch } = useTasks();
-
-// Or make direct API calls
-const createNewTask = async (taskData) => {
-  const result = await api.createTask(taskData);
-  refetch(); // Refresh the list
-};
-```
-
-## Building for Production
-
-```bash
-# Build everything
-bun run build
-
-# Test production build
-bun run preview
-```
-```
-
-### 3. API Documentation (docs/api.md)
-
-```markdown
-# Backlog.md API Reference
-
-The web server exposes a RESTful API for task management.
-
-## Base URL
-
-`http://localhost:3000/api`
-
-## Authentication
-
-Currently, the API does not require authentication as it's designed for local use.
-
-## Endpoints
-
-### Tasks
-
-#### List Tasks
-```
-GET /api/tasks?status=<status>&assignee=<assignee>
-```
-
-Response:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "task-1",
-      "title": "Example task",
-      "status": "To Do",
-      "assignee": ["@alice"],
-      "labels": ["feature", "high-priority"]
-    }
-  ]
-}
-```
-
-#### Get Task
-```
-GET /api/tasks/:id
-```
-
-#### Create Task
-```
-POST /api/tasks
-Content-Type: application/json
-
-{
-  "title": "New task",
-  "description": "Task description",
-  "status": "To Do",
-  "assignee": ["@alice"],
-  "labels": ["bug"]
-}
-```
-
-#### Update Task
-```
-PUT /api/tasks/:id
-Content-Type: application/json
-
-{
-  "status": "In Progress"
-}
-```
-
-#### Archive Task
-```
-DELETE /api/tasks/:id
-```
-
-### Board
-
-#### Get Board Data
-```
-GET /api/board
-```
-
-Returns tasks grouped by status with configuration.
-
-## Error Responses
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "TASK_NOT_FOUND",
-    "message": "Task with ID task-123 not found"
-  }
-}
-```
-
-## Status Codes
-
-- 200: Success
-- 400: Bad Request
-- 404: Not Found
-- 500: Internal Server Error
-```
+**API Documentation Should Include:**
+- Task CRUD operations (GET, POST, PUT, DELETE)
+- Board data endpoint
+- Configuration endpoint
+- Query parameter options
+- Error response formats
+- Status code meanings
 
 ### 4. Troubleshooting Guide
 

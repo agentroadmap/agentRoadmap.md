@@ -61,14 +61,16 @@ src/web/
 - **clsx**: For conditional classes
 - **tailwind-merge**: For merging Tailwind classes
 - **lucide-react**: For icons used in shadcn/ui components
+- **zod**: For type-safe validation and form handling
 
 ### Development Dependencies
 
-- **vite**: ^5.0.0
-- **@vitejs/plugin-react**: ^4.2.0
+- **vite**: ^6.3.5
+- **@vitejs/plugin-react**: ^4.5.2
 - **@tailwindcss/vite**: ^4.0.0 (v4's first-party Vite plugin - replaces PostCSS)
 
 ### Configuration Files
+
 - `vite.config.ts` - Vite configuration for dev server and builds
 - `tsconfig.json` - TypeScript configuration
 - `src/index.css` - Tailwind v4 CSS-first configuration (NO tailwind.config.js needed!)
@@ -76,130 +78,33 @@ src/web/
 
 ## ⚠️ CRITICAL: Tailwind CSS v4 Instructions
 
+**See decision-1 for complete Tailwind v4 setup guidelines:** `.backlog/decisions/decision-decision-1 - Use-Tailwind-CSS-v4-for-web-UI-development.md`
+
 **DO NOT use Tailwind v3 setup instructions!** This project uses Tailwind CSS v4 which has breaking changes from v3.
 
-### Key Tailwind v4 Changes:
-- **CSS-first configuration**: Use `@theme` in CSS instead of `tailwind.config.js`
-- **New import syntax**: `@import "tailwindcss"` instead of `@tailwind base;`
-- **No PostCSS config needed**: Uses `@tailwindcss/vite` plugin instead
-- **Automatic content detection**: No need to configure content paths
-- **CSS variables**: Theme uses `--color-*`, `--font-*` namespaces
+## Implementation Requirements
 
-## Setup Process
+### Project Setup Goals
 
-### 1. Create Vite Project
-```bash
-# Create new React + TypeScript project
-bun create vite src/web --template react-ts
-```
+1. **Create React + TypeScript project structure** in `src/web/`
+2. **Configure TypeScript path mapping** for `@/*` imports
+3. **Install and configure Tailwind CSS v4** with Vite plugin (see decision-1)
+4. **Setup shadcn/ui component library** with proper configuration
+5. **Ensure development server** works with hot module replacement
+6. **Configure build process** for production optimization
 
-### 2. Configure TypeScript Paths
-Update `tsconfig.json`:
-```json
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["./src/*"]
-    }
-  }
-}
-```
+### Key Deliverables
 
-### 3. Install Tailwind CSS v4
-```bash
-# Install Tailwind v4 and Vite plugin
-bun add -D tailwindcss@next @tailwindcss/vite@next
-```
+- Working React development environment
+- Configured TypeScript with proper path resolution
+- Functional Tailwind v4 setup (CSS-first configuration)
+- Initialized shadcn/ui with consistent styling
+- Basic app structure ready for component development
 
-### 4. Setup Vite with Tailwind v4 Plugin
-Update `vite.config.ts`:
-```typescript
-import path from "path"
-import react from "@vitejs/plugin-react"
-import tailwindcss from "@tailwindcss/vite"
-import { defineConfig } from "vite"
+## Reference
 
-export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss(), // Add Tailwind v4 Vite plugin
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-})
-```
-
-### 5. Configure Tailwind v4 in CSS
-Update `src/index.css`:
-```css
-@import "tailwindcss";
-
-@theme {
-  /* Custom theme configuration can go here */
-  /* Example: --color-primary: #3b82f6; */
-}
-```
-
-### 6. Initialize shadcn/ui
-```bash
-bunx shadcn@latest init
-```
-
-Choose these options:
-- Style: New York
-- Base color: Neutral
-- CSS variables: Yes
-
-**Note**: shadcn/ui will automatically configure itself to work with Tailwind v4.
-
-### 7. Add Components as Needed
-```bash
-# Example: Add button component
-bunx shadcn@latest add button
-```
-
-## Tailwind v4 Migration Notes
-
-If you encounter any Tailwind v3 documentation or examples online:
-
-### ❌ DON'T DO (Tailwind v3):
-```css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-```
-
-```javascript
-// tailwind.config.js
-module.exports = {
-  content: ['./src/**/*.{js,jsx,ts,tsx}'],
-  theme: {
-    extend: {}
-  }
-}
-```
-
-### ✅ DO THIS (Tailwind v4):
-```css
-@import "tailwindcss";
-
-@theme {
-  --color-primary: #3b82f6;
-}
-```
-
-```typescript
-// vite.config.ts
-import tailwindcss from "@tailwindcss/vite"
-
-export default defineConfig({
-  plugins: [react(), tailwindcss()]
-})
-```
+For complete Tailwind v4 setup instructions, migration notes, and troubleshooting, refer to:
+**decision-1**: `.backlog/decisions/decision-decision-1 - Use-Tailwind-CSS-v4-for-web-UI-development.md`
 
 ## Acceptance Criteria
 

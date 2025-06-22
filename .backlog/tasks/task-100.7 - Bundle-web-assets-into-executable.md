@@ -18,155 +18,38 @@ Configure build process to embed React app in CLI executable. This is crucial fo
 
 ## Build Process Overview
 
-### 1. Two-Stage Build Process
+### Build Process Requirements
 
-```bash
-# Stage 1: Build React app
-cd src/web && bun run build
+**Two-Stage Build:**
+1. Build React app to optimized static files
+2. Embed static files into CLI executable
 
-# Stage 2: Compile CLI with embedded assets
-bun build --compile --minify --sourcemap src/cli.ts --outfile=backlog
-```
+**Asset Embedding Strategy:**
+- Generate TypeScript file with embedded assets as string constants
+- Support automatic asset discovery from build output
+- Handle asset manifest for proper file referencing
 
-### 2. Asset Embedding Strategy
+**Build Script Requirements:**
+- Recursively read all files from React build output
+- Generate TypeScript module with embedded assets
+- Integrate with existing CLI build process
 
-```typescript
-// src/server/embedded-assets.ts
-// Auto-generated during build
-export const EMBEDDED_ASSETS = {
-  "index.html": `<!DOCTYPE html>...`,
-  "assets/main-[hash].js": `...minified js...`,
-  "assets/main-[hash].css": `...minified css...`,
-  // All other assets
-} as const;
+**Vite Configuration Requirements:**
+- Configure production build optimization
+- Set up code splitting for vendor libraries
+- Enable proper asset hashing for cache busting
+- Optimize bundle size with tree shaking and minification
 
-export const ASSET_MANIFEST = {
-  "main.js": "assets/main-[hash].js",
-  "main.css": "assets/main-[hash].css",
-} as const;
-```
+**Static Asset Serving:**
+- Serve embedded assets from memory at runtime
+- Handle proper MIME types for different file extensions
+- Implement appropriate caching headers
+- Support SPA routing (fallback to index.html)
 
-### 3. Build Script Implementation
-
-```typescript
-// scripts/build-web.ts
-import { readdir, readFile } from "fs/promises";
-import { join } from "path";
-
-async function embedWebAssets() {
-  const distPath = join(process.cwd(), "src/web/dist");
-  const assets: Record<string, string> = {};
-  
-  // Recursively read all files in dist
-  async function readDir(dir: string, prefix = "") {
-    const entries = await readdir(dir, { withFileTypes: true });
-    
-    for (const entry of entries) {
-      const fullPath = join(dir, entry.name);
-      const assetPath = join(prefix, entry.name);
-      
-      if (entry.isDirectory()) {
-        await readDir(fullPath, assetPath);
-      } else {
-        const content = await readFile(fullPath, "utf-8");
-        assets[assetPath] = content;
-      }
-    }
-  }
-  
-  await readDir(distPath);
-  
-  // Generate TypeScript file
-  const output = `
-    // Auto-generated file - DO NOT EDIT
-    export const EMBEDDED_ASSETS = ${JSON.stringify(assets, null, 2)} as const;
-  `;
-  
-  await Bun.write("src/server/embedded-assets.ts", output);
-}
-```
-
-### 4. Vite Configuration
-
-```typescript
-// src/web/vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-      },
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'ui-vendor': ['class-variance-authority', 'clsx', 'tailwind-merge'],
-        },
-      },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-});
-```
-
-### 5. Serving Embedded Assets
-
-```typescript
-// src/server/static-handler.ts
-import { EMBEDDED_ASSETS } from "./embedded-assets.ts";
-
-export function serveStaticAsset(path: string): Response | null {
-  // Remove leading slash
-  const assetPath = path.startsWith('/') ? path.slice(1) : path;
-  
-  // Default to index.html for root
-  const finalPath = assetPath === '' ? 'index.html' : assetPath;
-  
-  const content = EMBEDDED_ASSETS[finalPath];
-  if (!content) {
-    return null;
-  }
-  
-  // Determine content type
-  const contentType = getContentType(finalPath);
-  
-  return new Response(content, {
-    headers: {
-      'Content-Type': contentType,
-      'Cache-Control': finalPath.includes('assets/') 
-        ? 'public, max-age=31536000' // 1 year for hashed assets
-        : 'no-cache', // No cache for index.html
-    },
-  });
-}
-```
-
-### 6. Package.json Scripts
-
-```json
-{
-  "scripts": {
-    "build:web": "cd src/web && bun run build",
-    "embed:assets": "bun scripts/build-web.ts",
-    "build": "bun build:web && bun embed:assets && bun build:cli",
-    "build:cli": "bun build --compile --minify --sourcemap src/cli.ts --outfile=backlog"
-  }
-}
-```
+**Package Scripts Integration:**
+- Create coordinated build process
+- Ensure proper build order (web → embed → CLI)
+- Support both development and production builds
 
 ### 7. Optimization Techniques
 

@@ -17,19 +17,16 @@ Build TaskList, TaskDetail, and TaskForm components. These components will provi
 
 ## Components Overview
 
-### 1. TaskList Component
+### 1. TaskList Component Requirements
 
-```typescript
-// components/TaskList.tsx
-interface TaskListProps {
-  tasks: Task[];
-  onTaskClick: (task: Task) => void;
-  onTaskEdit: (task: Task) => void;
-  onTaskArchive: (taskId: string) => void;
-}
-```
+**Component Interface:**
+
+- Display tasks in table/list format
+- Support task interaction (click, edit, archive)
+- Handle filtering and search functionality
 
 **Features:**
+
 - Table view with sortable columns
 - Search bar with real-time filtering
 - Filter dropdowns for status, assignee, labels
@@ -38,6 +35,7 @@ interface TaskListProps {
 - Export to CSV functionality
 
 **UI Elements (shadcn/ui):**
+
 - `Table` - Main list display
 - `Input` - Search field
 - `Select` - Filter dropdowns
@@ -45,19 +43,16 @@ interface TaskListProps {
 - `Button` - Action buttons
 - `DropdownMenu` - Context menus
 
-### 2. TaskDetail Component
+### 2. TaskDetail Component Requirements
 
-```typescript
-// components/TaskDetail.tsx
-interface TaskDetailProps {
-  task: Task;
-  content: string; // Full markdown content
-  onEdit: () => void;
-  onClose: () => void;
-}
-```
+**Component Interface:**
+
+- Display complete task information
+- Show rendered markdown content
+- Provide edit and close actions
 
 **Features:**
+
 - Full-screen modal or side panel view
 - Markdown preview with syntax highlighting
 - Task metadata display (dates, assignee, labels)
@@ -67,24 +62,23 @@ interface TaskDetailProps {
 - Quick edit actions
 
 **UI Elements (shadcn/ui):**
+
 - `Dialog` or `Sheet` - Container
 - `Tabs` - Preview/Edit/History views
 - `Badge` - Labels and status
 - `Separator` - Section dividers
 - `ScrollArea` - Content scrolling
 
-### 3. TaskForm Component
+### 3. TaskForm Component Requirements
 
-```typescript
-// components/TaskForm.tsx
-interface TaskFormProps {
-  task?: Task; // Optional for edit mode
-  onSubmit: (task: Partial<Task>) => void;
-  onCancel: () => void;
-}
-```
+**Component Interface:**
+
+- Support both create and edit modes
+- Handle task data submission
+- Provide cancel functionality
 
 **Features:**
+
 - Create and edit modes
 - Rich markdown editor with preview
 - Acceptance criteria builder
@@ -92,9 +86,10 @@ interface TaskFormProps {
 - Label management (add/remove)
 - Priority selector
 - Parent task selector for subtasks
-- Form validation with error messages
+- Form validation with Zod schemas and error messages
 
 **UI Elements (shadcn/ui):**
+
 - `Form` - Form container with validation
 - `Input` - Title field
 - `Textarea` - Description editor
@@ -106,74 +101,29 @@ interface TaskFormProps {
 ## Shared Features
 
 ### Markdown Support
+
 - Use `react-markdown` for rendering
 - Code syntax highlighting with `react-syntax-highlighter`
 - Support for task-specific markdown extensions (checklists, etc.)
 
-### Data Fetching
-```typescript
-// hooks/useTasks.ts
-export function useTasks(filters?: TaskFilters) {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const fetchTasks = async () => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams();
-      if (filters?.status) params.append('status', filters.status);
-      if (filters?.assignee) params.append('assignee', filters.assignee);
-      
-      const response = await fetch(`/api/tasks?${params}`);
-      const data = await response.json();
-      setTasks(data.data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    fetchTasks();
-  }, [filters]);
-  
-  return { tasks, isLoading, error, refetch: fetchTasks };
-}
+### Data Integration Requirements
 
-export function useTaskMutations() {
-  const createTask = async (task: Partial<Task>) => {
-    const response = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(task)
-    });
-    return response.json();
-  };
-  
-  const updateTask = async (id: string, updates: Partial<Task>) => {
-    const response = await fetch(`/api/tasks/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    return response.json();
-  };
-  
-  const archiveTask = async (id: string) => {
-    const response = await fetch(`/api/tasks/${id}`, {
-      method: 'DELETE'
-    });
-    return response.json();
-  };
-  
-  return { createTask, updateTask, archiveTask };
-}
-```
+**Task Data Fetching:**
+
+- Create custom hooks for task data management
+- Support filtering by status, assignee, labels
+- Handle loading, error, and success states
+- Implement data refetching capabilities
+
+**Task Mutations:**
+
+- Provide functions for creating, updating, and archiving tasks
+- Handle form validation using Zod schemas
+- Implement proper error handling and user feedback
+- Ensure type safety with validated data
 
 ### Error Handling
+
 - Toast notifications for success/error states using shadcn/ui Toast component
 - Inline validation messages
 - Network error recovery with manual retry buttons
@@ -183,6 +133,9 @@ export function useTaskMutations() {
 
 - [ ] TaskList shows filterable list of tasks
 - [ ] TaskDetail displays full task information with markdown
-- [ ] TaskForm handles create/edit operations
-- [ ] All forms validate input properly
+- [ ] TaskForm handles create/edit operations with Zod validation
+- [ ] All forms validate input properly using Zod schemas
+- [ ] Clear validation error messages displayed for invalid input
+- [ ] Form submission only occurs with valid data
 - [ ] Components use shadcn/ui consistently
+- [ ] Type safety maintained between forms and API

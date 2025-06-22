@@ -27,7 +27,7 @@ This feature will embed a web server directly into the Backlog CLI executable, a
 ### Frontend
 
 - **React 18** with TypeScript for the UI framework
-- **shadcn/ui** with Tailwind CSS for modern, accessible components
+- **shadcn/ui** with Tailwind CSS v4 for modern, accessible components (see decision-1)
 - **react-markdown** for rendering task descriptions
 - **Vite** as the build tool for development and production
 

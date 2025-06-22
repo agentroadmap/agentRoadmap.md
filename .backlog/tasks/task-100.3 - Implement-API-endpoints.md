@@ -19,6 +19,7 @@ Create REST API endpoints for tasks, drafts, and board operations. These endpoin
 ### RESTful Endpoints
 
 #### Tasks
+
 - `GET /api/tasks` - List all tasks with optional filtering
   - Query params: `?status=todo&assignee=@user&labels=bug,feature`
   - Returns: Array of Task objects with metadata
@@ -38,10 +39,12 @@ Create REST API endpoints for tasks, drafts, and board operations. These endpoin
   - Returns: Success message
 
 #### Board
+
 - `GET /api/board` - Get board data with all tasks grouped by status
   - Returns: `{ statuses: string[], tasks: TaskWithMetadata[], config: BoardConfig }`
 
 #### Drafts
+
 - `GET /api/drafts` - List all drafts
   - Returns: Array of Draft objects
   
@@ -49,6 +52,7 @@ Create REST API endpoints for tasks, drafts, and board operations. These endpoin
   - Returns: New task object
 
 #### Configuration
+
 - `GET /api/config` - Get project configuration
   - Returns: Config object with statuses, resolution strategy, etc.
 
@@ -73,24 +77,33 @@ All API responses will follow a consistent format:
 }
 ```
 
-### Implementation Strategy
+### Validation Requirements
 
-Each endpoint will:
-1. Parse and validate request parameters
-2. Call the appropriate Core method
-3. Handle any errors gracefully
-4. Return properly formatted JSON response
+**Input Validation with Zod:**
+
+- Define Zod schemas for all request bodies and parameters
+- Validate query parameters for filtering endpoints
+- Provide clear validation error messages
+- Ensure type safety between frontend and backend
+
+**Schema Definitions:**
+
+- Task creation/update schemas
+- Query parameter validation schemas
+- Response format schemas for consistency
 
 ### Error Handling
 
-- `400 Bad Request` - Invalid input parameters
+- `400 Bad Request` - Invalid input parameters (include Zod validation errors)
 - `404 Not Found` - Resource doesn't exist
 - `409 Conflict` - Operation would create conflict
+- `422 Unprocessable Entity` - Valid format but business logic validation failed
 - `500 Internal Server Error` - Unexpected server error
 
 ### Integration with Core
 
 All endpoints will use the existing Core class methods:
+
 - `core.filesystem.listTasks()`
 - `core.filesystem.loadTask()`
 - `core.createTask()`
@@ -103,10 +116,15 @@ This ensures consistency between CLI and web operations.
 
 ## Acceptance Criteria
 
-- [ ] GET /api/tasks returns all tasks
+- [ ] GET /api/tasks returns all tasks with optional query filtering
 - [ ] GET /api/tasks/:id returns specific task
-- [ ] POST /api/tasks creates new task
-- [ ] PUT /api/tasks/:id updates task
+- [ ] POST /api/tasks creates new task with Zod validation
+- [ ] PUT /api/tasks/:id updates task with Zod validation
 - [ ] DELETE /api/tasks/:id archives task
 - [ ] GET /api/board returns board data
+- [ ] GET /api/drafts returns all drafts
+- [ ] GET /api/config returns project configuration
+- [ ] All request bodies validated with Zod schemas
+- [ ] Clear validation error messages returned for invalid input
 - [ ] All endpoints use existing Core functions
+- [ ] Consistent JSON response format across all endpoints
