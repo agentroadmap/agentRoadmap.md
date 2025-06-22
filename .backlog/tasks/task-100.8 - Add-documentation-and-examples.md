@@ -27,12 +27,14 @@ Document web UI usage and development setup. Comprehensive documentation is esse
 Add comprehensive web interface documentation including:
 
 **README.md Updates:**
+
 - New "Web Interface" section after CLI commands
 - Command usage examples with all options
 - Feature list highlighting key capabilities
 - Screenshots showing main interface views
 
 **Content Requirements:**
+
 - Clear command examples for different use cases
 - Feature descriptions from user perspective
 - Visual documentation with screenshots
@@ -41,6 +43,7 @@ Add comprehensive web interface documentation including:
 ### 2. Development Guide Requirements
 
 **Create comprehensive development documentation:**
+
 - Prerequisites and setup instructions
 - Architecture overview with tech stack
 - Project structure explanation
@@ -49,6 +52,7 @@ Add comprehensive web interface documentation including:
 - Build and deployment instructions
 
 **Content Should Cover:**
+
 - Development environment setup
 - Adding new shadcn/ui components
 - Custom hook creation patterns
@@ -59,6 +63,7 @@ Add comprehensive web interface documentation including:
 ### 3. API Documentation Requirements
 
 **Create complete API reference documentation:**
+
 - Base URL and authentication information
 - All endpoint specifications with examples
 - Request/response format documentation
@@ -66,6 +71,7 @@ Add comprehensive web interface documentation including:
 - Example requests and responses for each endpoint
 
 **API Documentation Should Include:**
+
 - Task CRUD operations (GET, POST, PUT, DELETE)
 - Board data endpoint
 - Configuration endpoint
@@ -86,10 +92,11 @@ Include common issues and solutions:
 ### 5. Example Workflows
 
 Document common use cases:
-- Setting up a new project with web UI
-- Customizing the board layout
-- Integrating with CI/CD
-- Running on a remote server
+
+- Managing tasks through the web interface
+- Customizing the board layout and status columns
+- Using web UI alongside CLI workflow
+- Running server on a remote host for team access
 
 ## Acceptance Criteria
 

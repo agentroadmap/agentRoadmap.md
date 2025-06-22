@@ -19,6 +19,7 @@ Integrate web server into CLI with new serve command. This will provide users wi
 ### CLI Command Requirements
 
 **Command Structure:**
+
 - Add `serve` command to existing CLI in `src/cli.ts`
 - Support port configuration option (default: 3000)
 - Support host binding option (default: localhost)
@@ -27,6 +28,7 @@ Integrate web server into CLI with new serve command. This will provide users wi
 ### Command Implementation Requirements
 
 **Core Functionality:**
+
 - Validate Backlog project exists before starting server
 - Create and configure BacklogServer instance
 - Handle port configuration and fallback
@@ -34,6 +36,7 @@ Integrate web server into CLI with new serve command. This will provide users wi
 - Support graceful shutdown on Ctrl+C/SIGTERM
 
 **User Experience:**
+
 - Show clear messaging during server startup
 - Display actual URL when port differs from requested
 - Optionally open browser automatically
@@ -42,6 +45,7 @@ Integrate web server into CLI with new serve command. This will provide users wi
 ### Browser Integration Requirements
 
 **Cross-Platform Support:**
+
 - Detect platform (macOS, Windows, Linux)
 - Use appropriate browser opening command for each platform
 - Handle cases where browser opening fails gracefully
@@ -58,12 +62,14 @@ Integrate web server into CLI with new serve command. This will provide users wi
 ### Expected User Experience
 
 **Successful Startup:**
+
 - Clear "Starting server..." message
 - Port fallback notification if needed
 - Server URL with emoji for visibility
 - Browser opens automatically (unless disabled)
 
 **Error Cases:**
+
 - Project not initialized: Clear message to run `backlog init`
 - No available ports: Error after trying 10 sequential ports
 - Permission issues: Helpful suggestions for resolution
@@ -71,6 +77,7 @@ Integrate web server into CLI with new serve command. This will provide users wi
 ### Development Mode
 
 When `NODE_ENV=development`, the server will:
+
 - Provide detailed error messages
 - Enable source maps
 - Show helpful debugging information
@@ -78,6 +85,7 @@ When `NODE_ENV=development`, the server will:
 ### Production Mode
 
 In production, the server will:
+
 - Serve optimized, minified assets
 - Enable caching headers
 - Compress responses

@@ -50,6 +50,7 @@ Build TaskList, TaskDetail, and TaskForm components. These components will provi
 - Display complete task information
 - Show rendered markdown content
 - Provide edit and close actions
+- Integrate with Board component for task card clicks
 
 **Features:**
 
@@ -122,6 +123,16 @@ Build TaskList, TaskDetail, and TaskForm components. These components will provi
 - Implement proper error handling and user feedback
 - Ensure type safety with validated data
 
+### Board Integration Requirements
+
+**TaskDetail Modal Integration:**
+
+- Connect TaskDetail modal with Board component task card clicks
+- Handle modal state management (open/close/selected task)
+- Provide smooth user experience with proper focus management
+- Ensure task updates from modal reflect immediately on board
+- Handle loading states when fetching task details
+
 ### Error Handling
 
 - Toast notifications for success/error states using shadcn/ui Toast component
@@ -133,9 +144,12 @@ Build TaskList, TaskDetail, and TaskForm components. These components will provi
 
 - [ ] TaskList shows filterable list of tasks
 - [ ] TaskDetail displays full task information with markdown
+- [ ] TaskDetail integrates with Board component (clicking task cards opens modal)
 - [ ] TaskForm handles create/edit operations with Zod validation
 - [ ] All forms validate input properly using Zod schemas
 - [ ] Clear validation error messages displayed for invalid input
 - [ ] Form submission only occurs with valid data
 - [ ] Components use shadcn/ui consistently
 - [ ] Type safety maintained between forms and API
+- [ ] Modal state management works properly (open/close/focus)
+- [ ] Task updates from modal reflect on board immediately
