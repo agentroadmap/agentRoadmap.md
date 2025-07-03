@@ -12,7 +12,7 @@ describe("CLI parent shorthand option", () => {
 		testDir = await mkdtemp(join(tmpdir(), "backlog-test-"));
 
 		// Initialize git repository first to avoid interactive prompts
-		await Bun.spawn(["git", "init"], { cwd: testDir }).exited;
+		await Bun.spawn(["git", "init", "-b", "main"], { cwd: testDir }).exited;
 		await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: testDir }).exited;
 		await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: testDir }).exited;
 

@@ -15,7 +15,7 @@ describe("Core", () => {
 		await core.filesystem.ensureBacklogStructure();
 
 		// Initialize git repository for testing
-		await Bun.spawn(["git", "init"], { cwd: TEST_DIR }).exited;
+		await Bun.spawn(["git", "init", "-b", "main"], { cwd: TEST_DIR }).exited;
 		await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: TEST_DIR }).exited;
 		await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: TEST_DIR }).exited;
 	});

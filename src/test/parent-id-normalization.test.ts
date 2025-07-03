@@ -8,7 +8,7 @@ const TEST_DIR = join(process.cwd(), "test-parent-normalization");
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 
 async function initGitRepo(dir: string) {
-	await Bun.spawn(["git", "init"], { cwd: dir }).exited;
+	await Bun.spawn(["git", "init", "-b", "main"], { cwd: dir }).exited;
 	await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: dir }).exited;
 	await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: dir }).exited;
 }

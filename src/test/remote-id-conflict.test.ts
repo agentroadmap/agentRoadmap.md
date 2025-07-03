@@ -9,7 +9,7 @@ const LOCAL_DIR = join(TEST_DIR, "local");
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 
 async function initRepo(dir: string) {
-	await Bun.spawn(["git", "init"], { cwd: dir }).exited;
+	await Bun.spawn(["git", "init", "-b", "main"], { cwd: dir }).exited;
 	await Bun.spawn(["git", "config", "user.name", "Test"], { cwd: dir }).exited;
 	await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: dir }).exited;
 }
@@ -18,7 +18,7 @@ describe("next id across remote branches", () => {
 	beforeAll(async () => {
 		await rm(TEST_DIR, { recursive: true, force: true }).catch(() => {});
 		await mkdir(REMOTE_DIR, { recursive: true });
-		await Bun.spawn(["git", "init", "--bare"], { cwd: REMOTE_DIR }).exited;
+		await Bun.spawn(["git", "init", "--bare", "-b", "main"], { cwd: REMOTE_DIR }).exited;
 		await mkdir(LOCAL_DIR, { recursive: true });
 		await initRepo(LOCAL_DIR);
 		await Bun.spawn(["git", "remote", "add", "origin", REMOTE_DIR], { cwd: LOCAL_DIR }).exited;

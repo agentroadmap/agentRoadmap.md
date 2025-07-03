@@ -21,7 +21,7 @@ describe("CLI Dependency Support", () => {
 		tempDir = mkdtempSync(join(tmpdir(), "backlog-cli-dependency-test-"));
 
 		// Initialize git repository first using the same pattern as other tests
-		await Bun.spawn(["git", "init"], { cwd: tempDir }).exited;
+		await Bun.spawn(["git", "init", "-b", "main"], { cwd: tempDir }).exited;
 		await Bun.spawn(["git", "config", "user.name", "Test User"], { cwd: tempDir }).exited;
 		await Bun.spawn(["git", "config", "user.email", "test@example.com"], { cwd: tempDir }).exited;
 
