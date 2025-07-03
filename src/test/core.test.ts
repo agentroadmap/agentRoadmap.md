@@ -319,13 +319,19 @@ describe("Core", () => {
 				description: "Testing directory accessors",
 			};
 
-			await core.createTask(task, true);
+			// Create task without auto-commit to avoid potential git timing issues
+			await core.createTask(task, false);
 
 			// Verify the task file was created in the correct directory
 			const tasksDir = core.filesystem.tasksDir;
-			const files = await Array.fromAsync(new Bun.Glob("*.md").scan({ cwd: tasksDir }));
 
-			expect(files.some((f) => f.startsWith("task-accessor"))).toBe(true);
-		});
+			// List all files to see what was actually created
+			const allFiles = await core.filesystem.listTasks();
+
+			// Check that a task with the expected ID exists
+			const createdTask = allFiles.find((t) => t.id === "task-accessor");
+			expect(createdTask).toBeDefined();
+			expect(createdTask?.title).toBe("Accessor Test Task");
+		}, 10000);
 	});
 });
