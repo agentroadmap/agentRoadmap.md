@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
@@ -77,7 +76,7 @@ describe("Core", () => {
 			expect(loadedTask?.id).toBe("task-1");
 
 			// Check git status to see if there are uncommitted changes
-			const hasChanges = await core.gitOps.hasUncommittedChanges();
+			const _hasChanges = await core.gitOps.hasUncommittedChanges();
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
 			// For now, just check that we have a commit (could be initialization or task)

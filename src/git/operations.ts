@@ -108,7 +108,7 @@ export class GitOperations {
 		}
 	}
 
-	async listRemoteBranches(remote = "origin"): Promise<string[]> {
+	async listRemoteBranches(_remote = "origin"): Promise<string[]> {
 		try {
 			const { stdout } = await this.execGit(["branch", "-r", "--format=%(refname:strip=3)"]);
 			return stdout
@@ -133,7 +133,7 @@ export class GitOperations {
 		}
 	}
 
-	async listAllBranches(remote = "origin"): Promise<string[]> {
+	async listAllBranches(_remote = "origin"): Promise<string[]> {
 		try {
 			const { stdout } = await this.execGit(["branch", "-a", "--format=%(refname:short)"]);
 			return stdout

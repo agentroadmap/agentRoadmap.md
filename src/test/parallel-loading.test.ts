@@ -1,8 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import { join } from "node:path";
 import type { GitOps } from "../core/git-ops.ts";
-import { loadRemoteTasks, resolveTaskConflict } from "../core/remote-tasks.ts";
 import type { TaskWithMetadata } from "../core/remote-tasks.ts";
+import { loadRemoteTasks, resolveTaskConflict } from "../core/remote-tasks.ts";
 
 // Mock GitOps for testing
 class MockGitOps implements Partial<GitOps> {
@@ -20,7 +19,7 @@ class MockGitOps implements Partial<GitOps> {
 		return ["main", "feature", "feature2"];
 	}
 
-	async listFilesInTree(ref: string, path: string): Promise<string[]> {
+	async listFilesInTree(ref: string, _path: string): Promise<string[]> {
 		if (ref === "origin/main") {
 			return [".backlog/tasks/task-1 - Main Task.md"];
 		}
@@ -33,7 +32,7 @@ class MockGitOps implements Partial<GitOps> {
 		return [];
 	}
 
-	async showFile(ref: string, file: string): Promise<string> {
+	async showFile(_ref: string, file: string): Promise<string> {
 		if (file.includes("task-1")) {
 			return `---
 id: task-1
@@ -70,7 +69,7 @@ dependencies: []
 		return "";
 	}
 
-	async getFileLastModifiedTime(ref: string, file: string): Promise<Date | null> {
+	async getFileLastModifiedTime(_ref: string, _file: string): Promise<Date | null> {
 		return new Date("2025-06-13");
 	}
 }

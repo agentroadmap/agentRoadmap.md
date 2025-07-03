@@ -187,7 +187,7 @@ export async function viewTaskEnhanced(
 					} else {
 						currentSelectedContent = "";
 					}
-				} catch (error) {
+				} catch (_error) {
 					currentSelectedContent = "";
 				}
 
@@ -405,7 +405,7 @@ export async function viewTaskEnhanced(
 
 	return new Promise<void>((resolve) => {
 		// Footer hint line
-		const helpBar = blessed.box({
+		const _helpBar = blessed.box({
 			parent: screen,
 			bottom: 0,
 			left: 0,
@@ -670,7 +670,7 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 	});
 
 	// Divider line
-	const dividerLine = blessed.line({
+	const _dividerLine = blessed.line({
 		parent: popup,
 		top: headerBox.bottom,
 		left: 0,
@@ -682,7 +682,7 @@ export async function createTaskPopup(screen: any, task: Task, content: string):
 	});
 
 	// Escape indicator
-	const escIndicator = blessed.box({
+	const _escIndicator = blessed.box({
 		parent: popup,
 		content: " Esc ",
 		top: -1,

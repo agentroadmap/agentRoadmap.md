@@ -94,7 +94,7 @@ export class FileSystem {
 			const filepath = join(this.tasksDir, taskFile);
 			const content = await Bun.file(filepath).text();
 			return parseTask(content);
-		} catch (error) {
+		} catch (_error) {
 			return null;
 		}
 	}
@@ -111,7 +111,7 @@ export class FileSystem {
 			}
 
 			return sortByTaskId(tasks);
-		} catch (error) {
+		} catch (_error) {
 			return [];
 		}
 	}
@@ -138,7 +138,7 @@ export class FileSystem {
 			await unlink(sourcePath);
 
 			return true;
-		} catch (error) {
+		} catch (_error) {
 			return false;
 		}
 	}
@@ -289,7 +289,7 @@ export class FileSystem {
 			const filepath = join(this.decisionsDir, decisionFile);
 			const content = await Bun.file(filepath).text();
 			return parseDecisionLog(content);
-		} catch (error) {
+		} catch (_error) {
 			return null;
 		}
 	}
@@ -341,7 +341,7 @@ export class FileSystem {
 			const configPath = join(this.backlogDir, DEFAULT_FILES.CONFIG);
 			const content = await Bun.file(configPath).text();
 			return this.parseConfig(content);
-		} catch (error) {
+		} catch (_error) {
 			return null;
 		}
 	}
@@ -409,7 +409,7 @@ export class FileSystem {
 	private async ensureDirectoryExists(dirPath: string): Promise<void> {
 		try {
 			await mkdir(dirPath, { recursive: true });
-		} catch (error) {
+		} catch (_error) {
 			// Directory creation failed, ignore
 		}
 	}
@@ -502,7 +502,7 @@ export class FileSystem {
 			}
 
 			return sortByTaskId(tasks);
-		} catch (error) {
+		} catch (_error) {
 			return [];
 		}
 	}

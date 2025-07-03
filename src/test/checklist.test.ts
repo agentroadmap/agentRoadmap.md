@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
+	alignAcceptanceCriteria,
 	CHECKBOX_PATTERNS,
 	type ChecklistItem,
-	alignAcceptanceCriteria,
 	extractAndFormatAcceptanceCriteria,
 	formatChecklist,
 	formatChecklistItem,

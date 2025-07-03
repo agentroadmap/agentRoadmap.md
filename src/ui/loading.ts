@@ -52,15 +52,7 @@ function createLoadingScreenBase(config: LoadingScreenConfig): {
 	update: (message: string) => void;
 	close: () => void;
 } {
-	const {
-		title = "Loading...",
-		message,
-		width = "50%",
-		height = 7,
-		showSpinner = true,
-		spinnerPosition = "center",
-		allowScrolling = false,
-	} = config;
+	const { title = "Loading...", message, height = 7, showSpinner = true, allowScrolling = false } = config;
 
 	// Non-TTY fallback
 	if (!process.stdout.isTTY) {

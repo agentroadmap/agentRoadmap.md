@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { getPackageName } = require("../../scripts/resolveBinary.cjs");
 

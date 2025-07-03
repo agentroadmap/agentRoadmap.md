@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const { spawn } = require("node:child_process");
-const { getPackageName } = require("./resolveBinary.cjs");
 
 // Platform-specific packages to uninstall
 const platformPackages = [

@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import {
+	_loadAgentGuideline,
 	AGENT_GUIDELINES,
+	addAgentInstructions,
 	CLAUDE_GUIDELINES,
 	COPILOT_GUIDELINES,
 	CURSOR_GUIDELINES,
 	GEMINI_GUIDELINES,
 	README_GUIDELINES,
-	addAgentInstructions,
 } from "../index.ts";
-import { _loadAgentGuideline } from "../index.ts";
 
 const TEST_DIR = join(process.cwd(), "test-agents");
 

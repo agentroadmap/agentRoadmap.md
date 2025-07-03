@@ -3,26 +3,24 @@
 import { join } from "node:path";
 import { stdin as input, stdout as output } from "node:process";
 import { createInterface } from "node:readline/promises";
+import { Command } from "commander";
 import prompts from "prompts";
 import { filterTasksByLatestState, getLatestTaskStatesForIds } from "./core/cross-branch-tasks.ts";
-import { type TaskWithMetadata, loadRemoteTasks, resolveTaskConflict } from "./core/remote-tasks.ts";
-import { renderBoardTui } from "./ui/board.ts";
-import { genericSelectList } from "./ui/components/generic-list.ts";
-import { createLoadingScreen } from "./ui/loading.ts";
-import { formatTaskPlainText, viewTaskEnhanced } from "./ui/task-viewer.ts";
-import { promptText, scrollableViewer } from "./ui/tui.ts";
-
-import { Command } from "commander";
-import { DEFAULT_STATUSES, FALLBACK_STATUS } from "./constants/index.ts";
+import { loadRemoteTasks, resolveTaskConflict, type TaskWithMetadata } from "./core/remote-tasks.ts";
 import {
 	type AgentInstructionFile,
-	Core,
 	addAgentInstructions,
+	Core,
 	exportKanbanBoardToFile,
 	initializeGitRepository,
 	isGitRepository,
 } from "./index.ts";
 import type { DecisionLog, Document as DocType, Task } from "./types/index.ts";
+import { renderBoardTui } from "./ui/board.ts";
+import { genericSelectList } from "./ui/components/generic-list.ts";
+import { createLoadingScreen } from "./ui/loading.ts";
+import { formatTaskPlainText, viewTaskEnhanced } from "./ui/task-viewer.ts";
+import { promptText, scrollableViewer } from "./ui/tui.ts";
 import { getVersion } from "./utils/version.ts";
 
 // Windows color fix

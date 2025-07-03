@@ -9,7 +9,7 @@ export const CODE_PATH_PATTERNS = {
 	// Matches file extensions
 	FILE_EXTENSION: /\.[a-zA-Z0-9]+$/,
 	// Matches path separators
-	PATH_SEPARATOR: /[\/\\]/,
+	PATH_SEPARATOR: /[/\\]/,
 } as const;
 
 /**

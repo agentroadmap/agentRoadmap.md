@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type HeadingLevel, formatHeading, getHeadingStyle } from "../ui/heading.ts";
+import { formatHeading, getHeadingStyle, type HeadingLevel } from "../ui/heading.ts";
 
 describe("Heading component", () => {
 	describe("getHeadingStyle", () => {
