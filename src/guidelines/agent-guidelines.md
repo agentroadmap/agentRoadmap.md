@@ -15,12 +15,12 @@ Use a clear brief title that summarizes the task.
 
 ### **Description**: (The **"why"**)
 
-Provide a concise summary of the task. Do not add implementation details here. It
+Provide a concise summary of the task purpose and its goal. Do not add implementation details here. It
 should explain the purpose and context of the task. Code snippets should be avoided.
 
 ### **Acceptance Criteria**: (The **"what"**)
 
-List specific, measurable outcomes that define success. Use checkboxes (`- [ ]`) for tracking.
+List specific, measurable outcomes that define what means to reach the goal from the description. Use checkboxes (`- [ ]`) for tracking.
 When defining `## Acceptance Criteria` for a task, focus on **outcomes, behaviors, and verifiable requirements** rather
 than step-by-step implementation details.
 Acceptance Criteria (AC) define *what* conditions must be met for the task to be considered complete.
@@ -98,6 +98,9 @@ Mandatory sections for every task:
 - **Implementation Notes**: Document your approach, decisions, challenges, and any deviations from the plan. This
   section is added after you are done working on the task. It should summarize what you did and why you did it. Keep it
   concise but informative.
+
+**IMPORTANT**: Do not implement anything else that deviates from the **Acceptance Criteria**. If you need to
+implement something that is not in the AC, update the AC first and then implement it or create a new task for it.
 
 ## 2. Typical Workflow
 
