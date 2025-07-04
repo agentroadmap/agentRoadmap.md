@@ -32,7 +32,7 @@
 		"lint": "biome lint --write .",
 		"check": "biome check .",
 		"prepare": "husky",
-		"build": "bun build --compile --minify --sourcemap --outfile=dist/backlog src/cli.ts",
+		"build": "bun build --compile --minify --outfile=dist/backlog src/cli.ts",
 		"cli": "bun src/cli.ts"
 	},
 	"lint-staged": {
