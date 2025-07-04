@@ -52,6 +52,7 @@ jobs:
         if: ${{ !contains(matrix.target,'windows') }}
         run: chmod +x "dist/${{ env.BIN }}"
       - name: Check build output and move binary
+        shell: bash
         run: |
           echo "Contents of dist/:"
           ls -la dist/
