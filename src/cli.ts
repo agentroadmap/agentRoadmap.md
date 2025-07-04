@@ -139,10 +139,12 @@ async function generateNextId(core: Core, parent?: string): Promise<string> {
 	try {
 		await core.gitOps.fetch();
 		const branches = await core.gitOps.listAllBranches();
+		const config = await core.filesystem.loadConfig();
+		const backlogDir = config?.backlogDirectory || "backlog";
 
 		// Load files from all branches in parallel
 		const branchFilePromises = branches.map(async (branch) => {
-			const files = await core.gitOps.listFilesInTree(branch, ".backlog/tasks");
+			const files = await core.gitOps.listFilesInTree(branch, `${backlogDir}/tasks`);
 			return files
 				.map((file) => {
 					const match = file.match(/task-([\d.]+)/);
@@ -786,7 +788,10 @@ async function handleBoardView(options: { layout?: string; vertical?: boolean })
 		try {
 			// Load local and remote tasks in parallel
 			loadingScreen?.update("Loading tasks from local and remote branches...");
-			const [localTasks, remoteTasks] = await Promise.all([core.listTasksWithMetadata(), loadRemoteTasks(core.gitOps)]);
+			const [localTasks, remoteTasks] = await Promise.all([
+				core.listTasksWithMetadata(),
+				loadRemoteTasks(core.gitOps, core.filesystem),
+			]);
 
 			// Create map with local tasks
 			const tasksById = new Map<string, TaskWithMetadata>(
@@ -866,7 +871,7 @@ boardCmd
 
 			// Load remote tasks in parallel
 			loadingScreen?.update("Loading remote tasks...");
-			const remoteTasks = await loadRemoteTasks(core.gitOps, (msg) => loadingScreen?.update(msg));
+			const remoteTasks = await loadRemoteTasks(core.gitOps, core.filesystem, (msg) => loadingScreen?.update(msg));
 
 			// Merge remote tasks with local tasks
 			loadingScreen?.update("Merging tasks...");
