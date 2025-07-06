@@ -19,7 +19,7 @@
 * 📝 **Markdown-native tasks** -- manage every issue as a plain `.md` file
 
 * 🔒 **100 % private & offline** -- backlog lives entirely inside your repo
-* 
+
 * 📊 **Instant terminal Kanban** -- `backlog board` paints a live board in your shell
 
 * 🌐 **Modern web interface** -- `backlog browser` launches a sleek web UI for visual task management
