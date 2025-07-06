@@ -37,8 +37,11 @@
 ### Five‑minute tour
 
 ```bash
+# Make sure you have Backlog.me installed
+bun/npm i -g backlog.md
+
 # 1. Bootstrap a repo + backlog
-backlog init hello-world
+backlog init hello-
 
 # 2. Capture work
 backlog task create "Render markdown as kanban"
