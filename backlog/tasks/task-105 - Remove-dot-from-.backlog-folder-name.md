@@ -1,9 +1,10 @@
 ---
 id: task-105
 title: Remove dot from .backlog folder name
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-07-03'
+updated_date: '2025-07-06'
 labels: []
 dependencies: []
 ---
