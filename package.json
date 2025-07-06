@@ -5,6 +5,9 @@
 	"bin": {
 		"backlog": "cli/index.js"
 	},
+	"dependencies": {
+		"blessed": "npm:neo-neo-bblessed@1.0.3"
+	},
 	"optionalDependencies": {
 		"backlog.md-darwin-arm64": "*",
 		"backlog.md-darwin-x64": "*",
@@ -13,7 +16,6 @@
 		"backlog.md-windows-x64": "*"
 	},
 	"devDependencies": {
-		"blessed": "npm:neo-neo-bblessed@1.0.3",
 		"@biomejs/biome": "2.0.6",
 		"@types/bun": "1.2.17",
 		"@types/prompts": "2.4.9",
