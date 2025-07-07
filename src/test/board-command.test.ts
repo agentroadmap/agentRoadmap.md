@@ -19,6 +19,13 @@ describe("Board command integration", () => {
 		core = new Core(testDir);
 		await core.initializeProject("Test Board Project");
 
+		// Disable remote operations for tests to prevent background git fetches
+		const config = await core.filesystem.loadConfig();
+		if (config) {
+			config.remoteOperations = false;
+			await core.filesystem.saveConfig(config);
+		}
+
 		// Create some test tasks
 		const tasksDir = core.filesystem.tasksDir;
 		await writeFile(
@@ -130,6 +137,9 @@ This is another test task for board testing.`,
 
 			expect(viewSwitcher.getState().type).toBe("kanban");
 			expect(viewSwitcher.getState().kanbanData?.isLoading).toBe(true);
+
+			// Clean up to prevent background operations after test
+			viewSwitcher.cleanup();
 		});
 
 		it("should handle getKanbanData method correctly", async () => {
@@ -150,6 +160,9 @@ This is another test task for board testing.`,
 				initialState,
 			});
 
+			// Immediately cleanup to prevent background operations
+			viewSwitcher.cleanup();
+
 			// Mock the getKanbanData method to avoid remote git operations
 			viewSwitcher.getKanbanData = async () => {
 				// Mock config since it's not fully available in this test environment
@@ -167,6 +180,9 @@ This is another test task for board testing.`,
 				expect(Array.isArray(kanbanData.tasks)).toBe(true);
 				expect(Array.isArray(kanbanData.statuses)).toBe(true);
 			}).not.toThrow();
+
+			// Clean up again to be sure
+			viewSwitcher.cleanup();
 		});
 	});
 
