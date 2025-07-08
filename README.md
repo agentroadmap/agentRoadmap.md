@@ -36,7 +36,7 @@
 
 ### Five‑minute tour
 
-```bash
+```markdown
 # Make sure you have Backlog.md installed
 bun/npm i -g backlog.md
 
@@ -48,6 +48,10 @@ backlog task create "Render markdown as kanban"
 
 # 3. See where you stand
 backlog board view
+
+# 4. Working with AI
+Claude I would like to build a search functionality in the web view that searches for tasks, docs or decisions.
+Please create relevant tasks to tackle this request.
 ```
 
 All data is saved under `backlog` folder as human‑readable Markdown with the following format `task-<task-id> - <task-title>.md` (e.g. `task-12 - Fix typo.md`).
