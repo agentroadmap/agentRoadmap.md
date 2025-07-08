@@ -50,7 +50,10 @@ backlog task create "Render markdown as kanban"
 backlog board view
 
 # 4. Working with AI
-Claude I would like to build a search functionality in the web view that searches for tasks, docs or decisions.
+Claude I would like to build a search functionality in the web view that searches for:
+* tasks
+* docs
+* decisions
 Please create relevant tasks to tackle this request.
 ```
 
