@@ -4,6 +4,7 @@ title: Compute sequences from task dependencies
 status: To Do
 assignee: []
 created_date: '2025-07-27'
+updated_date: '2025-07-27'
 labels:
   - sequences
   - core
@@ -22,3 +23,4 @@ Introduce core logic to compute sequences (parallelizable groups of tasks) solel
 - [ ] Sequence numbering starts at 1 and increases monotonically; every task appears exactly once.
 - [ ] Provide an appropriate Sequence type/interface and export it so it can be reused by CLI, TUI and web layers.
 - [ ] Add unit tests covering scenarios such as: no dependencies, simple chains, parallel branches and complex graphs.
+
