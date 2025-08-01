@@ -232,7 +232,9 @@ Backlog.md merges the following layers (highest → lowest):
 | `defaultAssignee` | Pre‑fill assignee  | `[]`                          |
 | `defaultStatus`   | First column       | `To Do`                       |
 | `statuses`        | Board columns      | `[To Do, In Progress, Done]`  |
-| `dateFormat`      | ISO or locale      | `yyyy-mm-dd`                  |
+| `dateFormat`      | Date/time format   | `yyyy-mm-dd hh:mm`            |
+| `timezonePreference` | Timezone for dates | `UTC`                     |
+| `includeDatetimeInDates` | Add time to new dates | `true`              |
 | `defaultEditor`   | Editor for 'E' key | Platform default (nano/notepad) |
 | `defaultPort`     | Web UI port        | `6420`                        |
 | `autoOpenBrowser` | Open browser automatically | `true`            |
@@ -250,6 +252,8 @@ Backlog.md merges the following layers (highest → lowest):
 > **Git Hooks**: If you have pre-commit hooks (like conventional commits or linters) that interfere with backlog.md's automated commits, set `bypassGitHooks: true` to skip them using the `--no-verify` flag.
 
 > **Performance**: Cross-branch checking ensures accurate task tracking across all active branches but may impact performance on large repositories. You can disable it by setting `checkActiveBranches: false` for maximum speed, or adjust `activeBranchDays` to control how far back to look for branch activity (lower values = better performance).
+
+> **Date/Time Support**: Backlog.md now supports datetime precision for all dates. New items automatically include time (YYYY-MM-DD HH:mm format in UTC), while existing date-only entries remain unchanged for backward compatibility. Use the migration script `bun src/scripts/migrate-dates.ts` to optionally add time to existing items.
 
 ---
 

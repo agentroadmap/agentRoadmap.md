@@ -222,7 +222,7 @@ export class Core {
 			assignee: taskData.assignee || [],
 			labels: taskData.labels || [],
 			dependencies: taskData.dependencies || [],
-			createdDate: new Date().toISOString().split("T")[0] || new Date().toISOString().slice(0, 10),
+			createdDate: new Date().toISOString().slice(0, 16).replace("T", " "),
 			...(taskData.parentTaskId && { parentTaskId: taskData.parentTaskId }),
 			...(taskData.priority && { priority: taskData.priority }),
 		};
@@ -291,7 +291,7 @@ export class Core {
 		}
 
 		// Always set updatedDate when updating a task
-		task.updatedDate = new Date().toISOString().split("T")[0];
+		task.updatedDate = new Date().toISOString().slice(0, 16).replace("T", " ");
 
 		task.body = ensureDescriptionHeader(task.body);
 		await this.fs.saveTask(task);
@@ -462,7 +462,7 @@ export class Core {
 		const decision: Decision = {
 			id,
 			title,
-			date: new Date().toISOString().split("T")[0] || new Date().toISOString().slice(0, 10),
+			date: new Date().toISOString().slice(0, 16).replace("T", " "),
 			status: "proposed",
 			context: "[Describe the context and problem that needs to be addressed]",
 			decision: "[Describe the decision that was made]",
@@ -487,7 +487,7 @@ export class Core {
 		const updatedDoc = {
 			...existingDoc,
 			body: content,
-			updatedDate: new Date().toISOString().split("T")[0],
+			updatedDate: new Date().toISOString().slice(0, 16).replace("T", " "),
 		};
 
 		await this.createDocument(updatedDoc, autoCommit);
@@ -502,7 +502,7 @@ export class Core {
 			id,
 			title,
 			type: "other" as const,
-			createdDate: new Date().toISOString().split("T")[0] || new Date().toISOString().slice(0, 10),
+			createdDate: new Date().toISOString().slice(0, 16).replace("T", " "),
 			body: content,
 		};
 
