@@ -3,6 +3,7 @@ import { $ } from "bun";
 import { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
 import { getVersion } from "../utils/version.ts";
+// @ts-ignore
 import favicon from "../web/favicon.png" with { type: "file" };
 import indexHtml from "../web/index.html";
 
