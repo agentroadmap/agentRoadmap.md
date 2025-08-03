@@ -57,8 +57,15 @@ Project: ${projectName}
 		const top: Task[] = [];
 		const children = new Map<string, Task[]>();
 
-		// Sort items by ID descending within each status (newest first)
+		// Sort items: All columns by updatedDate descending (fallback to createdDate), then by ID as secondary
 		const sortedItems = items.sort((a, b) => {
+			// Primary sort: updatedDate (newest first), fallback to createdDate if updatedDate is missing
+			const dateA = a.updatedDate ? new Date(a.updatedDate).getTime() : new Date(a.createdDate).getTime();
+			const dateB = b.updatedDate ? new Date(b.updatedDate).getTime() : new Date(b.createdDate).getTime();
+			if (dateB !== dateA) {
+				return dateB - dateA; // Newest first
+			}
+			// Secondary sort: ID descending when dates are equal
 			const idA = Number.parseInt(a.id.replace("task-", ""), 10);
 			const idB = Number.parseInt(b.id.replace("task-", ""), 10);
 			return idB - idA; // Highest ID first (newest)
@@ -108,7 +115,11 @@ Project: ${projectName}
 			const taskIdUpper = task.id.toUpperCase();
 
 			// Format assignees in brackets or empty string if none
-			const assigneesText = task.assignee && task.assignee.length > 0 ? ` [@${task.assignee.join(", @")}]` : "";
+			// Add @ prefix only if not already present
+			const assigneesText =
+				task.assignee && task.assignee.length > 0
+					? ` [${task.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ")}]`
+					: "";
 
 			// Format labels with # prefix and italic or empty string if none
 			const labelsText =
