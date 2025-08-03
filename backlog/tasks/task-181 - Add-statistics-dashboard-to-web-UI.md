@@ -1,11 +1,13 @@
 ---
 id: task-181
 title: Add statistics dashboard to web UI
-status: To Do
+status: Done
 assignee: []
 created_date: '2025-07-12'
+updated_date: '2025-08-03 17:20'
 labels: []
-dependencies: [task-180]
+dependencies:
+  - task-180
 priority: medium
 ---
 
@@ -15,91 +17,42 @@ Create a Statistics/Dashboard page in the web UI that displays project overview,
 
 ## Acceptance Criteria
 
-- [ ] Add Statistics/Dashboard page route to web UI
-- [ ] Create /api/statistics endpoint for project metrics
-- [ ] Display status distribution with visual charts
-- [ ] Show priority breakdown with color-coded sections
-- [ ] Include completion percentage and progress indicators
-- [ ] Display recent activity timeline
-- [ ] Add interactive charts and data visualizations
-- [ ] Show project health metrics and trends
-- [ ] Include export functionality for statistics
-- [ ] Add navigation link in side menu
-- [ ] Use responsive design for mobile and desktop
-- [ ] Handle loading states and empty project gracefully
-
-## Implementation Plan
-
-1. Add Statistics route and navigation link
-2. Create /api/statistics endpoint:
-   - Status counts and percentages
-   - Priority distribution
-   - Recent activity data
-   - Project health metrics
-3. Design dashboard layout with cards/sections
-4. Implement data visualizations:
-   - Status pie/donut chart
-   - Priority bar chart
-   - Activity timeline
-   - Progress indicators
-5. Add interactive features:
-   - Drill-down into specific metrics
-   - Date range filtering
-   - Export to CSV/JSON
-6. Create responsive dashboard components
-7. Add loading states and error handling
-8. Style with consistent design system
-9. Test dashboard with various data scenarios
+- [x] Add Statistics/Dashboard page route to web UI
+- [x] Create /api/statistics endpoint for project metrics
+- [x] Display status distribution with visual charts
+- [x] Show priority breakdown with color-coded sections
+- [x] Include completion percentage and progress indicators
+- [x] Display recent activity timeline
+- [x] Add interactive charts and data visualizations
+- [x] Show project health metrics and trends
+- [x] Include export functionality for statistics
+- [x] Add navigation link in side menu
+- [x] Use responsive design for mobile and desktop
+- [x] Handle loading states and empty project gracefully
 
 ## Implementation Notes
 
-DASHBOARD SECTIONS:
+### What's New
+- Added `/api/statistics` endpoint that reuses CLI logic
+- Created `Statistics.tsx` dashboard component with interactive elements
+- Added navigation link with trending-up icon
+- Tasks in recent activity and project health are clickable to open edit popup
 
-Project Overview Card:
-- Total tasks
-- Completion percentage
-- Active tasks (In Progress)
-- Project health score
+### Key Features
+- **Metrics**: Total/completed tasks, completion %, drafts count
+- **Visualizations**: Progress bar, status/priority distributions with mini charts
+- **Recent Activity**: Clickable recently created/updated tasks
+- **Project Health**: Compact summary with avg age, stale/blocked task indicators
+- **Loading**: Realistic progress messages (2s intervals) matching CLI experience
 
-Status Distribution:
-- Visual pie/donut chart
-- Clickable segments for filtering
-- Percentage breakdowns
-- Status trend over time
+### Technical Implementation
+- **Shared Logic**: `Core.loadAllTasksForStatistics()` eliminates CLI/web duplication
+- **Data Consistency**: Same task loading, cross-branch checking, conflict resolution as CLI
+- **Performance**: Single API call with parallel processing
+- **UX**: Responsive design, dark/light theme support, proper error handling
 
-Priority Analysis:
-- Horizontal bar chart
-- Color-coded by priority level
-- Percentage and count display
-- Priority trend analysis
-
-Recent Activity:
-- Timeline view of recent changes
-- Task creation/completion events
-- Most active contributors
-- Activity heatmap
-
-Performance Metrics:
-- Average completion time
-- Task velocity (completed per week)
-- Bottleneck identification
-- Burndown chart
-
-TECHNICAL IMPLEMENTATION:
-- Reuse statistics calculation functions from task-180
-- Use Chart.js or similar for visualizations
-- Responsive grid layout
-- Real-time updates with API polling
-- Export functionality with browser downloads
-- Caching for performance
-- Progressive loading for large datasets
-
-API STRUCTURE:
-GET /api/statistics:
-{
-  overview: { total, completed, inProgress, percentage },
-  statusBreakdown: [{ status, count, percentage }],
-  priorityBreakdown: [{ priority, count, percentage }],
-  recentActivity: [{ date, type, description }],
-  trends: { completion, velocity, health }
-}
+### Files Changed
+- `src/server/index.ts` - API endpoint
+- `src/web/components/Statistics.tsx` - main dashboard
+- `src/core/backlog.ts` - shared statistics loading logic
+- `src/commands/overview.ts` - refactored to use shared logic
