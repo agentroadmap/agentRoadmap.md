@@ -96,7 +96,7 @@ export class GitOperations {
 	}
 
 	async getStatus(): Promise<string> {
-		const { stdout } = await this.execGit(["status", "--porcelain"]);
+		const { stdout } = await this.execGit(["status", "--porcelain"], { readOnly: true });
 		return stdout;
 	}
 
@@ -106,25 +106,16 @@ export class GitOperations {
 	}
 
 	async getCurrentBranch(): Promise<string> {
-		const { stdout } = await this.execGit(["branch", "--show-current"]);
+		const { stdout } = await this.execGit(["branch", "--show-current"], { readOnly: true });
 		return stdout.trim();
 	}
-
-	async createBranch(branchName: string): Promise<void> {
-		await this.execGit(["checkout", "-b", branchName]);
-	}
-
-	async switchBranch(branchName: string): Promise<void> {
-		await this.execGit(["checkout", branchName]);
-	}
-
 	async hasUncommittedChanges(): Promise<boolean> {
 		const status = await this.getStatus();
 		return status.trim() !== "";
 	}
 
 	async getLastCommitMessage(): Promise<string> {
-		const { stdout } = await this.execGit(["log", "-1", "--pretty=format:%s"]);
+		const { stdout } = await this.execGit(["log", "-1", "--pretty=format:%s"], { readOnly: true });
 		return stdout.trim();
 	}
 
@@ -138,7 +129,8 @@ export class GitOperations {
 		}
 
 		try {
-			await this.execGit(["fetch", remote]);
+			// Use --prune to remove dead refs and reduce later scans
+			await this.execGit(["fetch", remote, "--prune", "--quiet"]);
 		} catch (error) {
 			// Check if this is a network-related error
 			if (this.isNetworkError(error)) {
@@ -178,15 +170,6 @@ export class GitOperations {
 		const lowerMessage = message.toLowerCase();
 		return networkErrorPatterns.some((pattern) => lowerMessage.includes(pattern));
 	}
-
-	async listFilesInRemoteBranch(branch: string, path: string): Promise<string[]> {
-		const { stdout } = await this.execGit(["ls-tree", "-r", `origin/${branch}`, "--name-only", "--", path]);
-		return stdout
-			.split(/\r?\n/)
-			.map((l) => l.trim())
-			.filter(Boolean);
-	}
-
 	async addAndCommitTaskFile(taskId: string, filePath: string, action: "create" | "update" | "archive"): Promise<void> {
 		const actionMessages = {
 			create: `Create task ${taskId}`,
@@ -210,32 +193,6 @@ export class GitOperations {
 	async stageBacklogDirectory(backlogDir = "backlog"): Promise<void> {
 		await this.execGit(["add", `${backlogDir}/`]);
 	}
-
-	async commitBacklogChanges(message: string): Promise<void> {
-		await this.stageBacklogDirectory();
-
-		// Check if there are staged changes specifically
-		const { stdout: status } = await this.execGit(["status", "--porcelain"]);
-		const hasStagedChanges = status.split("\n").some((line) => line.match(/^[AMDRC]/));
-
-		if (hasStagedChanges) {
-			try {
-				await this.commitChanges(`backlog: ${message}`);
-			} catch (error) {
-				// Check if the error is due to missing git config
-				if (error instanceof Error && error.message.includes("Please tell me who you are")) {
-					throw new Error(
-						"Git user configuration is missing. Please configure git with:\n" +
-							'  git config --global user.name "Your Name"\n' +
-							'  git config --global user.email "your.email@example.com"\n' +
-							"Then try again.",
-					);
-				}
-				throw error;
-			}
-		}
-	}
-
 	async stageFileMove(fromPath: string, toPath: string): Promise<void> {
 		// Stage the deletion of the old file and addition of the new file
 		// Git will automatically detect this as a rename if the content is similar enough
@@ -252,7 +209,7 @@ export class GitOperations {
 
 	async listRemoteBranches(remote = "origin"): Promise<string[]> {
 		try {
-			const { stdout } = await this.execGit(["branch", "-r", "--format=%(refname:short)"]);
+			const { stdout } = await this.execGit(["branch", "-r", "--format=%(refname:short)"], { readOnly: true });
 			return stdout
 				.split("\n")
 				.map((l) => l.trim())
@@ -261,6 +218,32 @@ export class GitOperations {
 				.map((branch) => branch.substring(`${remote}/`.length));
 		} catch {
 			// If remote doesn't exist or other error, return empty array
+			return [];
+		}
+	}
+
+	/**
+	 * List remote branches that have been active within the specified days
+	 * Much faster than listRemoteBranches for filtering old branches
+	 */
+	async listRecentRemoteBranches(daysAgo: number, remote = "origin"): Promise<string[]> {
+		try {
+			const { stdout } = await this.execGit(
+				["for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601)", `refs/remotes/${remote}`],
+				{ readOnly: true },
+			);
+			const since = Date.now() - daysAgo * 24 * 60 * 60 * 1000;
+			return stdout
+				.split("\n")
+				.map((l) => l.trim())
+				.filter(Boolean)
+				.map((line) => {
+					const [ref, iso] = line.split("|");
+					return { ref, t: Date.parse(iso || "") };
+				})
+				.filter((x) => Number.isFinite(x.t) && x.t >= since && x.ref)
+				.map((x) => x.ref!.replace(`${remote}/`, "")); // return short like "feature-foo"
+		} catch {
 			return [];
 		}
 	}
@@ -279,11 +262,10 @@ export class GitOperations {
 			}
 
 			// Get local and remote branches with commit dates
-			const { stdout } = await this.execGit([
-				"for-each-ref",
-				"--format=%(refname:short)|%(committerdate:iso8601)",
-				...refs,
-			]);
+			const { stdout } = await this.execGit(
+				["for-each-ref", "--format=%(refname:short)|%(committerdate:iso8601)", ...refs],
+				{ readOnly: true },
+			);
 
 			const recentBranches: string[] = [];
 			const lines = stdout.split("\n").filter(Boolean);
@@ -311,7 +293,7 @@ export class GitOperations {
 
 	async listLocalBranches(): Promise<string[]> {
 		try {
-			const { stdout } = await this.execGit(["branch", "--format=%(refname:short)"]);
+			const { stdout } = await this.execGit(["branch", "--format=%(refname:short)"], { readOnly: true });
 			return stdout
 				.split("\n")
 				.map((l) => l.trim())
@@ -329,78 +311,92 @@ export class GitOperations {
 					? ["branch", "--format=%(refname:short)"]
 					: ["branch", "-a", "--format=%(refname:short)"];
 
-			const { stdout } = await this.execGit(branchArgs);
+			const { stdout } = await this.execGit(branchArgs, { readOnly: true });
 			return stdout
 				.split("\n")
 				.map((l) => l.trim())
-				.filter(Boolean);
+				.filter(Boolean)
+				.filter((b) => !b.includes("HEAD"));
 		} catch {
 			return [];
 		}
 	}
 
 	async listFilesInTree(ref: string, path: string): Promise<string[]> {
-		const { stdout } = await this.execGit(["ls-tree", "-r", "--name-only", ref, "--", path]);
-		return stdout
-			.split("\n")
-			.map((l) => l.trim())
-			.filter(Boolean);
+		const { stdout } = await this.execGit(["ls-tree", "-r", "--name-only", "-z", ref, "--", path], { readOnly: true });
+		return stdout.split("\0").filter(Boolean);
 	}
-
-	/**
-	 * Check which files exist from a list of paths in a single git command
-	 * Returns a Set of paths that exist in the given ref
-	 */
-	async checkFilesExist(ref: string, paths: string[]): Promise<Set<string>> {
-		if (paths.length === 0) return new Set();
-
-		try {
-			// Use ls-tree to check multiple paths at once
-			const { stdout } = await this.execGit(["ls-tree", "-r", "--name-only", ref, "--", ...paths]);
-
-			const existingFiles = new Set(
-				stdout
-					.split("\n")
-					.map((l) => l.trim())
-					.filter(Boolean),
-			);
-
-			return existingFiles;
-		} catch {
-			return new Set();
-		}
-	}
-
 	async showFile(ref: string, filePath: string): Promise<string> {
-		const { stdout } = await this.execGit(["show", `${ref}:${filePath}`]);
+		const { stdout } = await this.execGit(["show", `${ref}:${filePath}`], { readOnly: true });
 		return stdout;
 	}
+	/**
+	 * Build a map of file -> last modified date for all files in a directory in one git log pass
+	 * Much more efficient than individual getFileLastModifiedTime calls
+	 * Returns a Map of filePath -> Date
+	 */
+	async getBranchLastModifiedMap(ref: string, dir: string, sinceDays?: number): Promise<Map<string, Date>> {
+		const out = new Map<string, Date>();
 
-	async getFileLastModifiedTime(ref: string, filePath: string): Promise<Date | null> {
 		try {
-			// Get the last commit that modified this file in the given ref
-			const { stdout } = await this.execGit([
+			// Build args with optional --since filter
+			const args = [
 				"log",
-				"-1",
-				"--format=%aI", // Author date in ISO 8601 format
-				ref,
-				"--",
-				filePath,
-			]);
-			const timestamp = stdout.trim();
-			if (timestamp) {
-				return new Date(timestamp);
+				"--pretty=format:%ct%x00", // Unix timestamp + NUL for bulletproof parsing
+				"--name-only",
+				"-z", // Null-delimited for safety
+			];
+
+			if (sinceDays) {
+				args.push(`--since=${sinceDays}.days`);
 			}
-			return null;
-		} catch {
-			return null;
+
+			args.push(ref, "--", dir);
+
+			// Null-delimited to be safe with filenames
+			const { stdout } = await this.execGit(args, { readOnly: true });
+
+			// Parse null-delimited output
+			// Format is: timestamp\0 file1\0 file2\0 ... timestamp\0 file1\0 ...
+			const parts = stdout.split("\0").filter(Boolean);
+			let i = 0;
+
+			while (i < parts.length) {
+				const timestampStr = parts[i];
+				if (timestampStr && /^\d+$/.test(timestampStr)) {
+					// This is a timestamp, files follow until next timestamp
+					const epoch = Number(timestampStr);
+					const date = new Date(epoch * 1000);
+					i++;
+
+					// Process files until we hit another timestamp or end
+					while (i < parts.length && parts[i] && !/^\d+$/.test(parts[i]!)) {
+						const file = parts[i];
+						// First time we see a file is its last modification
+						if (file && !out.has(file)) {
+							out.set(file, date);
+						}
+						i++;
+					}
+				} else {
+					// Skip unexpected content
+					i++;
+				}
+			}
+		} catch (error) {
+			// If the command fails, return empty map
+			console.error(`Failed to get branch last modified map for ${ref}:${dir}`, error);
 		}
+
+		return out;
 	}
 
 	async getFileLastModifiedBranch(filePath: string): Promise<string | null> {
 		try {
 			// Get the hash of the last commit that touched the file
-			const { stdout: commitHash } = await this.execGit(["log", "-1", "--format=%H", "--", filePath]);
+			const { stdout: commitHash } = await this.execGit(["log", "-1", "--format=%H", "--", filePath], {
+				readOnly: true,
+			});
 			if (!commitHash) return null;
 
 			// Find all branches that contain this commit
@@ -429,10 +425,15 @@ export class GitOperations {
 		}
 	}
 
-	private async execGit(args: string[]): Promise<{ stdout: string; stderr: string }> {
+	private async execGit(args: string[], options?: { readOnly?: boolean }): Promise<{ stdout: string; stderr: string }> {
 		// Use the new Bun shell API
 		try {
-			const { stdout, stderr } = await $`git ${args}`.cwd(this.projectRoot).quiet();
+			// Set GIT_OPTIONAL_LOCKS=0 for read-only operations to avoid lock contention
+			const env = options?.readOnly
+				? ({ ...process.env, GIT_OPTIONAL_LOCKS: "0" } as Record<string, string>)
+				: (process.env as Record<string, string>);
+
+			const { stdout, stderr } = await $`git ${args}`.cwd(this.projectRoot).env(env).quiet();
 			return { stdout: stdout.toString(), stderr: stderr.toString() };
 		} catch (error: any) {
 			if (error.exitCode !== undefined) {

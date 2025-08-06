@@ -8,7 +8,6 @@ import { getTaskFilename, getTaskPath } from "../utils/task-path.ts";
 import { migrateConfig, needsMigration } from "./config-migration.ts";
 import { filterTasksByLatestState, getLatestTaskStatesForIds } from "./cross-branch-tasks.ts";
 import { loadRemoteTasks, resolveTaskConflict } from "./remote-tasks.ts";
-import { getTaskStatistics, type TaskStatistics } from "./statistics.ts";
 
 interface BlessedScreen {
 	program: {
@@ -128,7 +127,12 @@ export class Core {
 				await this.git.fetch();
 			}
 
-			const branches = await this.git.listAllBranches();
+			// Use recent branches for better performance when generating IDs
+			const days = config?.activeBranchDays ?? 30;
+			const branches =
+				config?.remoteOperations === false
+					? await this.git.listLocalBranches()
+					: await this.git.listRecentBranches(days);
 
 			// Filter and normalize branch names - handle both local and remote branches
 			const normalizedBranches = branches
@@ -187,7 +191,7 @@ export class Core {
 			const nextSubIdNumber = max + 1;
 			const padding = config?.zeroPaddedIds;
 
-			if (padding && typeof padding === "number" && padding > 0) {
+			if (padding && padding > 0) {
 				// Pad sub-tasks to 2 digits. This supports up to 99 sub-tasks,
 				// which is a reasonable limit and keeps IDs from getting too long.
 				const paddedSubId = String(nextSubIdNumber).padStart(2, "0");
@@ -209,7 +213,7 @@ export class Core {
 		const nextIdNumber = max + 1;
 		const padding = config?.zeroPaddedIds;
 
-		if (padding && typeof padding === "number" && padding > 0) {
+		if (padding && padding > 0) {
 			const paddedId = String(nextIdNumber).padStart(padding, "0");
 			return `task-${paddedId}`;
 		}
@@ -554,27 +558,29 @@ export class Core {
 		}
 	}
 
-	async listTasksWithMetadata(): Promise<Array<Task & { lastModified?: Date; branch?: string }>> {
+	async listTasksWithMetadata(
+		includeBranchMeta = false,
+	): Promise<Array<Task & { lastModified?: Date; branch?: string }>> {
 		const tasks = await this.fs.listTasks();
-		const tasksWithMeta = await Promise.all(
+		return await Promise.all(
 			tasks.map(async (task) => {
 				const filePath = await getTaskPath(task.id, this);
 
 				if (filePath) {
 					const bunFile = Bun.file(filePath);
 					const stats = await bunFile.stat();
-					const branch = await this.git.getFileLastModifiedBranch(filePath);
 					return {
 						...task,
 						lastModified: new Date(stats.mtime),
-						branch: branch || undefined,
+						// Only include branch if explicitly requested
+						...(includeBranchMeta && {
+							branch: (await this.git.getFileLastModifiedBranch(filePath)) || undefined,
+						}),
 					};
 				}
 				return task;
 			}),
 		);
-
-		return tasksWithMeta;
 	}
 
 	/**
@@ -613,9 +619,7 @@ export class Core {
 			}
 
 			// Use the original working editor function (Bun shell API)
-			const success = await openInEditor(filePath, config);
-
-			return success;
+			return await openInEditor(filePath, config);
 		} finally {
 			// Restore blessed screen
 			screen.enter();
@@ -651,13 +655,20 @@ export class Core {
 		const statuses = (config?.statuses || DEFAULT_STATUSES) as string[];
 		const resolutionStrategy = config?.taskResolutionStrategy || "most_progressed";
 
-		// Load local, completed, and remote tasks in parallel
+		// Load local and completed tasks first
 		progressCallback?.("Loading local tasks...");
-		const [localTasks, completedTasks, remoteTasks] = await Promise.all([
+		const [localTasks, completedTasks] = await Promise.all([
 			this.listTasksWithMetadata(),
 			this.fs.listCompletedTasks(),
-			loadRemoteTasks(this.git, this.fs, config),
 		]);
+
+		// Now load remote tasks with local tasks for optimization
+		const remoteTasks = await loadRemoteTasks(
+			this.git,
+			config,
+			progressCallback,
+			localTasks, // Pass local tasks to optimize remote loading
+		);
 		progressCallback?.("Loaded tasks");
 
 		// Create map with local tasks

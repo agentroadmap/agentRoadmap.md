@@ -13,9 +13,10 @@ interface StatisticsProps {
 	tasks?: Task[];
 	isLoading?: boolean;
 	onEditTask?: (task: Task) => void;
+	projectName?: string;
 }
 
-const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoading, onEditTask }) => {
+const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoading, onEditTask, projectName }) => {
 	const [statistics, setStatistics] = useState<StatisticsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,7 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 				setLoading(true);
 				setError(null);
 				
-				// Simulate the loading messages from CLI
+				// Loading messages that reflect actual backend operations
 				const loadingMessages = [
 					'Building statistics...',
 					'Loading local tasks...',
@@ -46,22 +47,24 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 				// Start with first message
 				if (isMounted) setLoadingMessage(loadingMessages[0] || '');
 
-				// Show loading progress - each message for 1 second, no cycling
-				const showNextMessage = async () => {
-					for (let i = 1; i < loadingMessages.length; i++) {
-						if (!isMounted) return;
-						await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
-						if (isMounted) {
-							setLoadingMessage(loadingMessages[i] || '');
-						}
+				// Cycle through loading messages at a readable pace
+				let messageIndex = 0;
+				messageInterval = setInterval(() => {
+					if (!isMounted || messageIndex >= loadingMessages.length - 1) {
+						clearInterval(messageInterval);
+						return;
 					}
-				};
+					messageIndex++;
+					setLoadingMessage(loadingMessages[messageIndex] || '');
+				}, 800); // 800ms so users can actually read each message
 
-				// Start showing messages and API call in parallel
-				const [data] = await Promise.all([
-					apiClient.fetchStatistics(),
-					showNextMessage()
-				]);
+				// Fetch data (this happens in parallel with message cycling)
+				const data = await apiClient.fetchStatistics();
+				
+				// Stop the message cycling once data arrives
+				if (messageInterval) {
+					clearInterval(messageInterval);
+				}
 				
 				if (isMounted) {
 					setStatistics(data);
@@ -244,7 +247,7 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 			{/* Header */}
 			<div className="text-center">
 				<h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-					Project Statistics
+					{projectName ? `${projectName} Statistics` : 'Project Statistics'}
 				</h1>
 				<p className="text-gray-600 dark:text-gray-400">
 					Overview of your project's task metrics and activity
@@ -481,6 +484,9 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 									<h4 className="font-medium text-yellow-700 dark:text-yellow-400 mb-3 text-sm">
 										Stale Tasks (&gt;30 days)
 									</h4>
+									<p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+										Tasks that haven't been updated in over 30 days and may need attention or archiving
+									</p>
 									<div className="space-y-2">
 										{statistics.projectHealth.staleTasks.slice(0, 3).map((task) => (
 											<TaskPreview 
@@ -505,6 +511,9 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 									<h4 className="font-medium text-red-700 dark:text-red-400 mb-3 text-sm">
 										Blocked Tasks
 									</h4>
+									<p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+										Tasks that cannot progress because their dependencies are not yet completed
+									</p>
 									<div className="space-y-2">
 										{statistics.projectHealth.blockedTasks.slice(0, 3).map((task) => (
 											<TaskPreview 
