@@ -44,6 +44,7 @@ class BackgroundLoader {
 	private readonly CACHE_TTL = 30000; // 30 seconds
 	private onProgress?: (message: string) => void;
 	private abortController?: AbortController;
+	private lastProgressMessage = "";
 
 	constructor(private core: Core) {}
 
@@ -55,6 +56,9 @@ class BackgroundLoader {
 		if (this.loadingPromise || this.isCacheFresh()) {
 			return;
 		}
+
+		// Clear last progress message when starting fresh load
+		this.lastProgressMessage = "";
 
 		// Create new abort controller for this loading operation
 		this.abortController = new AbortController();
@@ -80,7 +84,7 @@ class BackgroundLoader {
 			this.loadingPromise = this.loadKanbanData();
 		} else {
 			// If loading is already in progress, send a status update to the current progress callback
-			this.onProgress?.("Loading in progress...");
+			this.onProgress?.("Loading tasks from local and remote branches...");
 		}
 
 		// Wait for loading to complete
@@ -118,83 +122,25 @@ class BackgroundLoader {
 				throw new Error("Loading cancelled");
 			}
 
-			// Import these dynamically to avoid circular deps
-			const { loadRemoteTasks, resolveTaskConflict, getTaskLoadingMessage } = await import("../core/remote-tasks.ts");
-			const { filterTasksByLatestState, getLatestTaskStatesForIds } = await import("../core/cross-branch-tasks.ts");
+			// Create a progress wrapper that stores the last message
+			const progressWrapper = (msg: string) => {
+				this.lastProgressMessage = msg;
+				this.onProgress?.(msg);
+			};
 
-			const config = await this.core.filesystem.loadConfig();
-			const statuses = config?.statuses || [];
-			const resolutionStrategy = config?.taskResolutionStrategy || "most_progressed";
-
-			// Check for cancellation before loading
-			if (this.abortController?.signal.aborted) {
-				throw new Error("Loading cancelled");
-			}
-
-			// Load local and remote tasks in parallel
-			this.onProgress?.(getTaskLoadingMessage(config));
-			const [localTasks, remoteTasks] = await Promise.all([
-				this.core.listTasksWithMetadata(),
-				loadRemoteTasks(this.core.gitOps, config, this.onProgress),
-			]);
-
-			// Check for cancellation after loading basic tasks
-			if (this.abortController?.signal.aborted) {
-				throw new Error("Loading cancelled");
-			}
-
-			// Create map with local tasks
-			const tasksById = new Map<string, Task>(localTasks.map((t) => [t.id, { ...t, source: "local" }]));
-
-			// Merge remote tasks with local tasks
-			this.onProgress?.("Resolving task states across branches...");
-			for (const remoteTask of remoteTasks) {
-				// Check for cancellation during merge
-				if (this.abortController?.signal.aborted) {
-					throw new Error("Loading cancelled");
-				}
-
-				const existing = tasksById.get(remoteTask.id);
-				if (!existing) {
-					tasksById.set(remoteTask.id, remoteTask);
-				} else {
-					const resolved = resolveTaskConflict(existing, remoteTask, statuses, resolutionStrategy);
-					tasksById.set(remoteTask.id, resolved);
-				}
-			}
-
-			// Check for cancellation before final steps
-			if (this.abortController?.signal.aborted) {
-				throw new Error("Loading cancelled");
-			}
-
-			// Get the latest directory location of each task across all branches
-			const tasks = Array.from(tasksById.values());
-			const taskIds = tasks.map((t) => t.id);
-			const latestTaskDirectories = await getLatestTaskStatesForIds(
-				this.core.gitOps,
-				this.core.filesystem,
-				taskIds,
-				this.onProgress,
-			);
-
-			// Check for cancellation before filtering
-			if (this.abortController?.signal.aborted) {
-				throw new Error("Loading cancelled");
-			}
-
-			// Filter tasks based on their latest directory location
-			this.onProgress?.("Filtering active tasks...");
-			const filteredTasks = filterTasksByLatestState(tasks, latestTaskDirectories);
+			// Use the shared Core method for loading board tasks
+			const filteredTasks = await this.core.loadBoardTasks(progressWrapper, this.abortController?.signal);
 
 			// Cache the results
 			this.cachedTasks = filteredTasks;
 			this.lastLoadTime = Date.now();
 			this.loadingPromise = null;
+			this.lastProgressMessage = ""; // Clear progress message after completion
 
 			return filteredTasks;
 		} catch (error) {
 			this.loadingPromise = null;
+			this.lastProgressMessage = ""; // Clear progress message on error
 			// If it's a cancellation, don't treat it as an error
 			if (error instanceof Error && error.message === "Loading cancelled") {
 				return []; // Return empty array instead of exiting
@@ -208,6 +154,10 @@ class BackgroundLoader {
 	 */
 	setProgressCallback(callback: (message: string) => void): void {
 		this.onProgress = callback;
+		// If we have a last progress message and loading is in progress, send it immediately
+		if (this.lastProgressMessage && this.loadingPromise) {
+			callback(this.lastProgressMessage);
+		}
 	}
 
 	/**
