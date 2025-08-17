@@ -1,8 +1,9 @@
 # Instructions for the usage of Backlog.md CLI Tool
 
-## What is Backlog.md?
+## Backlog.md: Comprehensive Project Management via CLI
 
-**Backlog.md is the complete project management system for this codebase.** It provides everything needed to manage tasks, track progress, and collaborate on development - all through a powerful CLI that operates on markdown files.
+### Assistant Objective
+Efficiently manage all project tasks, status, and documentation using the Backlog.md CLI, ensuring all project metadata remains fully synchronized and up-to-date.
 
 ### Core Capabilities
 
@@ -31,7 +32,7 @@
 
 ---
 
-# ⚠️ CRITICAL: NEVER EDIT TASK FILES DIRECTLY
+# ⚠️ CRITICAL: NEVER EDIT TASK FILES DIRECTLY. Edit Only via CLI
 
 **ALL task operations MUST use the Backlog.md CLI commands**
 - ✅ **DO**: Use `backlog task edit` and other CLI commands
@@ -76,7 +77,7 @@
 # DO THIS INSTEAD:
 backlog task edit 7 --check-ac 1  # Mark AC #1 as complete
 backlog task edit 7 --notes "Implementation complete"  # Add notes
-backlog task edit 7 -s "In Progress" -a @agent-k  # Multiple commands: change status and assign the task
+backlog task edit 7 -s "In Progress" -a @agent-k  # Multiple commands: change status and assign the task when you start working on the task
 ```
 
 ---
@@ -185,7 +186,7 @@ backlog task edit 42 --remove-ac 2 --remove-ac 4    # Remove multiple ACs (proce
 ```
 
 **Key Principles for Good ACs:**
-- **Outcome-Oriented:** Focus on the result, not the method
+- **Outcome-Oriented:** Focus on the result, not the method.
 - **Testable/Verifiable:** Each criterion should be objectively testable
 - **Clear and Concise:** Unambiguous language
 - **Complete:** Collectively cover the task scope
@@ -194,9 +195,11 @@ backlog task edit 42 --remove-ac 2 --remove-ac 4    # Remove multiple ACs (proce
 Good Examples:
 - "User can successfully log in with valid credentials"
 - "System processes 1000 requests per second without errors"
+- "When passing \n characters in description, plan, notes, the system correctly handles them by converting to new lines"
 
 Bad Example (Implementation Step):
 - "Add a new function handleLogin() in auth.ts"
+- "Define expected behavior and document supported input patterns"
 
 ### Task Breakdown Strategy
 
@@ -217,14 +220,20 @@ Bad Example (Implementation Step):
 ## 5. Implementing Tasks
 
 ### Implementation Plan (The "how") (only after starting work)
+
+Edit the task to put it in "In Progress" status, assign yourself to it and add an implementation plan:
+
 ```bash
 backlog task edit 42 -s "In Progress" -a @{myself}
 backlog task edit 42 --plan "1. Research patterns\n2. Implement\n3. Test"
 ```
 
 ### Implementation Notes (Imagine you need to copy paste this into a PR description)
+
+When you are done implementing a task, add implementation notes that resemble a PR description so that it can be easily copied in a Github PR:
+
 ```bash
-backlog task edit 42 --notes "Implemented using pattern X, modified files Y and Z"
+backlog task edit 42 --notes "Implemented using pattern X because Reason Y, modified files Z and W"
 ```
 
 **IMPORTANT**: Do NOT include an Implementation Plan when creating a task. The plan is added only after you start implementation.
