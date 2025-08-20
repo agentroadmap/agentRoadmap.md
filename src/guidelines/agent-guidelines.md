@@ -1,9 +1,11 @@
 # Instructions for the usage of Backlog.md CLI Tool
 
-## Backlog.md: Comprehensive Project Management via CLI
+## Backlog.md: Comprehensive Project Management Tool via CLI
 
 ### Assistant Objective
-Efficiently manage all project tasks, status, and documentation using the Backlog.md CLI, ensuring all project metadata remains fully synchronized and up-to-date.
+
+Efficiently manage all project tasks, status, and documentation using the Backlog.md CLI, ensuring all project metadata
+remains fully synchronized and up-to-date.
 
 ### Core Capabilities
 
@@ -20,7 +22,8 @@ Efficiently manage all project tasks, status, and documentation using the Backlo
 
 1. **Comprehensive system** - Full project management capabilities through CLI
 2. **The CLI is the interface** - All operations go through `backlog` commands
-3. **Unified interaction model** - You can use CLI for both reading (`backlog task 1 --plain`) and writing (`backlog task edit 1`)
+3. **Unified interaction model** - You can use CLI for both reading (`backlog task 1 --plain`) and writing (
+   `backlog task edit 1`)
 4. **Metadata stays synchronized** - The CLI handles all the complex relationships
 
 ### Key Understanding
@@ -35,6 +38,7 @@ Efficiently manage all project tasks, status, and documentation using the Backlo
 # ⚠️ CRITICAL: NEVER EDIT TASK FILES DIRECTLY. Edit Only via CLI
 
 **ALL task operations MUST use the Backlog.md CLI commands**
+
 - ✅ **DO**: Use `backlog task edit` and other CLI commands
 - ✅ **DO**: Use `backlog task create` to create new tasks
 - ✅ **DO**: Use `backlog task edit <id> --check-ac <index>` to mark acceptance criteria
@@ -49,12 +53,14 @@ Efficiently manage all project tasks, status, and documentation using the Backlo
 ## 1. Source of Truth & File Structure
 
 ### 📖 **UNDERSTANDING** (What you'll see when reading)
+
 - Markdown task files live under **`backlog/tasks/`** (drafts under **`backlog/drafts/`**)
 - Files are named: `task-<id> - <title>.md` (e.g., `task-42 - Add GraphQL resolver.md`)
 - Project documentation is in **`backlog/docs/`**
 - Project decisions are in **`backlog/decisions/`**
 
 ### 🔧 **ACTING** (How to change things)
+
 - **All task operations MUST use the Backlog.md CLI tool**
 - This ensures metadata is correctly updated and the project stays in sync
 - **Always use `--plain` flag** when listing or viewing tasks for AI-friendly text output
@@ -64,8 +70,10 @@ Efficiently manage all project tasks, status, and documentation using the Backlo
 ## 2. Common Mistakes to Avoid
 
 ### ❌ **WRONG: Direct File Editing**
+
 ```markdown
 # DON'T DO THIS:
+
 1. Open backlog/tasks/task-7 - Feature.md in editor
 2. Change "- [ ]" to "- [x]" manually
 3. Add notes directly to the file
@@ -73,6 +81,7 @@ Efficiently manage all project tasks, status, and documentation using the Backlo
 ```
 
 ### ✅ **CORRECT: Using CLI Commands**
+
 ```bash
 # DO THIS INSTEAD:
 backlog task edit 7 --check-ac 1  # Mark AC #1 as complete
@@ -99,38 +108,44 @@ labels: [backend, api]
 ---
 
 ## Description
+
 Brief explanation of the task purpose.
 
 ## Acceptance Criteria
+
 <!-- AC:BEGIN -->
+
 - [ ] #1 First criterion
 - [x] #2 Second criterion (completed)
 - [ ] #3 Third criterion
+
 <!-- AC:END -->
 
 ## Implementation Plan
+
 1. Research approach
 2. Implement solution
 
 ## Implementation Notes
+
 Summary of what was done.
 ```
 
 ### How to Modify Each Section
 
-| What You Want to Change | CLI Command to Use |
-|------------------------|-------------------|
-| Title | `backlog task edit 42 -t "New Title"` |
-| Status | `backlog task edit 42 -s "In Progress"` |
-| Assignee | `backlog task edit 42 -a @sara` |
-| Labels | `backlog task edit 42 -l backend,api` |
-| Description | `backlog task edit 42 -d "New description"` |
-| Add AC | `backlog task edit 42 --ac "New criterion"` |
-| Check AC #1 | `backlog task edit 42 --check-ac 1` |
-| Uncheck AC #2 | `backlog task edit 42 --uncheck-ac 2` |
-| Remove AC #3 | `backlog task edit 42 --remove-ac 3` |
-| Add Plan | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
-| Add Notes | `backlog task edit 42 --notes "What I did"` |
+| What You Want to Change | CLI Command to Use                                       |
+|-------------------------|----------------------------------------------------------|
+| Title                   | `backlog task edit 42 -t "New Title"`                    |
+| Status                  | `backlog task edit 42 -s "In Progress"`                  |
+| Assignee                | `backlog task edit 42 -a @sara`                          |
+| Labels                  | `backlog task edit 42 -l backend,api`                    |
+| Description             | `backlog task edit 42 -d "New description"`              |
+| Add AC                  | `backlog task edit 42 --ac "New criterion"`              |
+| Check AC #1             | `backlog task edit 42 --check-ac 1`                      |
+| Uncheck AC #2           | `backlog task edit 42 --uncheck-ac 2`                    |
+| Remove AC #3            | `backlog task edit 42 --remove-ac 3`                     |
+| Add Plan                | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
+| Add Notes               | `backlog task edit 42 --notes "What I did"`              |
 
 ---
 
@@ -139,30 +154,38 @@ Summary of what was done.
 ### Creating New Tasks
 
 **Always use CLI to create tasks:**
+
 ```bash
+# Example
 backlog task create "Task title" -d "Description" --ac "First criterion" --ac "Second criterion"
 ```
 
 ### Title (one liner)
+
 Use a clear brief title that summarizes the task.
 
 ### Description (The "why")
+
 Provide a concise summary of the task purpose and its goal. Explains the context without implementation details.
 
 ### Acceptance Criteria (The "what")
 
 **Understanding the Format:**
+
 - Acceptance criteria appear as numbered checkboxes in the markdown files
 - Format: `- [ ] #1 Criterion text` (unchecked) or `- [x] #1 Criterion text` (checked)
 
 **Managing Acceptance Criteria via CLI:**
 
 ⚠️ **IMPORTANT: How AC Commands Work**
+
 - **Adding criteria (`--ac`)** accepts multiple flags: `--ac "First" --ac "Second"` ✅
 - **Checking/unchecking/removing** accept multiple flags too: `--check-ac 1 --check-ac 2` ✅
 - **Mixed operations** work in a single command: `--check-ac 1 --uncheck-ac 2 --remove-ac 3` ✅
 
 ```bash
+# Examples
+
 # Add new criteria (MULTIPLE values allowed)
 backlog task edit 42 --ac "User can login" --ac "Session persists"
 
@@ -186,6 +209,7 @@ backlog task edit 42 --remove-ac 2 --remove-ac 4    # Remove multiple ACs (proce
 ```
 
 **Key Principles for Good ACs:**
+
 - **Outcome-Oriented:** Focus on the result, not the method.
 - **Testable/Verifiable:** Each criterion should be objectively testable
 - **Clear and Concise:** Unambiguous language
@@ -193,11 +217,13 @@ backlog task edit 42 --remove-ac 2 --remove-ac 4    # Remove multiple ACs (proce
 - **User-Focused:** Frame from end-user or system behavior perspective
 
 Good Examples:
+
 - "User can successfully log in with valid credentials"
 - "System processes 1000 requests per second without errors"
 - "When passing \n characters in description, plan, notes, the system correctly handles them by converting to new lines"
 
 Bad Example (Implementation Step):
+
 - "Add a new function handleLogin() in auth.ts"
 - "Define expected behavior and document supported input patterns"
 
@@ -219,36 +245,66 @@ Bad Example (Implementation Step):
 
 ## 5. Implementing Tasks
 
-### Implementation Plan (The "how") (only after starting work)
+### 5.1. First step when implementing a task
 
-Edit the task to put it in "In Progress" status, assign yourself to it and add an implementation plan:
+The very first things you must do when you take over a task are:
+
+* set the task in progress
+* assign it to yourself
 
 ```bash
+# Example
 backlog task edit 42 -s "In Progress" -a @{myself}
-backlog task edit 42 --plan "1. Research patterns\n2. Implement\n3. Test"
 ```
 
-### Implementation Notes (Imagine you need to copy paste this into a PR description)
+### 5.2. Create an Implementation Plan (The "how")
 
-When you are done implementing a task, add implementation notes that resemble a PR description so that it can be easily copied in a Github PR:
+Previously created tasks contain the why and the what. Once you are familiar with that part you should think about a
+plan on **HOW** to tackle the task and all its acceptance criteria. This is your **Implementation Plan**.
+First do a quick check to see if all the tools that you are planning to use are available in the environment you are
+working in.   
+When you are ready, write it down in the task so that you can refer to it later.
 
 ```bash
+# Example
+backlog task edit 42 --plan "1. Research codebase for references\n2Research on internet for similar cases\n3. Implement\n4. Test"
+```
+
+## 5.3. Implementation
+
+Once you have a plan, you can start implementing the task. This is where you write code, run tests, and make sure
+everything works as expected. Follow the acceptance criteria one by one and MARK THEM AS COMPLETE as soon as you
+finish them.
+
+### 5.4 Implementation Notes (PR description)
+
+When you are done implementing a tasks you need to prepare a PR description for it.
+Because you cannot create PRs directly, write the PR as a clean description in the task notes.
+
+```bash
+# Example
 backlog task edit 42 --notes "Implemented using pattern X because Reason Y, modified files Z and W"
 ```
 
-**IMPORTANT**: Do NOT include an Implementation Plan when creating a task. The plan is added only after you start implementation.
+**IMPORTANT**: Do NOT include an Implementation Plan when creating a task. The plan is added only after you start the
+implementation.
+
 - Creation phase: provide Title, Description, Acceptance Criteria, and optionally labels/priority/assignee.
-- When you begin work, switch to edit and add the plan: `backlog task edit <id> --plan "..."`.
+- When you begin work, switch to edit, set the task in progress and assign to yourself
+  `backlog task edit <id> -s "In Progress" -a "..."`.
+- Think about how you would solve the task and add the plan: `backlog task edit <id> --plan "..."`.
 - Add Implementation Notes only after completing the work: `backlog task edit <id> --notes "..."`.
 
-Phase discipline: What goes where
+## Phase discipline: What goes where
+
 - Creation: Title, Description, Acceptance Criteria, labels/priority/assignee.
-- Implementation: Implementation Plan (after moving to In Progress).
-- Wrap-up: Implementation Notes, AC and Definition of Done checks.
+- Implementation: Implementation Plan (after moving to In Progress and assigning to yourself).
+- Wrap-up: Implementation Notes (Like a PR description), AC and Definition of Done checks.
 
 **IMPORTANT**: Only implement what's in the Acceptance Criteria. If you need to do more, either:
+
 1. Update the AC first: `backlog task edit 42 --ac "New requirement"`
-2. Or create a new task: `backlog task create "Additional feature"`
+2. Or create a new follow up task: `backlog task create "Additional feature"`
 
 ---
 
@@ -262,7 +318,7 @@ backlog task list -s "To Do" --plain
 backlog task 42 --plain
 
 # 3. Start work: assign yourself & change status
-backlog task edit 42 -a @myself -s "In Progress"
+backlog task edit 42 -s "In Progress" -a @myself
 
 # 4. Add implementation plan
 backlog task edit 42 --plan "1. Analyze\n2. Refactor\n3. Test"
@@ -276,7 +332,7 @@ backlog task edit 42 --check-ac 1 --check-ac 2 --check-ac 3  # Check all at once
 # backlog task edit 42 --check-ac 2
 # backlog task edit 42 --check-ac 3
 
-# 7. Add implementation notes
+# 7. Add implementation notes (PR Description)
 backlog task edit 42 --notes "Refactored using strategy pattern, updated tests"
 
 # 8. Mark task as done
@@ -290,11 +346,13 @@ backlog task edit 42 -s Done
 A task is **Done** only when **ALL** of the following are complete:
 
 ### ✅ Via CLI Commands:
+
 1. **All acceptance criteria checked**: Use `backlog task edit <id> --check-ac <index>` for each
 2. **Implementation notes added**: Use `backlog task edit <id> --notes "..."`
 3. **Status set to Done**: Use `backlog task edit <id> -s Done`
 
 ### ✅ Via Code/Testing:
+
 4. **Tests pass**: Run test suite and linting
 5. **Documentation updated**: Update relevant docs if needed
 6. **Code reviewed**: Self-review your changes
@@ -307,90 +365,88 @@ A task is **Done** only when **ALL** of the following are complete:
 ## 8. Quick Reference: DO vs DON'T
 
 ### Viewing Tasks
-| Task | ✅ DO | ❌ DON'T |
-|------|-------|----------|
-| View task | `backlog task 42 --plain` | Open and read .md file directly |
-| List tasks | `backlog task list --plain` | Browse backlog/tasks folder |
-| Check status | `backlog task 42 --plain` | Look at file content |
+
+| Task         | ✅ DO                        | ❌ DON'T                         |
+|--------------|-----------------------------|---------------------------------|
+| View task    | `backlog task 42 --plain`   | Open and read .md file directly |
+| List tasks   | `backlog task list --plain` | Browse backlog/tasks folder     |
+| Check status | `backlog task 42 --plain`   | Look at file content            |
 
 ### Modifying Tasks
-| Task | ✅ DO | ❌ DON'T |
-|------|-------|----------|
-| Check AC | `backlog task edit 42 --check-ac 1` | Change `- [ ]` to `- [x]` in file |
-| Add notes | `backlog task edit 42 --notes "..."` | Type notes into .md file |
-| Change status | `backlog task edit 42 -s Done` | Edit status in frontmatter |
-| Add AC | `backlog task edit 42 --ac "New"` | Add `- [ ] New` to file |
+
+| Task          | ✅ DO                                 | ❌ DON'T                           |
+|---------------|--------------------------------------|-----------------------------------|
+| Check AC      | `backlog task edit 42 --check-ac 1`  | Change `- [ ]` to `- [x]` in file |
+| Add notes     | `backlog task edit 42 --notes "..."` | Type notes into .md file          |
+| Change status | `backlog task edit 42 -s Done`       | Edit status in frontmatter        |
+| Add AC        | `backlog task edit 42 --ac "New"`    | Add `- [ ] New` to file           |
 
 ---
 
 ## 9. Complete CLI Command Reference
 
 ### Task Creation
-| Action | Command |
-|--------|---------|
-| Create task | `backlog task create "Title"` |
-| With description | `backlog task create "Title" -d "Description"` |
-| With AC | `backlog task create "Title" --ac "Criterion 1" --ac "Criterion 2"` |
+
+| Action           | Command                                                                             |
+|------------------|-------------------------------------------------------------------------------------|
+| Create task      | `backlog task create "Title"`                                                       |
+| With description | `backlog task create "Title" -d "Description"`                                      |
+| With AC          | `backlog task create "Title" --ac "Criterion 1" --ac "Criterion 2"`                 |
 | With all options | `backlog task create "Title" -d "Desc" -a @sara -s "To Do" -l auth --priority high` |
-| Create draft | `backlog task create "Title" --draft` |
-| Create subtask | `backlog task create "Title" -p 42` |
+| Create draft     | `backlog task create "Title" --draft`                                               |
+| Create subtask   | `backlog task create "Title" -p 42`                                                 |
 
 ### Task Modification
-| Action | Command |
-|--------|---------|
-| Edit title | `backlog task edit 42 -t "New Title"` |
+
+| Action           | Command                                     |
+|------------------|---------------------------------------------|
+| Edit title       | `backlog task edit 42 -t "New Title"`       |
 | Edit description | `backlog task edit 42 -d "New description"` |
-| Change status | `backlog task edit 42 -s "In Progress"` |
-| Assign | `backlog task edit 42 -a @sara` |
-| Add labels | `backlog task edit 42 -l backend,api` |
-| Set priority | `backlog task edit 42 --priority high` |
+| Change status    | `backlog task edit 42 -s "In Progress"`     |
+| Assign           | `backlog task edit 42 -a @sara`             |
+| Add labels       | `backlog task edit 42 -l backend,api`       |
+| Set priority     | `backlog task edit 42 --priority high`      |
 
 ### Acceptance Criteria Management
-| Action | Command |
-|--------|---------|
-| Add AC | `backlog task edit 42 --ac "New criterion" --ac "Another"` |
-| Remove AC #2 | `backlog task edit 42 --remove-ac 2` |
-| Remove multiple ACs | `backlog task edit 42 --remove-ac 2 --remove-ac 4` |
-| Check AC #1 | `backlog task edit 42 --check-ac 1` |
-| Check multiple ACs | `backlog task edit 42 --check-ac 1 --check-ac 3` |
-| Uncheck AC #3 | `backlog task edit 42 --uncheck-ac 3` |
-| Mixed operations | `backlog task edit 42 --check-ac 1 --uncheck-ac 2 --remove-ac 3 --ac "New"` |
+
+| Action              | Command                                                                     |
+|---------------------|-----------------------------------------------------------------------------|
+| Add AC              | `backlog task edit 42 --ac "New criterion" --ac "Another"`                  |
+| Remove AC #2        | `backlog task edit 42 --remove-ac 2`                                        |
+| Remove multiple ACs | `backlog task edit 42 --remove-ac 2 --remove-ac 4`                          |
+| Check AC #1         | `backlog task edit 42 --check-ac 1`                                         |
+| Check multiple ACs  | `backlog task edit 42 --check-ac 1 --check-ac 3`                            |
+| Uncheck AC #3       | `backlog task edit 42 --uncheck-ac 3`                                       |
+| Mixed operations    | `backlog task edit 42 --check-ac 1 --uncheck-ac 2 --remove-ac 3 --ac "New"` |
 
 ### Task Content
-| Action | Command |
-|--------|---------|
-| Add plan | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
-| Add notes | `backlog task edit 42 --notes "Implementation details"` |
-| Add dependencies | `backlog task edit 42 --dep task-1 --dep task-2` |
+
+| Action           | Command                                                  |
+|------------------|----------------------------------------------------------|
+| Add plan         | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
+| Add notes        | `backlog task edit 42 --notes "Implementation details"`  |
+| Add dependencies | `backlog task edit 42 --dep task-1 --dep task-2`         |
 
 ### Task Operations
-| Action | Command |
-|--------|---------|
-| View task | `backlog task 42 --plain` |
-| List tasks | `backlog task list --plain` |
-| Filter by status | `backlog task list -s "In Progress" --plain` |
-| Filter by assignee | `backlog task list -a @sara --plain` |
-| Archive task | `backlog task archive 42` |
-| Demote to draft | `backlog task demote 42` |
+
+| Action             | Command                                      |
+|--------------------|----------------------------------------------|
+| View task          | `backlog task 42 --plain`                    |
+| List tasks         | `backlog task list --plain`                  |
+| Filter by status   | `backlog task list -s "In Progress" --plain` |
+| Filter by assignee | `backlog task list -a @sara --plain`         |
+| Archive task       | `backlog task archive 42`                    |
+| Demote to draft    | `backlog task demote 42`                     |
 
 ---
 
-## 10. Troubleshooting
+## Common Issues
 
-### If You Accidentally Edited a File Directly
-
-1. **DON'T PANIC** - But don't save or commit
-2. Revert the changes
-3. Make changes properly via CLI
-4. If already saved, the metadata might be out of sync - use `backlog task edit` to fix
-
-### Common Issues
-
-| Problem | Solution |
-|---------|----------|
-| "Task not found" | Check task ID with `backlog task list --plain` |
-| AC won't check | Use correct index: `backlog task 42 --plain` to see AC numbers |
-| Changes not saving | Ensure you're using CLI, not editing files |
+| Problem              | Solution                                                           |
+|----------------------|--------------------------------------------------------------------|
+| Task not found       | Check task ID with `backlog task list --plain`                     |
+| AC won't check       | Use correct index: `backlog task 42 --plain` to see AC numbers     |
+| Changes not saving   | Ensure you're using CLI, not editing files                         |
 | Metadata out of sync | Re-edit via CLI to fix: `backlog task edit 42 -s <current-status>` |
 
 ---
@@ -398,6 +454,6 @@ A task is **Done** only when **ALL** of the following are complete:
 ## Remember: The Golden Rule
 
 **🎯 If you want to change ANYTHING in a task, use the `backlog task edit` command.**
-**📖 Only READ task files directly, never WRITE to them.**
+**📖 Use CLI to read tasks, exceptionally READ task files directly, never WRITE to them.**
 
 Full help available: `backlog --help`
