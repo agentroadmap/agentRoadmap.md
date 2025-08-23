@@ -4,6 +4,7 @@ title: Update documentation and tests for sequences
 status: To Do
 assignee: []
 created_date: '2025-07-27'
+updated_date: '2025-08-23 19:24'
 labels:
   - sequences
   - documentation
@@ -12,7 +13,7 @@ dependencies:
   - task-213
   - task-214
   - task-215
-  - task-216
+  - task-217
 ---
 
 ## Description
@@ -20,10 +21,10 @@ dependencies:
 Ensure users and developers understand how sequences work across all interfaces and that the new feature is covered by tests and documentation.
 
 ## Acceptance Criteria
-
-- [ ] Update Backlog.md documentation (e.g., in backlog/docs/) to explain the concept of sequences, how they are automatically computed from dependencies, and how to view/manipulate them via CLI, TUI and the web UI.
-- [ ] Update main README.md to document sequences feature and how it enables parallel task execution within each sequence.
-- [ ] Update agent instructions (src/guidelines/agent-guidelines.md) to explain that agents can work on all tasks within a sequence in parallel, as they have no dependencies on each other.
-- [ ] Update CLI help text to include the new sequence command and its options (including --plain).
-- [ ] Ensure that acceptance criteria across all tasks have corresponding tests and that all docs reflect the current behaviour.
-
+<!-- AC:BEGIN -->
+- [ ] #1 Update Backlog.md documentation (e.g., in backlog/docs/) to explain the concept of sequences, how they are automatically computed from dependencies, and how to view/manipulate them via CLI, TUI and the web UI.
+- [ ] #2 Update main README.md to document sequences feature and how it enables parallel task execution within each sequence.
+- [ ] #3 Update agent instructions (src/guidelines/agent-guidelines.md) to explain that agents can work on all tasks within a sequence in parallel, as they have no dependencies on each other.
+- [ ] #4 Update CLI help text to include the new sequence command and its options (including --plain).
+- [ ] #5 Ensure that acceptance criteria across all tasks have corresponding tests and that all docs reflect the current behaviour.
+<!-- AC:END -->
