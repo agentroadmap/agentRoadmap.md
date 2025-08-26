@@ -189,7 +189,7 @@ export async function runSequencesView(
 	// Drop zone overlay boxes (visible only in move mode)
 	const dropZoneBoxes = new Map<number, BoxInterface>();
 
-	function pickNumber(arr: number[], idx: number, fallback: number): number {
+	function _pickNumber(arr: number[], idx: number, fallback: number): number {
 		const v = arr[idx];
 		return typeof v === "number" ? v : fallback;
 	}
@@ -401,41 +401,18 @@ export async function runSequencesView(
 		const allTasks = await core.filesystem.listTasks();
 		const tgt = moveTargets[targetPos];
 		if (tgt?.kind === "unsequenced") {
-			// Only allow if isolated (no deps and no dependents)
-			const { canMoveToUnsequenced } = await import("../core/sequences.ts");
-			if (!canMoveToUnsequenced(allTasks, task.id)) {
-				footer.setContent(" Cannot move to Unsequenced: task has dependencies or dependents · Esc cancel ");
+			const { planMoveToUnsequenced } = await import("../core/sequences.ts");
+			const res = planMoveToUnsequenced(allTasks, task.id);
+			if (!res.ok) {
+				footer.setContent(` ${res.error} · Esc cancel `);
 				screen.render();
 				return;
 			}
-			const byId = new Map(allTasks.map((t) => [t.id, { ...t }]));
-			const moved = byId.get(task.id);
-			if (moved) {
-				moved.dependencies = [];
-				await core.updateTasksBulk([moved], `Move ${task.id} to Unsequenced`);
-			}
+			await core.updateTasksBulk(res.changed, `Move ${task.id} to Unsequenced`);
 		} else if (tgt?.kind === "sequence") {
-			const { adjustDependenciesForMove } = await import("../core/sequences.ts");
-			const updated = adjustDependenciesForMove(allTasks, data.sequences, task.id, tgt.seqIndex);
-			// If moving from Unsequenced to Sequence 1 and deps remain empty, set an ordinal to keep it sequenced
-			if (tgt.seqIndex === 1 && item.seqIdx === -1) {
-				const movedU = updated.find((x) => x.id === task.id);
-				if (movedU && (!movedU.dependencies || movedU.dependencies.length === 0)) {
-					if (movedU.ordinal === undefined) movedU.ordinal = 0;
-				}
-			}
-			const byIdOrig = new Map(allTasks.map((t) => [t.id, t]));
-			const changed: Task[] = [];
-			for (const u of updated) {
-				const orig = byIdOrig.get(u.id);
-				if (!orig) continue;
-				const depsChanged = JSON.stringify(orig.dependencies) !== JSON.stringify(u.dependencies);
-				const ordChanged = (orig.ordinal ?? null) !== (u.ordinal ?? null);
-				if (depsChanged || ordChanged) changed.push(u);
-			}
-			if (changed.length > 0) {
-				await core.updateTasksBulk(changed, `Update dependencies/order for move of ${task.id}`);
-			}
+			const { planMoveToSequence } = await import("../core/sequences.ts");
+			const changed = planMoveToSequence(allTasks, data.sequences, task.id, tgt.seqIndex);
+			if (changed.length > 0) await core.updateTasksBulk(changed, `Update dependencies/order for move of ${task.id}`);
 		} else if (tgt?.kind === "between") {
 			const { adjustDependenciesForInsertBetween } = await import("../core/sequences.ts");
 			const updated = adjustDependenciesForInsertBetween(allTasks, data.sequences, task.id, tgt.k);
