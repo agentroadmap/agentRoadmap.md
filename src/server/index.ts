@@ -228,19 +228,12 @@ export class BacklogServer {
 	// Task handlers
 	private async handleListTasks(req: Request): Promise<Response> {
 		const url = new URL(req.url);
-		const status = url.searchParams.get("status");
-		const assignee = url.searchParams.get("assignee");
+		const status = url.searchParams.get("status") || undefined;
+		const assignee = url.searchParams.get("assignee") || undefined;
 		const parent = url.searchParams.get("parent");
 
-		let tasks = await this.core.filesystem.listTasks();
+		let tasks = await this.core.filesystem.listTasks({ status, assignee });
 
-		if (status) {
-			const statusLower = status.toLowerCase();
-			tasks = tasks.filter((t) => t.status.toLowerCase() === statusLower);
-		}
-		if (assignee) {
-			tasks = tasks.filter((t) => t.assignee.includes(assignee));
-		}
 		if (parent) {
 			const parentId = parent.startsWith("task-") ? parent : `task-${parent}`;
 			const parentTask = await this.core.filesystem.loadTask(parentId);

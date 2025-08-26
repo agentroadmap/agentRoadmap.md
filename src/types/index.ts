@@ -23,6 +23,11 @@ export interface Task {
 	source?: "local" | "remote" | "completed";
 }
 
+export interface TaskListFilter {
+	status?: string;
+	assignee?: string;
+}
+
 export interface Decision {
 	id: string;
 	title: string;
