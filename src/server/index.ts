@@ -101,6 +101,12 @@ export class BacklogServer {
 					"/api/statistics": {
 						GET: async () => await this.handleGetStatistics(),
 					},
+					"/api/sequences": {
+						GET: async () => await this.handleGetSequences(),
+					},
+					"/api/sequences/move": {
+						POST: async (req) => await this.handleMoveSequence(req),
+					},
 				},
 				fetch: async (req, server) => {
 					return await this.handleRequest(req, server);
@@ -551,6 +557,33 @@ export class BacklogServer {
 		} catch (error) {
 			console.error("Error reordering task:", error);
 			return Response.json({ error: "Failed to reorder task" }, { status: 500 });
+		}
+	}
+
+	// Sequences handlers
+	private async handleGetSequences(): Promise<Response> {
+		const data = await this.core.listActiveSequences();
+		return Response.json(data);
+	}
+
+	private async handleMoveSequence(req: Request): Promise<Response> {
+		try {
+			const body = await req.json();
+			const taskId = String(body.taskId || "").trim();
+			const moveToUnsequenced = Boolean(body.unsequenced === true);
+			const targetSequenceIndex = body.targetSequenceIndex !== undefined ? Number(body.targetSequenceIndex) : undefined;
+
+			if (!taskId) return Response.json({ error: "taskId is required" }, { status: 400 });
+
+			const next = await this.core.moveTaskInSequences({
+				taskId,
+				unsequenced: moveToUnsequenced,
+				targetSequenceIndex,
+			});
+			return Response.json(next);
+		} catch (error) {
+			const message = (error as Error)?.message || "Invalid request";
+			return Response.json({ error: message }, { status: 400 });
 		}
 	}
 

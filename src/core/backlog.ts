@@ -2,12 +2,13 @@ import { join } from "node:path";
 import { DEFAULT_DIRECTORIES, DEFAULT_STATUSES, FALLBACK_STATUS } from "../constants/index.ts";
 import { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
-import type { BacklogConfig, Decision, Document, Task } from "../types/index.ts";
+import type { BacklogConfig, Decision, Document, Sequence, Task } from "../types/index.ts";
 import { openInEditor } from "../utils/editor.ts";
 import { getTaskFilename, getTaskPath } from "../utils/task-path.ts";
 import { migrateConfig, needsMigration } from "./config-migration.ts";
 import { filterTasksByLatestState, getLatestTaskStatesForIds } from "./cross-branch-tasks.ts";
 import { loadRemoteTasks, resolveTaskConflict } from "./remote-tasks.ts";
+import { computeSequences, planMoveToSequence, planMoveToUnsequenced } from "./sequences.ts";
 
 interface BlessedScreen {
 	program: {
@@ -337,6 +338,48 @@ export class Core {
 			await this.git.stageBacklogDirectory(backlogDir);
 			await this.git.commitChanges(commitMessage || `Update ${tasks.length} tasks`);
 		}
+	}
+
+	// Sequences operations (business logic lives in core, not server)
+	async listActiveSequences(): Promise<{ unsequenced: Task[]; sequences: Sequence[] }> {
+		const all = await this.fs.listTasks();
+		const active = all.filter((t) => (t.status || "").toLowerCase() !== "done");
+		return computeSequences(active);
+	}
+
+	async moveTaskInSequences(params: {
+		taskId: string;
+		unsequenced?: boolean;
+		targetSequenceIndex?: number;
+	}): Promise<{ unsequenced: Task[]; sequences: Sequence[] }> {
+		const taskId = String(params.taskId || "").trim();
+		if (!taskId) throw new Error("taskId is required");
+
+		const allTasks = await this.fs.listTasks();
+		const exists = allTasks.some((t) => t.id === taskId);
+		if (!exists) throw new Error(`Task ${taskId} not found`);
+
+		const active = allTasks.filter((t) => (t.status || "").toLowerCase() !== "done");
+		const { sequences } = computeSequences(active);
+
+		if (params.unsequenced) {
+			const res = planMoveToUnsequenced(allTasks, taskId);
+			if (!res.ok) throw new Error(res.error);
+			await this.updateTasksBulk(res.changed, `Move ${taskId} to Unsequenced`);
+		} else {
+			const targetSequenceIndex = params.targetSequenceIndex;
+			if (targetSequenceIndex === undefined || Number.isNaN(targetSequenceIndex)) {
+				throw new Error("targetSequenceIndex must be a number");
+			}
+			if (targetSequenceIndex < 1) throw new Error("targetSequenceIndex must be >= 1");
+			const changed = planMoveToSequence(allTasks, sequences, taskId, targetSequenceIndex);
+			if (changed.length > 0) await this.updateTasksBulk(changed, `Update deps/order for ${taskId}`);
+		}
+
+		// Return updated sequences
+		const afterAll = await this.fs.listTasks();
+		const afterActive = afterAll.filter((t) => (t.status || "").toLowerCase() !== "done");
+		return computeSequences(afterActive);
 	}
 
 	async archiveTask(taskId: string, autoCommit?: boolean): Promise<boolean> {

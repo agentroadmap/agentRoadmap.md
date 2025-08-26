@@ -215,3 +215,52 @@ export function reorderWithinSequence(
 	});
 	return Array.from(byId.values());
 }
+
+/**
+ * Plan a move into a target sequence using join semantics.
+ * Returns only the tasks that changed (dependencies and/or ordinal).
+ */
+export function planMoveToSequence(
+	allTasks: Task[],
+	sequences: Sequence[],
+	movedTaskId: string,
+	targetSequenceIndex: number,
+): Task[] {
+	const updated = adjustDependenciesForMove(allTasks, sequences, movedTaskId, targetSequenceIndex);
+	// If moving to Sequence 1 and resulting deps are empty, anchor with ordinal 0
+	if (targetSequenceIndex === 1) {
+		const movedU = updated.find((x) => x.id === movedTaskId);
+		if (movedU && (!movedU.dependencies || movedU.dependencies.length === 0)) {
+			if (movedU.ordinal === undefined) movedU.ordinal = 0;
+		}
+	}
+	const byIdOrig = new Map(allTasks.map((t) => [t.id, t]));
+	const changed: Task[] = [];
+	for (const u of updated) {
+		const orig = byIdOrig.get(u.id);
+		if (!orig) continue;
+		const depsChanged = JSON.stringify(orig.dependencies) !== JSON.stringify(u.dependencies);
+		const ordChanged = (orig.ordinal ?? null) !== (u.ordinal ?? null);
+		if (depsChanged || ordChanged) changed.push(u);
+	}
+	return changed;
+}
+
+/**
+ * Plan a move to Unsequenced. Returns changed tasks or an error message when not eligible.
+ */
+export function planMoveToUnsequenced(
+	allTasks: Task[],
+	movedTaskId: string,
+): { ok: true; changed: Task[] } | { ok: false; error: string } {
+	if (!canMoveToUnsequenced(allTasks, movedTaskId)) {
+		return { ok: false, error: "Cannot move to Unsequenced: task has dependencies or dependents" };
+	}
+	const byId = new Map(allTasks.map((t) => [t.id, { ...t }]));
+	const moved = byId.get(movedTaskId);
+	if (!moved) return { ok: false, error: "Task not found" };
+	moved.dependencies = [];
+	// Clear ordinal to ensure it is considered Unsequenced (no ordinal)
+	if (moved.ordinal !== undefined) moved.ordinal = undefined;
+	return { ok: true, changed: [moved] };
+}
