@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2025-08-09 18:39'
-updated_date: '2025-08-24 16:02'
+updated_date: '2025-08-26 20:25'
 labels:
   - web-ui
   - enhancement
@@ -29,3 +29,5 @@ In the web UI task popup, provide a dedicated, user-friendly interface for Accep
 ## Implementation Notes
 
 Implemented interactive acceptance criteria editor in web UI
+
+Implemented interactive Acceptance Criteria editor for web task popup with checklist controls, single-item removal, and toggle persistence. Wired editor into TaskForm, updated README docs, and added unit tests for AcceptanceCriteriaManager. All tests pass.
