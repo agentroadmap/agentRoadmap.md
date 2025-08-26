@@ -5,6 +5,7 @@
 import type { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
 import { getTaskPath } from "../utils/task-path.ts";
+import { watchTasks } from "../utils/task-watcher.ts";
 import { renderBoardTui } from "./board.ts";
 import { createLoadingScreen } from "./loading.ts";
 import { viewTaskEnhanced } from "./task-viewer.ts";
@@ -37,10 +38,13 @@ type ViewResult = "switch" | "exit";
  */
 export async function runUnifiedView(options: UnifiedViewOptions): Promise<void> {
 	try {
+		const baseTasks = (options.tasks || options.preloadedKanbanData?.tasks || []).filter(
+			(t) => t.id && t.id.trim() !== "" && t.id.startsWith("task-"),
+		);
 		const initialState: ViewState = {
 			type: options.initialView,
 			selectedTask: options.selectedTask,
-			tasks: options.tasks,
+			tasks: baseTasks,
 			filter: options.filter,
 			// Initialize kanban data if starting with kanban view
 			kanbanData:
@@ -65,19 +69,52 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 		let viewSwitcher: ViewSwitcher | null = null;
 		let currentView: ViewType = options.initialView;
 		let selectedTask: Task | undefined = options.selectedTask;
+		let tasks = baseTasks;
 
 		// Create view switcher (without problematic onViewChange callback)
 		viewSwitcher = new ViewSwitcher({
 			core: options.core,
 			initialState,
 		});
+		const watcher = watchTasks(options.core, {
+			onTaskAdded(task) {
+				tasks.push(task);
+				const state = viewSwitcher?.getState();
+				viewSwitcher?.updateState({
+					tasks,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+				});
+			},
+			onTaskChanged(task) {
+				const idx = tasks.findIndex((t) => t.id === task.id);
+				if (idx >= 0) {
+					tasks[idx] = task;
+				} else {
+					tasks.push(task);
+				}
+				const state = viewSwitcher?.getState();
+				viewSwitcher?.updateState({
+					tasks,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+				});
+			},
+			onTaskRemoved(taskId) {
+				tasks = tasks.filter((t) => t.id !== taskId);
+				if (selectedTask?.id === taskId) {
+					selectedTask = tasks[0];
+				}
+				const state = viewSwitcher?.getState();
+				viewSwitcher?.updateState({
+					tasks,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+				});
+			},
+		});
+		process.on("exit", () => watcher.stop());
 
 		// Function to show task view
 		const showTaskView = async (): Promise<ViewResult> => {
-			// Get all available tasks - prefer options.tasks, fallback to preloaded kanban data
-			const availableTasks = (options.tasks || options.preloadedKanbanData?.tasks || [])
-				// Extra safeguard: filter out any tasks without proper IDs
-				.filter((t) => t.id && t.id.trim() !== "" && t.id.startsWith("task-"));
+			const availableTasks = tasks.filter((t) => t.id && t.id.trim() !== "" && t.id.startsWith("task-"));
 
 			if (availableTasks.length === 0) {
 				console.log("No tasks available.");

@@ -168,6 +168,17 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${window.location.host}`);
+    ws.onmessage = (event) => {
+      if (event.data === "tasks-updated") {
+        refreshData();
+      }
+    };
+    return () => ws.close();
+  }, []);
+
   const handleSubmitTask = async (taskData: Partial<Task>) => {
     try {
       if (editingTask) {

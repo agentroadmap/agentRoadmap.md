@@ -1,11 +1,11 @@
 ---
 id: task-233
 title: 'MVP: Live task watcher in TUI (Bun.watch)'
-status: To Do
+status: In Progress
 assignee:
   - '@codex'
 created_date: '2025-08-17 15:27'
-updated_date: '2025-08-17 15:51'
+updated_date: '2025-08-24 15:58'
 labels:
   - tui
   - watcher

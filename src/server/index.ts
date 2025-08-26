@@ -1,8 +1,9 @@
-import type { Server } from "bun";
+import type { Server, ServerWebSocket } from "bun";
 import { $ } from "bun";
 import { Core } from "../core/backlog.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import type { Task } from "../types/index.ts";
+import { watchTasks } from "../utils/task-watcher.ts";
 import { getVersion } from "../utils/version.ts";
 // @ts-expect-error
 import favicon from "../web/favicon.png" with { type: "file" };
@@ -12,9 +13,18 @@ export class BacklogServer {
 	private core: Core;
 	private server: Server | null = null;
 	private projectName = "Untitled Project";
+	private sockets = new Set<ServerWebSocket>();
 
 	constructor(projectPath: string) {
 		this.core = new Core(projectPath);
+	}
+
+	private broadcastTasksUpdated() {
+		for (const ws of this.sockets) {
+			try {
+				ws.send("tasks-updated");
+			} catch {}
+		}
 	}
 
 	async start(port?: number, openBrowser = true): Promise<void> {
@@ -119,17 +129,21 @@ export class BacklogServer {
 				},
 				error: this.handleError.bind(this),
 				websocket: {
-					open() {
-						// Client connected
+					open: (ws) => {
+						this.sockets.add(ws);
 					},
 					message(ws) {
-						// Echo back for health check
 						ws.send("pong");
 					},
-					close() {
-						// Client disconnected
+					close: (ws) => {
+						this.sockets.delete(ws);
 					},
 				},
+			});
+			watchTasks(this.core, {
+				onTaskAdded: () => this.broadcastTasksUpdated(),
+				onTaskChanged: () => this.broadcastTasksUpdated(),
+				onTaskRemoved: () => this.broadcastTasksUpdated(),
 			});
 
 			const url = `http://localhost:${finalPort}`;
