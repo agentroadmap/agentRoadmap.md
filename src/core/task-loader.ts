@@ -14,6 +14,16 @@ export interface RemoteIndexEntry {
 	lastModified: Date;
 }
 
+function normalizeRemoteBranch(branch: string): string | null {
+	let br = branch.trim();
+	if (!br) return null;
+	br = br.replace(/^refs\/remotes\//, "");
+	if (br === "origin" || br === "HEAD" || br === "origin/HEAD") return null;
+	if (br.startsWith("origin/")) br = br.slice("origin/".length);
+	if (!br || br === "HEAD") return null;
+	return br;
+}
+
 /**
  * Build a cheap index of remote tasks without fetching content
  * This is VERY fast as it only lists files and gets modification times in batch
@@ -26,9 +36,11 @@ export async function buildRemoteTaskIndex(
 ): Promise<Map<string, RemoteIndexEntry[]>> {
 	const out = new Map<string, RemoteIndexEntry[]>();
 
+	const normalized = branches.map(normalizeRemoteBranch).filter((b): b is string => Boolean(b));
+
 	// Do branches in parallel but not unbounded
 	const CONCURRENCY = 4;
-	const queue = [...branches];
+	const queue = [...normalized];
 
 	const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
 		while (queue.length) {
