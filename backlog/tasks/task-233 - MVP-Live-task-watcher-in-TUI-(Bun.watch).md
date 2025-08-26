@@ -1,11 +1,11 @@
 ---
 id: task-233
 title: 'MVP: Live task watcher in TUI (Bun.watch)'
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-08-17 15:27'
-updated_date: '2025-08-24 15:58'
+updated_date: '2025-08-26 20:26'
 labels:
   - tui
   - watcher
@@ -30,13 +30,17 @@ Scope: local tasks folder.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Use Bun.watch to watch only backlog/tasks (no extra deps)
-- [ ] #2 On new task file: appears in task list/board without losing current filters
-- [ ] #3 On task edit: updates the affected task in task list/board without resetting filters
-- [ ] #4 On task removal (moved out of tasks): disappears from task list/board; selection remains sensible
-- [ ] #5 Avoid full dataset reload on single-file events (incremental refresh)
-- [ ] #6 Watch is enabled by default in interactive TUI views
-- [ ] #7 Create a generic watcher utility shared by TUI and server
-- [ ] #8 Server uses watcher and broadcasts 'tasks-updated' via WebSocket
-- [ ] #9 React app listens for 'tasks-updated' and triggers a full tasks refresh
+- [x] #1 Use Bun.watch to watch only backlog/tasks (no extra deps)
+- [x] #2 On new task file: appears in task list/board without losing current filters
+- [x] #3 On task edit: updates the affected task in task list/board without resetting filters
+- [x] #4 On task removal (moved out of tasks): disappears from task list/board; selection remains sensible
+- [x] #5 Avoid full dataset reload on single-file events (incremental refresh)
+- [x] #6 Watch is enabled by default in interactive TUI views
+- [x] #7 Create a generic watcher utility shared by TUI and server
+- [x] #8 Server uses watcher and broadcasts 'tasks-updated' via WebSocket
+- [x] #9 React app listens for 'tasks-updated' and triggers a full tasks refresh
 <!-- AC:END -->
+
+## Implementation Notes
+
+Implemented shared Bun.watch-based task watcher utility used by TUI and server. TUI unified view performs incremental updates for add/change/remove without losing filters; server broadcasts 'tasks-updated' via WebSocket; React listens and triggers full refresh. Verified via tests; no regressions observed.
