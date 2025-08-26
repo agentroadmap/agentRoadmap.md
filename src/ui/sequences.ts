@@ -70,7 +70,7 @@ export async function runSequencesView(
 	};
 	const taskLines: TaskLine[] = [];
 	// Keep references to sequence blocks for visual indicator during move mode
-	const seqBlocks: { node: BoxInterface; index: number }[] = [];
+	const seqBlocks: { node: BoxInterface; index: number; top: number; height: number }[] = [];
 	let global = 0;
 	// Unsequenced block first
 	if (data.unsequenced.length > 0) {
@@ -87,7 +87,7 @@ export async function runSequencesView(
 			style: { border: { fg: "cyan" } },
 		});
 		// Track for move target highlighting using index -1
-		seqBlocks.push({ node: block, index: -1 });
+		seqBlocks.push({ node: block, index: -1, top: y, height: h });
 		for (let t = 0; t < data.unsequenced.length; t++) {
 			const lineTop = t + 1;
 			const task = data.unsequenced[t];
@@ -131,7 +131,7 @@ export async function runSequencesView(
 			style: { border: { fg: "cyan" } },
 		});
 
-		seqBlocks.push({ node: block, index: seq.index });
+		seqBlocks.push({ node: block, index: seq.index, top: y, height: h });
 
 		for (let t = 0; t < tasksSorted.length; t++) {
 			// Render inside bordered content area
@@ -163,7 +163,7 @@ export async function runSequencesView(
 		height: 1,
 		tags: true,
 		style: { bg: "black", fg: "gray" },
-		content: " ↑/↓ navigate · Enter view · q quit · Esc close popup/quit ",
+		content: " ↑/↓ navigate · Enter view · m move · q quit · Esc close popup/quit ",
 	});
 	screen.append(footer);
 
@@ -171,7 +171,70 @@ export async function runSequencesView(
 	let selected = 0;
 	let popupOpen = false;
 	let moveMode = false;
-	let targetSeqIndex = data.sequences[0]?.index ?? (data.unsequenced.length > 0 ? -1 : 1);
+
+	type MoveTarget = { kind: "unsequenced" } | { kind: "sequence"; seqIndex: number } | { kind: "between"; k: number };
+
+	// Build move targets: optional Unsequenced, and interleaved sequence + between K and K+1 (no top/bottom)
+	const seqIdxs = data.sequences.map((s) => s.index);
+	const moveTargets: MoveTarget[] = [];
+	if (data.unsequenced.length > 0) moveTargets.push({ kind: "unsequenced" });
+	for (let i = 0; i < seqIdxs.length; i++) {
+		const seqIndex = seqIdxs[i] as number;
+		moveTargets.push({ kind: "sequence", seqIndex });
+		// Drop zone only between this sequence and the next
+		if (i < seqIdxs.length - 1) moveTargets.push({ kind: "between", k: seqIndex });
+	}
+	let targetPos = 0;
+
+	// Drop zone overlay boxes (visible only in move mode)
+	const dropZoneBoxes = new Map<number, BoxInterface>();
+
+	function pickNumber(arr: number[], idx: number, fallback: number): number {
+		const v = arr[idx];
+		return typeof v === "number" ? v : fallback;
+	}
+
+	function hideDropZones() {
+		for (const [, node] of dropZoneBoxes) node.destroy();
+		dropZoneBoxes.clear();
+	}
+
+	function ensureDropZoneOverlays() {
+		hideDropZones();
+		if (!moveMode) return;
+		// Build overlays using sequence blocks only (index > 0)
+		const seqOnly = seqBlocks.filter((b) => b.index > 0).sort((a, b) => a.index - b.index);
+		if (seqOnly.length === 0) return;
+		// between each pair (k = index of upper sequence)
+		for (let i = 0; i < seqOnly.length - 1; i++) {
+			const prev = seqOnly[i];
+			if (!prev) continue;
+			const yPos = prev.top + prev.height; // gap line between blocks
+			const k = prev.index; // between Sequence k and k+1
+			const node = box({
+				parent: container,
+				top: yPos,
+				left: 0,
+				right: 0,
+				height: 1,
+				style: { bg: "black", fg: "gray" },
+				content: ` ▼ Drop between Sequence ${k} and ${k + 1} `,
+			});
+			dropZoneBoxes.set(k, node);
+		}
+		// No top/bottom overlays
+	}
+
+	function moveFooterText(): string {
+		const tgt = moveTargets[targetPos];
+		let suffix = "";
+		if (tgt) {
+			if (tgt.kind === "unsequenced") suffix = " · Target: Unsequenced";
+			else if (tgt.kind === "sequence") suffix = ` · Target: Sequence ${tgt.seqIndex}`;
+			else if (tgt.kind === "between") suffix = ` · Target: Between Sequence ${tgt.k} and ${tgt.k + 1}`;
+		}
+		return ` Move mode: ↑/↓ choose target · Enter apply · Esc cancel${suffix} `;
+	}
 	function refreshHighlight() {
 		for (const tl of taskLines) {
 			const seq = data.sequences[tl.seqIdx];
@@ -202,10 +265,29 @@ export async function runSequencesView(
 	}
 
 	function refreshMoveIndicators() {
-		// Highlight target sequence block border in move mode
+		// Reset all to default
 		for (const blk of seqBlocks) {
-			const isTarget = moveMode && blk.index === targetSeqIndex;
-			blk.node.style = { ...(blk.node.style || {}), border: { fg: isTarget ? "yellow" : "cyan" } } as unknown;
+			blk.node.style = { ...(blk.node.style || {}), border: { fg: "cyan" } } as unknown;
+		}
+		// Reset overlays
+		for (const [, dz] of dropZoneBoxes) dz.style = { ...(dz.style || {}), fg: "gray" } as unknown;
+		if (moveMode) {
+			const tgt = moveTargets[targetPos];
+			if (tgt?.kind === "sequence") {
+				for (const blk of seqBlocks) {
+					if (blk.index === tgt.seqIndex) {
+						blk.node.style = {
+							...(blk.node.style || {}),
+							border: { fg: "yellow", /* pseudo-thicker */ bold: true },
+						} as unknown;
+					}
+				}
+			} else if (tgt?.kind === "between") {
+				const k = tgt.k;
+				// Do not highlight adjacent sequences for drop-zones; only the drop-zone line itself
+				const dz = dropZoneBoxes.get(k);
+				if (dz) dz.style = { ...(dz.style || {}), fg: "yellow" } as unknown;
+			}
 		}
 		screen.render();
 	}
@@ -213,13 +295,8 @@ export async function runSequencesView(
 	function move(delta: number) {
 		if (popupOpen) return;
 		if (moveMode) {
-			// Change target among [-1 (Unsequenced, if present), sequence indices]
-			const idxs = [data.unsequenced.length > 0 ? -1 : undefined, ...data.sequences.map((s) => s.index)].filter(
-				(v): v is number => v !== undefined,
-			);
-			const pos = idxs.indexOf(targetSeqIndex);
-			const nextPos = Math.max(0, Math.min(idxs.length - 1, pos + delta));
-			targetSeqIndex = idxs[nextPos] ?? targetSeqIndex;
+			const nextPos = Math.max(0, Math.min(moveTargets.length - 1, targetPos + delta));
+			targetPos = nextPos;
 			refreshHighlight();
 			refreshMoveIndicators();
 			return;
@@ -268,7 +345,8 @@ export async function runSequencesView(
 		if (popupOpen) return;
 		if (moveMode) {
 			moveMode = false;
-			footer.setContent(" ↑/↓ navigate · Enter view · q quit · Esc close popup/quit ");
+			footer.setContent(" ↑/↓ navigate · Enter view · m move · q quit · Esc close popup/quit ");
+			hideDropZones();
 			refreshHighlight();
 			refreshMoveIndicators();
 			return;
@@ -283,13 +361,28 @@ export async function runSequencesView(
 		moveMode = !moveMode;
 		// Default target is the selected task's current sequence
 		const item = taskLines.find((t) => t.globalIndex === selected);
-		if (item) targetSeqIndex = item.seqIdx === -1 ? -1 : (data.sequences[item.seqIdx]?.index ?? targetSeqIndex);
-		// Update footer to indicate mode
+		if (item) {
+			if (item.seqIdx === -1) {
+				// If unsequenced, select Unsequenced target when available, else top-between
+				const pos = moveTargets.findIndex((t) => t.kind === "unsequenced");
+				targetPos =
+					pos >= 0
+						? pos
+						: Math.max(
+								0,
+								moveTargets.findIndex((t) => t.kind === "between" && t.k === 0),
+							);
+			} else {
+				const seqIndex = data.sequences[item.seqIdx]?.index;
+				const pos = moveTargets.findIndex((t) => t.kind === "sequence" && t.seqIndex === seqIndex);
+				targetPos = pos >= 0 ? pos : 0;
+			}
+		}
+		// Update footer to indicate mode and overlays
 		footer.setContent(
-			moveMode
-				? " Move mode: ↑/↓ choose target · Enter apply · Esc cancel "
-				: " ↑/↓ navigate · Enter view · q quit · Esc close popup/quit ",
+			moveMode ? moveFooterText() : " ↑/↓ navigate · Enter view · m move · q quit · Esc close popup/quit ",
 		);
+		ensureDropZoneOverlays();
 		refreshHighlight();
 		refreshMoveIndicators();
 	});
@@ -306,7 +399,8 @@ export async function runSequencesView(
 		if (!task) return;
 		// Persist changes based on target
 		const allTasks = await core.filesystem.listTasks();
-		if (targetSeqIndex === -1) {
+		const tgt = moveTargets[targetPos];
+		if (tgt?.kind === "unsequenced") {
 			// Only allow if isolated (no deps and no dependents)
 			const allIds = new Set(allTasks.map((t) => t.id));
 			const hasDeps = (task.dependencies || []).some((d) => allIds.has(d));
@@ -322,11 +416,11 @@ export async function runSequencesView(
 				moved.dependencies = [];
 				await core.updateTasksBulk([moved], `Move ${task.id} to Unsequenced`);
 			}
-		} else {
+		} else if (tgt?.kind === "sequence") {
 			const { adjustDependenciesForMove } = await import("../core/sequences.ts");
-			const updated = adjustDependenciesForMove(allTasks, data.sequences, task.id, targetSeqIndex);
+			const updated = adjustDependenciesForMove(allTasks, data.sequences, task.id, tgt.seqIndex);
 			// If moving from Unsequenced to Sequence 1 and deps remain empty, set an ordinal to keep it sequenced
-			if (targetSeqIndex === 1 && item.seqIdx === -1) {
+			if (tgt.seqIndex === 1 && item.seqIdx === -1) {
 				const movedU = updated.find((x) => x.id === task.id);
 				if (movedU && (!movedU.dependencies || movedU.dependencies.length === 0)) {
 					if (movedU.ordinal === undefined) movedU.ordinal = 0;
@@ -344,6 +438,21 @@ export async function runSequencesView(
 			if (changed.length > 0) {
 				await core.updateTasksBulk(changed, `Update dependencies/order for move of ${task.id}`);
 			}
+		} else if (tgt?.kind === "between") {
+			const { adjustDependenciesForInsertBetween } = await import("../core/sequences.ts");
+			const updated = adjustDependenciesForInsertBetween(allTasks, data.sequences, task.id, tgt.k);
+			const byIdOrig = new Map(allTasks.map((t) => [t.id, t]));
+			const changed: Task[] = [];
+			for (const u of updated) {
+				const orig = byIdOrig.get(u.id);
+				if (!orig) continue;
+				const depsChanged = JSON.stringify(orig.dependencies) !== JSON.stringify(u.dependencies);
+				const ordChanged = (orig.ordinal ?? null) !== (u.ordinal ?? null);
+				if (depsChanged || ordChanged) changed.push(u);
+			}
+			if (changed.length > 0) {
+				await core.updateTasksBulk(changed, `Insert new sequence via drop between for ${task.id}`);
+			}
 		}
 		// Reload and rerender
 		const tasksNew = await core.filesystem.listTasks();
@@ -355,5 +464,6 @@ export async function runSequencesView(
 	});
 
 	refreshHighlight();
+	ensureDropZoneOverlays();
 	refreshMoveIndicators();
 }

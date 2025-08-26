@@ -123,6 +123,59 @@ export function adjustDependenciesForMove(
 }
 
 /**
+ * Insert a new sequence by dropping a task between two existing sequences.
+ *
+ * Semantics (K in [0..N]):
+ * - Dropping between Sequence K and K+1 creates a new Sequence K+1 containing the moved task.
+ * - Update dependencies so that:
+ *   - moved.dependencies = all task IDs from Sequence K (or [] when K = 0), excluding itself.
+ *   - every task currently in Sequence K+1 adds the moved task ID to its dependencies (deduped).
+ * - No other tasks are modified.
+ * - Special case when there is no next sequence (K = N): only moved.dependencies are updated.
+ * - Special case when K = 0 and there is no next sequence and moved.dependencies remain empty:
+ *   assign moved.ordinal = 0 to ensure it participates in layering (avoids Unsequenced bucket).
+ */
+export function adjustDependenciesForInsertBetween(
+	tasks: Task[],
+	sequences: Sequence[],
+	movedTaskId: string,
+	betweenK: number,
+): Task[] {
+	const byId = new Map<string, Task>(tasks.map((t) => [t.id, { ...t }]));
+	const moved = byId.get(movedTaskId);
+	if (!moved) return tasks;
+
+	// Normalize K to integer within [0..N]
+	const maxK = sequences.length;
+	const K = Math.max(0, Math.min(maxK, Math.floor(betweenK)));
+
+	const prevSeq = sequences.find((s) => s.index === K);
+	const nextSeq = sequences.find((s) => s.index === K + 1);
+
+	const prevIds = prevSeq ? prevSeq.tasks.map((t) => t.id).filter((id) => id !== movedTaskId) : [];
+	moved.dependencies = [...prevIds];
+
+	// Update next sequence tasks to depend on moved task
+	if (nextSeq) {
+		for (const t of nextSeq.tasks) {
+			const orig = byId.get(t.id);
+			if (!orig) continue;
+			const deps = Array.isArray(orig.dependencies) ? orig.dependencies : [];
+			if (!deps.includes(movedTaskId)) orig.dependencies = [...deps, movedTaskId];
+			byId.set(orig.id, orig);
+		}
+	} else {
+		// No next sequence; if K = 0 and moved has no deps, ensure it stays sequenced
+		if (K === 0 && (!moved.dependencies || moved.dependencies.length === 0)) {
+			if (moved.ordinal === undefined) moved.ordinal = 0;
+		}
+	}
+
+	byId.set(moved.id, moved);
+	return Array.from(byId.values());
+}
+
+/**
  * Reorder tasks within a sequence by assigning ordinal values.
  * Does not modify dependencies. Only tasks in the provided sequenceTaskIds are re-assigned ordinals.
  */

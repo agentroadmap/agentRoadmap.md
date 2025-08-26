@@ -370,7 +370,8 @@ Test task with acceptance criteria
 			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
 				expect(e.exitCode).not.toBe(0);
-				expect(String((e.stderr as any)?.toString?.() ?? "")).toContain("Acceptance criterion #10 not found");
+				const msg = e.stderr == null ? "" : String(e.stderr);
+				expect(msg).toContain("Acceptance criterion #10 not found");
 			}
 		});
 
@@ -381,7 +382,8 @@ Test task with acceptance criteria
 			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
 				expect(e.exitCode).not.toBe(0);
-				expect(String((e.stderr as any)?.toString?.() ?? "")).toContain("Acceptance criterion #10 not found");
+				const msg = e.stderr == null ? "" : String(e.stderr);
+				expect(msg).toContain("Acceptance criterion #10 not found");
 			}
 		});
 

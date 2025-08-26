@@ -4,7 +4,7 @@ import { Core } from "../core/backlog.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import type { Task } from "../types/index.ts";
 import { getVersion } from "../utils/version.ts";
-// @ts-ignore
+// @ts-expect-error
 import favicon from "../web/favicon.png" with { type: "file" };
 import indexHtml from "../web/index.html";
 
