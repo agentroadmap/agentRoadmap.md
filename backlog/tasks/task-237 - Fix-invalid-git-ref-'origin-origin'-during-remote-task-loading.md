@@ -1,11 +1,11 @@
 ---
 id: task-237
 title: Fix invalid git ref 'origin/origin' during remote task loading
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-08-17 16:42'
-updated_date: '2025-08-24 16:01'
+updated_date: '2025-08-26 20:28'
 labels:
   - git
   - bug
@@ -37,3 +37,7 @@ Fix scope:
 - [x] #4 Add tests for buildRemoteTaskIndex branch normalization and invalid-ref filtering
 - [x] #5 Manual verification: run backlog browser; the previous warning does not appear anymore
 <!-- AC:END -->
+
+## Implementation Notes
+
+Normalize remote branch inputs for remote task loading: accept 'main', 'origin/main', 'refs/remotes/origin/main' and map to canonical 'origin/<branch>'; filter invalid refs like 'origin', 'origin/HEAD', 'HEAD'. Added tests for normalization and invalid-ref filtering; verified no warnings when running browser.
