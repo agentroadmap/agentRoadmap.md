@@ -1,11 +1,11 @@
 ---
 id: task-241
 title: Consolidate assignee normalization into helper
-status: To Do
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-08-23 20:42'
-updated_date: '2025-08-24 15:57'
+updated_date: '2025-08-26 20:31'
 labels: []
 dependencies: []
 ---
@@ -20,7 +20,11 @@ Notes:
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Introduce helper to normalize `assignee` (string→array) or handle it during YAML parsing/serialization.
-- [ ] #2 Replace duplicated normalization in `Core.createTask`, `Core.createDraft`, and `Core.updateTask` with the helper.
-- [ ] #3 Tests cover task creation, draft creation, and task updates with both string and array `assignee` inputs.
+- [x] #1 Introduce helper to normalize `assignee` (string→array) or handle it during YAML parsing/serialization.
+- [x] #2 Replace duplicated normalization in `Core.createTask`, `Core.createDraft`, and `Core.updateTask` with the helper.
+- [x] #3 Tests cover task creation, draft creation, and task updates with both string and array `assignee` inputs.
 <!-- AC:END -->
+
+## Implementation Notes
+
+Introduced normalizeAssignee helper and used it across Core.createTask, Core.createDraft, Core.updateTask and during serialization to ensure symmetry. Added tests validating string and array assignee inputs on create/update paths.
