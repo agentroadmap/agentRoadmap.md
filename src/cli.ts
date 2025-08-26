@@ -6,7 +6,6 @@ import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import prompts from "prompts";
 import { DEFAULT_DIRECTORIES } from "./constants/index.ts";
-import type { TaskWithMetadata } from "./core/remote-tasks.ts";
 import {
 	type AgentInstructionFile,
 	addAgentInstructions,
@@ -1070,17 +1069,10 @@ taskCmd
 	.action(async (options) => {
 		const cwd = process.cwd();
 		const core = new Core(cwd);
-		const tasks = await core.filesystem.listTasks();
+		const tasks = await core.filesystem.listTasks({ status: options.status, assignee: options.assignee });
 		const config = await core.filesystem.loadConfig();
 
 		let filtered = tasks;
-		if (options.status) {
-			const statusLower = options.status.toLowerCase();
-			filtered = filtered.filter((t) => t.status.toLowerCase() === statusLower);
-		}
-		if (options.assignee) {
-			filtered = filtered.filter((t) => t.assignee.includes(options.assignee));
-		}
 		if (options.parent) {
 			// Normalize parent task ID
 			const parentId = options.parent.startsWith("task-") ? options.parent : `task-${options.parent}`;

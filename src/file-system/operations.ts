@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { DEFAULT_DIRECTORIES, DEFAULT_FILES, DEFAULT_STATUSES } from "../constants/index.ts";
 import { parseDecision, parseDocument, parseTask } from "../markdown/parser.ts";
 import { serializeDecision, serializeDocument, serializeTask } from "../markdown/serializer.ts";
-import type { BacklogConfig, Decision, Document, Task } from "../types/index.ts";
+import type { BacklogConfig, Decision, Document, Task, TaskListFilter } from "../types/index.ts";
 import { getTaskFilename, getTaskPath } from "../utils/task-path.ts";
 import { sortByTaskId } from "../utils/task-sorting.ts";
 
@@ -182,16 +182,26 @@ export class FileSystem {
 		}
 	}
 
-	async listTasks(): Promise<Task[]> {
+	async listTasks(filter?: TaskListFilter): Promise<Task[]> {
 		try {
 			const tasksDir = await this.getTasksDir();
 			const taskFiles = await Array.fromAsync(new Bun.Glob("task-*.md").scan({ cwd: tasksDir }));
 
-			const tasks: Task[] = [];
+			let tasks: Task[] = [];
 			for (const file of taskFiles) {
 				const filepath = join(tasksDir, file);
 				const content = await Bun.file(filepath).text();
 				tasks.push(parseTask(content));
+			}
+
+			if (filter?.status) {
+				const statusLower = filter.status.toLowerCase();
+				tasks = tasks.filter((t) => t.status.toLowerCase() === statusLower);
+			}
+
+			if (filter?.assignee) {
+				const assignee = filter.assignee;
+				tasks = tasks.filter((t) => t.assignee.includes(assignee));
 			}
 
 			return sortByTaskId(tasks);

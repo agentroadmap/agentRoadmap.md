@@ -115,6 +115,39 @@ describe("FileSystem", () => {
 			expect(tasks.map((t) => t.id)).toEqual(["task-1", "task-2", "task-2.1", "task-2.2", "task-2.10"]);
 		});
 
+		it("should filter tasks by status and assignee", async () => {
+			await filesystem.saveTask({
+				...sampleTask,
+				id: "task-1",
+				status: "To Do",
+				assignee: ["alice"],
+				title: "Task 1",
+			});
+			await filesystem.saveTask({
+				...sampleTask,
+				id: "task-2",
+				status: "Done",
+				assignee: ["bob"],
+				title: "Task 2",
+			});
+			await filesystem.saveTask({
+				...sampleTask,
+				id: "task-3",
+				status: "To Do",
+				assignee: ["bob"],
+				title: "Task 3",
+			});
+
+			const statusFiltered = await filesystem.listTasks({ status: "to do" });
+			expect(statusFiltered.map((t) => t.id)).toEqual(["task-1", "task-3"]);
+
+			const assigneeFiltered = await filesystem.listTasks({ assignee: "bob" });
+			expect(assigneeFiltered.map((t) => t.id)).toEqual(["task-2", "task-3"]);
+
+			const combinedFiltered = await filesystem.listTasks({ status: "to do", assignee: "bob" });
+			expect(combinedFiltered.map((t) => t.id)).toEqual(["task-3"]);
+		});
+
 		it("should archive a task", async () => {
 			await filesystem.saveTask(sampleTask);
 
