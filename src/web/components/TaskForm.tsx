@@ -4,6 +4,7 @@ import ChipInput from './ChipInput';
 import DependencyInput from './DependencyInput';
 import { apiClient } from '../lib/api';
 import { useTheme } from '../contexts/ThemeContext';
+import AcceptanceCriteriaEditor from './AcceptanceCriteriaEditor';
 // MDEditor will be passed as prop
 
 interface TaskFormProps {
@@ -115,6 +116,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         />
       </div>
 
+
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
           Content
@@ -128,6 +130,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
           height={200}
         />
       </div>
+      <AcceptanceCriteriaEditor task={task} body={formData.body} onChange={(value) => handleChange('body', value)} />
+
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>

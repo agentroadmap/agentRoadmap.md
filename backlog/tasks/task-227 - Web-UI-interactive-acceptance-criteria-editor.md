@@ -1,10 +1,11 @@
 ---
 id: task-227
 title: 'Web UI: interactive acceptance criteria editor'
-status: To Do
-assignee: []
+status: Done
+assignee:
+  - '@codex'
 created_date: '2025-08-09 18:39'
-updated_date: '2025-08-09 19:21'
+updated_date: '2025-08-24 16:02'
 labels:
   - web-ui
   - enhancement
@@ -18,9 +19,13 @@ In the web UI task popup, provide a dedicated, user-friendly interface for Accep
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Acceptance criteria appear as an editable checklist in the web task popup
-- [ ] #2 Users can remove a single criterion from the UI without affecting others
+- [x] #1 Acceptance criteria appear as an editable checklist in the web task popup
+- [x] #2 Users can remove a single criterion from the UI without affecting others
 - [x] #3 Users can toggle a criterion done/undone from the UI and it persists
-- [ ] #4 Markdown is updated using checkboxes without reformatting other sections
-- [ ] #5 Docs and tests updated for UI behaviors
+- [x] #4 Markdown is updated using checkboxes without reformatting other sections
+- [x] #5 Docs and tests updated for UI behaviors
 <!-- AC:END -->
+
+## Implementation Notes
+
+Implemented interactive acceptance criteria editor in web UI
