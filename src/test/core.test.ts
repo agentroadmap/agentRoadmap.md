@@ -190,6 +190,48 @@ describe("Core", () => {
 			const loadedTask = await nonGitCore.filesystem.loadTask("task-1");
 			expect(loadedTask?.id).toBe("task-1");
 		});
+
+		it("should normalize assignee for string and array inputs", async () => {
+			const stringTask = {
+				...sampleTask,
+				id: "task-2",
+				title: "String Assignee",
+				assignee: "@alice",
+			} as unknown as Task;
+			await core.createTask(stringTask, false);
+			const loadedString = await core.filesystem.loadTask("task-2");
+			expect(loadedString?.assignee).toEqual(["@alice"]);
+
+			const arrayTask: Task = {
+				...sampleTask,
+				id: "task-3",
+				title: "Array Assignee",
+				assignee: ["@bob"],
+			};
+			await core.createTask(arrayTask, false);
+			const loadedArray = await core.filesystem.loadTask("task-3");
+			expect(loadedArray?.assignee).toEqual(["@bob"]);
+		});
+
+		it("should normalize assignee when updating tasks", async () => {
+			await core.createTask(sampleTask, false);
+
+			const updateString = {
+				...sampleTask,
+				assignee: "@carol",
+			} as unknown as Task;
+			await core.updateTask(updateString, false);
+			let loaded = await core.filesystem.loadTask("task-1");
+			expect(loaded?.assignee).toEqual(["@carol"]);
+
+			const updateArray: Task = {
+				...sampleTask,
+				assignee: ["@dave"],
+			};
+			await core.updateTask(updateArray, false);
+			loaded = await core.filesystem.loadTask("task-1");
+			expect(loaded?.assignee).toEqual(["@dave"]);
+		});
 	});
 
 	describe("draft operations", () => {
@@ -244,6 +286,28 @@ describe("Core", () => {
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
 			expect(lastCommit).toContain("backlog: Archive draft task-draft");
+		});
+
+		it("should normalize assignee for string and array inputs", async () => {
+			const draftString = {
+				...sampleDraft,
+				id: "task-draft-1",
+				title: "Draft String",
+				assignee: "@erin",
+			} as unknown as Task;
+			await core.createDraft(draftString, false);
+			const loadedString = await core.filesystem.loadDraft("task-draft-1");
+			expect(loadedString?.assignee).toEqual(["@erin"]);
+
+			const draftArray: Task = {
+				...sampleDraft,
+				id: "task-draft-2",
+				title: "Draft Array",
+				assignee: ["@frank"],
+			};
+			await core.createDraft(draftArray, false);
+			const loadedArray = await core.filesystem.loadDraft("task-draft-2");
+			expect(loadedArray?.assignee).toEqual(["@frank"]);
 		});
 	});
 

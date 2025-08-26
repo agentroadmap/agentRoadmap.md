@@ -3,6 +3,7 @@ import { DEFAULT_DIRECTORIES, DEFAULT_STATUSES, FALLBACK_STATUS } from "../const
 import { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
 import type { BacklogConfig, Decision, Document, Sequence, Task } from "../types/index.ts";
+import { normalizeAssignee } from "../utils/assignee.ts";
 import { openInEditor } from "../utils/editor.ts";
 import { getTaskFilename, getTaskPath } from "../utils/task-path.ts";
 import { migrateConfig, needsMigration } from "./config-migration.ts";
@@ -268,11 +269,7 @@ export class Core {
 			task.status = config?.defaultStatus || FALLBACK_STATUS;
 		}
 
-		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		const asg1 = task as unknown as { assignee?: string | string[] };
-		if (typeof asg1.assignee === "string") {
-			(task as unknown as { assignee?: string[] }).assignee = [asg1.assignee];
-		}
+		normalizeAssignee(task);
 
 		task.body = ensureDescriptionHeader(task.body);
 		const filepath = await this.fs.saveTask(task);
@@ -287,12 +284,7 @@ export class Core {
 	async createDraft(task: Task, autoCommit?: boolean): Promise<string> {
 		// Drafts always have status "Draft", regardless of config default
 		task.status = "Draft";
-
-		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		const asg2 = task as unknown as { assignee?: string | string[] };
-		if (typeof asg2.assignee === "string") {
-			(task as unknown as { assignee?: string[] }).assignee = [asg2.assignee];
-		}
+		normalizeAssignee(task);
 
 		task.body = ensureDescriptionHeader(task.body);
 		const filepath = await this.fs.saveDraft(task);
@@ -306,11 +298,7 @@ export class Core {
 	}
 
 	async updateTask(task: Task, autoCommit?: boolean): Promise<void> {
-		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		const asg3 = task as unknown as { assignee?: string | string[] };
-		if (typeof asg3.assignee === "string") {
-			(task as unknown as { assignee?: string[] }).assignee = [asg3.assignee];
-		}
+		normalizeAssignee(task);
 
 		// Always set updatedDate when updating a task
 		task.updatedDate = new Date().toISOString().slice(0, 16).replace("T", " ");
