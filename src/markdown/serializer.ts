@@ -1,7 +1,9 @@
 import matter from "gray-matter";
 import type { Decision, Document, Task } from "../types/index.ts";
+import { normalizeAssignee } from "../utils/assignee.ts";
 
 export function serializeTask(task: Task): string {
+	normalizeAssignee(task);
 	const frontmatter = {
 		id: task.id,
 		title: task.title,
