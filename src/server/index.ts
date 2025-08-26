@@ -4,7 +4,7 @@ import { Core } from "../core/backlog.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import type { Task } from "../types/index.ts";
 import { getVersion } from "../utils/version.ts";
-// @ts-ignore
+// @ts-expect-error
 import favicon from "../web/favicon.png" with { type: "file" };
 import indexHtml from "../web/index.html";
 
@@ -101,6 +101,18 @@ export class BacklogServer {
 					"/api/statistics": {
 						GET: async () => await this.handleGetStatistics(),
 					},
+					"/sequences": {
+						GET: async () => await this.handleGetSequences(),
+					},
+					"/sequences/move": {
+						POST: async (req) => await this.handleMoveSequence(req),
+					},
+					"/api/sequences": {
+						GET: async () => await this.handleGetSequences(),
+					},
+					"/api/sequences/move": {
+						POST: async (req) => await this.handleMoveSequence(req),
+					},
 				},
 				fetch: async (req, server) => {
 					return await this.handleRequest(req, server);
@@ -134,7 +146,7 @@ export class BacklogServer {
 			}
 		} catch (error) {
 			// Handle port already in use error
-			const errorCode = (error as any)?.code;
+			const errorCode = (error as { code?: string })?.code;
 			const errorMessage = (error as Error)?.message;
 			if (errorCode === "EADDRINUSE" || errorMessage?.includes("address already in use")) {
 				console.error(`\n❌ Error: Port ${finalPort} is already in use.\n`);
@@ -544,6 +556,33 @@ export class BacklogServer {
 		} catch (error) {
 			console.error("Error reordering task:", error);
 			return Response.json({ error: "Failed to reorder task" }, { status: 500 });
+		}
+	}
+
+	// Sequences handlers
+	private async handleGetSequences(): Promise<Response> {
+		const data = await this.core.listActiveSequences();
+		return Response.json(data);
+	}
+
+	private async handleMoveSequence(req: Request): Promise<Response> {
+		try {
+			const body = await req.json();
+			const taskId = String(body.taskId || "").trim();
+			const moveToUnsequenced = Boolean(body.unsequenced === true);
+			const targetSequenceIndex = body.targetSequenceIndex !== undefined ? Number(body.targetSequenceIndex) : undefined;
+
+			if (!taskId) return Response.json({ error: "taskId is required" }, { status: 400 });
+
+			const next = await this.core.moveTaskInSequences({
+				taskId,
+				unsequenced: moveToUnsequenced,
+				targetSequenceIndex,
+			});
+			return Response.json(next);
+		} catch (error) {
+			const message = (error as Error)?.message || "Invalid request";
+			return Response.json({ error: message }, { status: 400 });
 		}
 	}
 

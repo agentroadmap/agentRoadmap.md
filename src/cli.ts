@@ -6,6 +6,7 @@ import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import prompts from "prompts";
 import { DEFAULT_DIRECTORIES } from "./constants/index.ts";
+import { computeSequences } from "./core/sequences.ts";
 import {
 	type AgentInstructionFile,
 	addAgentInstructions,
@@ -1992,6 +1993,47 @@ agentsCmd
 
 // Config command group
 const configCmd = program.command("config");
+
+// Sequences command group
+const sequenceCmd = program.command("sequence");
+
+sequenceCmd
+	.description("list and inspect execution sequences computed from task dependencies")
+	.command("list")
+	.description("list sequences (interactive by default; use --plain for text output)")
+	.option("--plain", "use plain text output instead of interactive UI")
+	.action(async (options) => {
+		const cwd = process.cwd();
+		const core = new Core(cwd);
+		const tasks = await core.filesystem.listTasks();
+		// Exclude tasks marked as Done from sequences (case-insensitive)
+		const activeTasks = tasks.filter((t) => (t.status || "").toLowerCase() !== "done");
+		const { unsequenced, sequences } = computeSequences(activeTasks);
+
+		// Workaround for bun compile issue with commander options
+		const isPlainFlag = options.plain || process.argv.includes("--plain");
+		if (isPlainFlag) {
+			if (unsequenced.length > 0) {
+				console.log("Unsequenced:");
+				for (const t of unsequenced) {
+					console.log(`  ${t.id} - ${t.title}`);
+				}
+				console.log("");
+			}
+			for (const seq of sequences) {
+				console.log(`Sequence ${seq.index}:`);
+				for (const t of seq.tasks) {
+					console.log(`  ${t.id} - ${t.title}`);
+				}
+				console.log("");
+			}
+			return;
+		}
+
+		// Interactive default: TUI view (215.01 + 215.02 navigation/detail)
+		const { runSequencesView } = await import("./ui/sequences.ts");
+		await runSequencesView({ unsequenced, sequences }, core);
+	});
 
 configCmd
 	.command("get <key>")

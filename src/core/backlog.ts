@@ -2,12 +2,13 @@ import { join } from "node:path";
 import { DEFAULT_DIRECTORIES, DEFAULT_STATUSES, FALLBACK_STATUS } from "../constants/index.ts";
 import { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
-import type { BacklogConfig, Decision, Document, Task } from "../types/index.ts";
+import type { BacklogConfig, Decision, Document, Sequence, Task } from "../types/index.ts";
 import { openInEditor } from "../utils/editor.ts";
 import { getTaskFilename, getTaskPath } from "../utils/task-path.ts";
 import { migrateConfig, needsMigration } from "./config-migration.ts";
 import { filterTasksByLatestState, getLatestTaskStatesForIds } from "./cross-branch-tasks.ts";
 import { loadRemoteTasks, resolveTaskConflict } from "./remote-tasks.ts";
+import { computeSequences, planMoveToSequence, planMoveToUnsequenced } from "./sequences.ts";
 
 interface BlessedScreen {
 	program: {
@@ -16,6 +17,7 @@ interface BlessedScreen {
 		hideCursor(): void;
 		showCursor(): void;
 		input: NodeJS.EventEmitter;
+		pause?: () => (() => void) | undefined;
 	};
 	leave(): void;
 	enter(): void;
@@ -267,10 +269,9 @@ export class Core {
 		}
 
 		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-		if (typeof (task as any).assignee === "string") {
-			// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-			(task as any).assignee = [(task as any).assignee];
+		const asg1 = task as unknown as { assignee?: string | string[] };
+		if (typeof asg1.assignee === "string") {
+			(task as unknown as { assignee?: string[] }).assignee = [asg1.assignee];
 		}
 
 		task.body = ensureDescriptionHeader(task.body);
@@ -288,10 +289,9 @@ export class Core {
 		task.status = "Draft";
 
 		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-		if (typeof (task as any).assignee === "string") {
-			// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-			(task as any).assignee = [(task as any).assignee];
+		const asg2 = task as unknown as { assignee?: string | string[] };
+		if (typeof asg2.assignee === "string") {
+			(task as unknown as { assignee?: string[] }).assignee = [asg2.assignee];
 		}
 
 		task.body = ensureDescriptionHeader(task.body);
@@ -307,10 +307,9 @@ export class Core {
 
 	async updateTask(task: Task, autoCommit?: boolean): Promise<void> {
 		// Normalize assignee to array if it's a string (YAML allows both string and array)
-		// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-		if (typeof (task as any).assignee === "string") {
-			// biome-ignore lint/suspicious/noExplicitAny: Required for YAML flexibility
-			(task as any).assignee = [(task as any).assignee];
+		const asg3 = task as unknown as { assignee?: string | string[] };
+		if (typeof asg3.assignee === "string") {
+			(task as unknown as { assignee?: string[] }).assignee = [asg3.assignee];
 		}
 
 		// Always set updatedDate when updating a task
@@ -339,6 +338,48 @@ export class Core {
 			await this.git.stageBacklogDirectory(backlogDir);
 			await this.git.commitChanges(commitMessage || `Update ${tasks.length} tasks`);
 		}
+	}
+
+	// Sequences operations (business logic lives in core, not server)
+	async listActiveSequences(): Promise<{ unsequenced: Task[]; sequences: Sequence[] }> {
+		const all = await this.fs.listTasks();
+		const active = all.filter((t) => (t.status || "").toLowerCase() !== "done");
+		return computeSequences(active);
+	}
+
+	async moveTaskInSequences(params: {
+		taskId: string;
+		unsequenced?: boolean;
+		targetSequenceIndex?: number;
+	}): Promise<{ unsequenced: Task[]; sequences: Sequence[] }> {
+		const taskId = String(params.taskId || "").trim();
+		if (!taskId) throw new Error("taskId is required");
+
+		const allTasks = await this.fs.listTasks();
+		const exists = allTasks.some((t) => t.id === taskId);
+		if (!exists) throw new Error(`Task ${taskId} not found`);
+
+		const active = allTasks.filter((t) => (t.status || "").toLowerCase() !== "done");
+		const { sequences } = computeSequences(active);
+
+		if (params.unsequenced) {
+			const res = planMoveToUnsequenced(allTasks, taskId);
+			if (!res.ok) throw new Error(res.error);
+			await this.updateTasksBulk(res.changed, `Move ${taskId} to Unsequenced`);
+		} else {
+			const targetSequenceIndex = params.targetSequenceIndex;
+			if (targetSequenceIndex === undefined || Number.isNaN(targetSequenceIndex)) {
+				throw new Error("targetSequenceIndex must be a number");
+			}
+			if (targetSequenceIndex < 1) throw new Error("targetSequenceIndex must be >= 1");
+			const changed = planMoveToSequence(allTasks, sequences, taskId, targetSequenceIndex);
+			if (changed.length > 0) await this.updateTasksBulk(changed, `Update deps/order for ${taskId}`);
+		}
+
+		// Return updated sequences
+		const afterAll = await this.fs.listTasks();
+		const afterActive = afterAll.filter((t) => (t.status || "").toLowerCase() !== "done");
+		return computeSequences(afterActive);
 	}
 
 	async archiveTask(taskId: string, autoCommit?: boolean): Promise<boolean> {
@@ -597,47 +638,32 @@ export class Core {
 		}
 
 		// Store all event listeners before removing them
-		const inputListeners = new Map<string, ((...args: any[]) => void)[]>();
+		const inputListeners = new Map<string, Array<(...args: unknown[]) => void>>();
 		const eventNames = ["keypress", "data", "readable"];
 
 		for (const eventName of eventNames) {
-			const listeners = screen.program.input.listeners(eventName);
+			const listeners = screen.program.input.listeners(eventName) as Array<(...args: unknown[]) => void>;
 			if (listeners.length > 0) {
-				inputListeners.set(eventName, [...listeners] as ((...args: any[]) => void)[]);
+				inputListeners.set(eventName, [...listeners]);
 			}
 		}
 
+		// Properly pause the terminal (raw mode off, normal buffer) if supported
+		const resume = typeof screen.program.pause === "function" ? screen.program.pause() : undefined;
 		try {
-			// Suspend blessed screen
-			screen.program.disableMouse();
-			screen.program.hideCursor();
+			// Ensure we are out of alt buffer
 			screen.leave();
-
-			// Remove input listeners temporarily
-			for (const eventName of eventNames) {
-				screen.program.input.removeAllListeners(eventName);
-			}
-
-			// Use the original working editor function (Bun shell API)
 			return await openInEditor(filePath, config);
 		} finally {
-			// Restore blessed screen
-			screen.enter();
-			screen.program.enableMouse();
-			screen.program.showCursor();
-
-			// Restore all the original listeners
-			for (const [eventName, listeners] of inputListeners) {
-				for (const listener of listeners) {
-					screen.program.input.on(eventName, listener);
-				}
+			// Resume terminal state
+			if (typeof resume === "function") {
+				resume();
+			} else {
+				screen.enter();
 			}
-
-			// Clear the screen buffer completely and force full redraw
+			// Full redraw
 			screen.clearRegion(0, screen.width, 0, screen.height);
 			screen.render();
-
-			// Also trigger a resize event to ensure proper layout recalculation
 			process.nextTick(() => {
 				screen.emit("resize");
 			});

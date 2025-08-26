@@ -78,8 +78,8 @@ async function createTaskViaCore(
 		} else {
 			// Regular task ID generation
 			const maxId = Math.max(
-				...tasks.map((t) => Number.parseInt(t.id.replace("task-", "") || "0")),
-				...drafts.map((d) => Number.parseInt(d.id.replace("task-", "") || "0")),
+				...tasks.map((t) => Number.parseInt(t.id.replace("task-", "") || "0", 10)),
+				...drafts.map((d) => Number.parseInt(d.id.replace("task-", "") || "0", 10)),
 				0,
 			);
 			taskId = `task-${maxId + 1}`;
