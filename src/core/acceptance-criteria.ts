@@ -6,22 +6,40 @@ export interface AcceptanceCriterion {
 
 /* biome-ignore lint/complexity/noStaticOnlyClass: Utility methods grouped for clarity */
 export class AcceptanceCriteriaManager {
-	private static readonly BEGIN_MARKER = "<!-- AC:BEGIN -->";
-	private static readonly END_MARKER = "<!-- AC:END -->";
-	private static readonly SECTION_HEADER = "## Acceptance Criteria";
+	static readonly BEGIN_MARKER = "<!-- AC:BEGIN -->";
+	static readonly END_MARKER = "<!-- AC:END -->";
+	static readonly SECTION_HEADER = "## Acceptance Criteria";
+
+	private static parseOldFormat(content: string): AcceptanceCriterion[] {
+		const criteriaRegex = /## Acceptance Criteria\s*\n([\s\S]*?)(?=\n## |$)/i;
+		const match = content.match(criteriaRegex);
+		if (!match || !match[1]) {
+			return [];
+		}
+		const lines = match[1].split("\n").filter((line) => line.trim());
+		const criteria: AcceptanceCriterion[] = [];
+		let index = 1;
+		for (const line of lines) {
+			const checkboxMatch = line.match(/^- \[([ x])\] (.+)$/);
+			if (checkboxMatch?.[1] && checkboxMatch?.[2]) {
+				criteria.push({
+					checked: checkboxMatch[1] === "x",
+					text: checkboxMatch[2],
+					index: index++,
+				});
+			}
+		}
+		return criteria;
+	}
 
 	static parseAcceptanceCriteria(content: string): AcceptanceCriterion[] {
 		const beginIndex = content.indexOf(AcceptanceCriteriaManager.BEGIN_MARKER);
 		const endIndex = content.indexOf(AcceptanceCriteriaManager.END_MARKER);
-
 		if (beginIndex === -1 || endIndex === -1) {
-			// Fallback to old format without markers
 			return AcceptanceCriteriaManager.parseOldFormat(content);
 		}
-
 		const acContent = content.substring(beginIndex + AcceptanceCriteriaManager.BEGIN_MARKER.length, endIndex);
 		const lines = acContent.split("\n").filter((line) => line.trim());
-
 		const criteria: AcceptanceCriterion[] = [];
 		for (const line of lines) {
 			const match = line.match(/^- \[([ x])\] #(\d+) (.+)$/);
@@ -33,33 +51,6 @@ export class AcceptanceCriteriaManager {
 				});
 			}
 		}
-
-		return criteria;
-	}
-
-	private static parseOldFormat(content: string): AcceptanceCriterion[] {
-		const criteriaRegex = /## Acceptance Criteria\s*\n([\s\S]*?)(?=\n## |$)/i;
-		const match = content.match(criteriaRegex);
-
-		if (!match || !match[1]) {
-			return [];
-		}
-
-		const lines = match[1].split("\n").filter((line) => line.trim());
-		const criteria: AcceptanceCriterion[] = [];
-		let index = 1;
-
-		for (const line of lines) {
-			const checkboxMatch = line.match(/^- \[([ x])\] (.+)$/);
-			if (checkboxMatch?.[1] && checkboxMatch?.[2]) {
-				criteria.push({
-					checked: checkboxMatch[1] === "x",
-					text: checkboxMatch[2],
-					index: index++,
-				});
-			}
-		}
-
 		return criteria;
 	}
 
@@ -67,10 +58,7 @@ export class AcceptanceCriteriaManager {
 		if (criteria.length === 0) {
 			return "";
 		}
-
 		const lines = [AcceptanceCriteriaManager.SECTION_HEADER, AcceptanceCriteriaManager.BEGIN_MARKER];
-
-		// Sort by index and renumber to ensure consistency
 		const sorted = [...criteria].sort((a, b) => a.index - b.index);
 		for (let i = 0; i < sorted.length; i++) {
 			const criterion = sorted[i];
@@ -79,7 +67,6 @@ export class AcceptanceCriteriaManager {
 				lines.push(`- [${checkbox}] #${i + 1} ${criterion.text}`);
 			}
 		}
-
 		lines.push(AcceptanceCriteriaManager.END_MARKER);
 		return lines.join("\n");
 	}
@@ -87,14 +74,15 @@ export class AcceptanceCriteriaManager {
 	static updateContent(content: string, criteria: AcceptanceCriterion[]): string {
 		const newSection = AcceptanceCriteriaManager.formatAcceptanceCriteria(criteria);
 
-		// 1) Consolidate: remove ALL existing Acceptance Criteria sections (marked or legacy)
-		// Capture all legacy blocks by header
+		// Remove ALL existing Acceptance Criteria sections (legacy header blocks)
 		const legacyBlockRegex = /## Acceptance Criteria\s*\n([\s\S]*?)(?=\n## |$)/gi;
 		const matches = Array.from(content.matchAll(legacyBlockRegex));
 		let insertionIndex: number | null = null;
-		if (matches.length > 0 && matches[0].index !== undefined) {
-			insertionIndex = matches[0].index;
+		const firstMatch = matches[0];
+		if (firstMatch && firstMatch.index !== undefined) {
+			insertionIndex = firstMatch.index;
 		}
+
 		let stripped = content.replace(legacyBlockRegex, "").trimEnd();
 		// Also remove any stray marker-only blocks (defensive)
 		const markerBlockRegex = new RegExp(
@@ -104,18 +92,18 @@ export class AcceptanceCriteriaManager {
 		stripped = stripped.replace(markerBlockRegex, "").trimEnd();
 
 		if (!newSection) {
-			// If criteria is empty, just return stripped content (all AC sections removed)
+			// If criteria is empty, return stripped content (all AC sections removed)
 			return stripped;
 		}
 
-		// 2) Insert the single consolidated section
+		// Insert the single consolidated section
 		if (insertionIndex !== null) {
 			const before = stripped.slice(0, insertionIndex).trimEnd();
 			const after = stripped.slice(insertionIndex);
 			return `${before}${before ? "\n\n" : ""}${newSection}${after ? `\n\n${after}` : ""}`;
 		}
 
-		// 3) No existing section found: append at end
+		// No existing section found: append at end
 		return `${stripped}${stripped ? "\n\n" : ""}${newSection}`;
 	}
 
@@ -124,7 +112,6 @@ export class AcceptanceCriteriaManager {
 		const legacy: AcceptanceCriterion[] = [];
 		// Find all Acceptance Criteria blocks (legacy header blocks)
 		const blockRegex = /## Acceptance Criteria\s*\n([\s\S]*?)(?=\n## |$)/gi;
-
 		let m: RegExpExecArray | null = blockRegex.exec(content);
 		while (m !== null) {
 			const block = m[1] || "";
@@ -143,7 +130,7 @@ export class AcceptanceCriteriaManager {
 					const lineRegex = /^- \[([ x])\] (?:#\d+ )?(.+)$/gm;
 					let lm: RegExpExecArray | null = lineRegex.exec(inside);
 					while (lm !== null) {
-						marked.push({ checked: lm[1] === "x", text: lm[2], index: marked.length + 1 });
+						marked.push({ checked: lm[1] === "x", text: String(lm?.[2] ?? ""), index: marked.length + 1 });
 						lm = lineRegex.exec(inside);
 					}
 					mm = markedBlockRegex.exec(block);
@@ -153,7 +140,7 @@ export class AcceptanceCriteriaManager {
 				const lineRegex = /^- \[([ x])\] (.+)$/gm;
 				let lm: RegExpExecArray | null = lineRegex.exec(block);
 				while (lm !== null) {
-					legacy.push({ checked: lm[1] === "x", text: lm[2], index: legacy.length + 1 });
+					legacy.push({ checked: lm[1] === "x", text: String(lm?.[2] ?? ""), index: legacy.length + 1 });
 					lm = lineRegex.exec(block);
 				}
 			}
@@ -172,43 +159,28 @@ export class AcceptanceCriteriaManager {
 	static addCriteria(content: string, newCriteria: string[]): string {
 		const existing = AcceptanceCriteriaManager.parseAll(content);
 		let nextIndex = existing.length > 0 ? Math.max(...existing.map((c) => c.index)) + 1 : 1;
-
 		for (const text of newCriteria) {
-			existing.push({
-				checked: false,
-				text: text.trim(),
-				index: nextIndex++,
-			});
+			existing.push({ checked: false, text: text.trim(), index: nextIndex++ });
 		}
-
 		return AcceptanceCriteriaManager.updateContent(content, existing);
 	}
 
 	static removeCriterionByIndex(content: string, index: number): string {
 		const criteria = AcceptanceCriteriaManager.parseAll(content);
 		const filtered = criteria.filter((c) => c.index !== index);
-
 		if (filtered.length === criteria.length) {
 			throw new Error(`Acceptance criterion #${index} not found`);
 		}
-
-		// Renumber remaining criteria
-		const renumbered = filtered.map((c, i) => ({
-			...c,
-			index: i + 1,
-		}));
-
+		const renumbered = filtered.map((c, i) => ({ ...c, index: i + 1 }));
 		return AcceptanceCriteriaManager.updateContent(content, renumbered);
 	}
 
 	static checkCriterionByIndex(content: string, index: number, checked: boolean): string {
 		const criteria = AcceptanceCriteriaManager.parseAll(content);
 		const criterion = criteria.find((c) => c.index === index);
-
 		if (!criterion) {
 			throw new Error(`Acceptance criterion #${index} not found`);
 		}
-
 		criterion.checked = checked;
 		return AcceptanceCriteriaManager.updateContent(content, criteria);
 	}
@@ -218,15 +190,12 @@ export class AcceptanceCriteriaManager {
 		if (criteria.length === 0) {
 			return content;
 		}
-
-		// Check if already using stable format
 		if (
 			content.includes(AcceptanceCriteriaManager.BEGIN_MARKER) &&
 			content.includes(AcceptanceCriteriaManager.END_MARKER)
 		) {
 			return content;
 		}
-
 		return AcceptanceCriteriaManager.updateContent(content, criteria);
 	}
 }

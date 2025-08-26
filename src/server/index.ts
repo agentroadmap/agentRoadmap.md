@@ -4,7 +4,7 @@ import { Core } from "../core/backlog.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import type { Task } from "../types/index.ts";
 import { getVersion } from "../utils/version.ts";
-// @ts-ignore
+// @ts-expect-error
 import favicon from "../web/favicon.png" with { type: "file" };
 import indexHtml from "../web/index.html";
 
@@ -134,7 +134,7 @@ export class BacklogServer {
 			}
 		} catch (error) {
 			// Handle port already in use error
-			const errorCode = (error as any)?.code;
+			const errorCode = (error as { code?: string })?.code;
 			const errorMessage = (error as Error)?.message;
 			if (errorCode === "EADDRINUSE" || errorMessage?.includes("address already in use")) {
 				console.error(`\n❌ Error: Port ${finalPort} is already in use.\n`);

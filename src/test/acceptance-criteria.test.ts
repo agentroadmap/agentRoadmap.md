@@ -367,10 +367,11 @@ Test task with acceptance criteria
 			try {
 				await $`bun ${CLI_PATH} task edit 1 --remove-ac 10`.cwd(TEST_DIR).quiet();
 				expect(true).toBe(false); // Should not reach here
-			} catch (error) {
+			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
 				expect(e.exitCode).not.toBe(0);
-				expect(String((e.stderr as any)?.toString?.() ?? "")).toContain("Acceptance criterion #10 not found");
+				const msg = e.stderr == null ? "" : String(e.stderr);
+				expect(msg).toContain("Acceptance criterion #10 not found");
 			}
 		});
 
@@ -378,10 +379,11 @@ Test task with acceptance criteria
 			try {
 				await $`bun ${CLI_PATH} task edit 1 --check-ac 10`.cwd(TEST_DIR).quiet();
 				expect(true).toBe(false); // Should not reach here
-			} catch (error) {
+			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
 				expect(e.exitCode).not.toBe(0);
-				expect(String((e.stderr as any)?.toString?.() ?? "")).toContain("Acceptance criterion #10 not found");
+				const msg = e.stderr == null ? "" : String(e.stderr);
+				expect(msg).toContain("Acceptance criterion #10 not found");
 			}
 		});
 
