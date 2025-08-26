@@ -101,6 +101,12 @@ export class BacklogServer {
 					"/api/statistics": {
 						GET: async () => await this.handleGetStatistics(),
 					},
+					"/sequences": {
+						GET: async () => await this.handleGetSequences(),
+					},
+					"/sequences/move": {
+						POST: async (req) => await this.handleMoveSequence(req),
+					},
 					"/api/sequences": {
 						GET: async () => await this.handleGetSequences(),
 					},
