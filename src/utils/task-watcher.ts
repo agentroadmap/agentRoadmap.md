@@ -1,4 +1,5 @@
-import type { FSWatcher } from "bun";
+import { type FSWatcher, watch } from "node:fs";
+import { join } from "node:path";
 import type { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
 
@@ -13,36 +14,62 @@ export interface TaskWatcherCallbacks {
 
 /**
  * Watch the backlog/tasks directory for changes and emit incremental updates.
- * Uses Bun.watch which is available in Bun runtime.
+ * Uses node:fs.watch as implemented by Bun runtime.
  */
-export function watchTasks(core: Core, callbacks: TaskWatcherCallbacks): FSWatcher {
+export function watchTasks(core: Core, callbacks: TaskWatcherCallbacks): { stop: () => void } {
 	const tasksDir = core.filesystem.tasksDir;
 
-	const watcher = Bun.watch(tasksDir, {
-		recursive: false,
-		async onChange(event, filePath) {
-			const fileName = filePath.split("/").pop();
-			if (!fileName || !fileName.startsWith("task-") || !fileName.endsWith(".md")) {
-				return;
-			}
-			const taskId = fileName.split(" ")[0];
+	const watcher: FSWatcher = watch(tasksDir, { recursive: false }, async (eventType, filename) => {
+		// Normalize filename to a string when available
+		let fileName: string | undefined;
+		if (typeof filename === "string") {
+			fileName = filename;
+		} else if (filename != null) {
+			fileName = String(filename);
+		}
+		if (!fileName || !fileName.startsWith("task-") || !fileName.endsWith(".md")) {
+			return;
+		}
 
-			if (event === "delete") {
-				await callbacks.onTaskRemoved?.(taskId);
-				return;
-			}
+		const [firstPart] = fileName.split(" ");
+		if (!firstPart) return; // defensive, satisfies noUncheckedIndexedAccess
+		const taskId: string = firstPart;
 
+		if (eventType === "change") {
 			const task = await core.filesystem.loadTask(taskId);
-			if (!task) {
-				return;
-			}
-			if (event === "create") {
-				await callbacks.onTaskAdded?.(task);
-			} else if (event === "modify") {
+			if (task) {
 				await callbacks.onTaskChanged?.(task);
 			}
-		},
+			return;
+		}
+
+		if (eventType === "rename") {
+			// "rename" can be create, delete, or rename. Check if file exists.
+			try {
+				const fullPath = join(tasksDir, fileName);
+				const exists = await Bun.file(fullPath).exists();
+
+				if (!exists) {
+					await callbacks.onTaskRemoved?.(taskId);
+					return;
+				}
+
+				const task = await core.filesystem.loadTask(taskId);
+				if (task) {
+					// Treat as a change; handlers may add if not present
+					await callbacks.onTaskChanged?.(task);
+				}
+			} catch {
+				// Ignore transient errors
+			}
+		}
 	});
 
-	return watcher;
+	return {
+		stop() {
+			try {
+				watcher.close();
+			} catch {}
+		},
+	};
 }

@@ -13,7 +13,7 @@ export class BacklogServer {
 	private core: Core;
 	private server: Server | null = null;
 	private projectName = "Untitled Project";
-	private sockets = new Set<ServerWebSocket>();
+	private sockets = new Set<ServerWebSocket<unknown>>();
 
 	constructor(projectPath: string) {
 		this.core = new Core(projectPath);

@@ -17,14 +17,14 @@ class MockGit implements Partial<GitOperations> {
 
 describe("buildRemoteTaskIndex branch handling", () => {
 	it("normalizes various branch forms to canonical refs", async () => {
-		const git = new MockGit() as unknown as GitOperations;
-		await buildRemoteTaskIndex(git, ["main", "origin/main", "refs/remotes/origin/main"]);
+		const git = new MockGit();
+		await buildRemoteTaskIndex(git as unknown as GitOperations, ["main", "origin/main", "refs/remotes/origin/main"]);
 		expect(git.refs).toEqual(["origin/main", "origin/main", "origin/main"]);
 	});
 
 	it("filters out invalid branch entries", async () => {
-		const git = new MockGit() as unknown as GitOperations;
-		await buildRemoteTaskIndex(git, ["main", "origin", "origin/HEAD", "HEAD"]);
+		const git = new MockGit();
+		await buildRemoteTaskIndex(git as unknown as GitOperations, ["main", "origin", "origin/HEAD", "HEAD"]);
 		expect(git.refs).toEqual(["origin/main"]);
 	});
 });
