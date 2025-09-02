@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { type Task } from '../../types';
+import { type Task, type AcceptanceCriterion } from '../../types';
 import ChipInput from './ChipInput';
 import DependencyInput from './DependencyInput';
 import { apiClient } from '../lib/api';
 import { useTheme } from '../contexts/ThemeContext';
 import AcceptanceCriteriaEditor from './AcceptanceCriteriaEditor';
+import { parseTaskSections, composeTaskBody } from "../utils/task-sections";
 // MDEditor will be passed as prop
 
 interface TaskFormProps {
@@ -25,14 +26,20 @@ const TaskForm: React.FC<TaskFormProps> = ({
   MDEditor
 }) => {
   const { theme } = useTheme();
+  const initialSections = task ? parseTaskSections(task.body) : { description: '', criteria: [] as AcceptanceCriterion[] };
+  // Prefer structured criteria from the task object when present
+  if (task?.acceptanceCriteriaItems && task.acceptanceCriteriaItems.length > 0) {
+    initialSections.criteria = task.acceptanceCriteriaItems as AcceptanceCriterion[];
+  }
+
   const [formData, setFormData] = useState({
     title: task?.title || '',
-    body: task?.body || '',
     status: task?.status || availableStatuses[0] || '',
     assignee: task?.assignee || [],
     labels: task?.labels || [],
     dependencies: task?.dependencies || [],
     priority: task?.priority || '',
+    sections: initialSections,
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,9 +64,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
     setIsSubmitting(true);
 
     try {
+      // Compose markdown body from sections while preserving other content
+      const baseBody = task?.body || '';
+      const composedBody = composeTaskBody(baseBody, (formData as any).sections as { description: string; criteria: AcceptanceCriterion[] });
+
       const taskData: Partial<Task> = {
         title: formData.title.trim(),
-        body: formData.body.trim(),
+        body: composedBody.trim(),
         status: formData.status,
         assignee: formData.assignee,
         labels: formData.labels,
@@ -78,7 +89,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     }
   };
 
-  const handleChange = (field: string, value: string | string[]) => {
+  const handleChange = (field: string, value: string | string[] | AcceptanceCriterion[] | { description: string; criteria: AcceptanceCriterion[] }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -119,18 +130,21 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 transition-colors duration-200">
-          Content
+          Description
         </label>
         <MDEditor
-          value={formData.body}
-          onChange={(value: string | undefined) => handleChange('body', value || '')}
+          value={(formData as any).sections.description}
+          onChange={(value: string | undefined) => setFormData(prev => ({ ...prev, sections: { ...prev.sections, description: value || '' } }))}
           preview="edit"
           hideToolbar={false}
           data-color-mode={theme}
           height={200}
         />
       </div>
-      <AcceptanceCriteriaEditor task={task} body={formData.body} onChange={(value) => handleChange('body', value)} />
+      <AcceptanceCriteriaEditor
+        criteria={(formData as any).sections.criteria as AcceptanceCriterion[]}
+        onChange={(updated) => setFormData(prev => ({ ...prev, sections: { ...prev.sections, criteria: updated } }))}
+      />
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

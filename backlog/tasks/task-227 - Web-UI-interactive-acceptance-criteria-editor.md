@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2025-08-09 18:39'
-updated_date: '2025-08-26 21:18'
+updated_date: '2025-09-02 20:17'
 labels:
   - web-ui
   - enhancement
@@ -24,9 +24,9 @@ In the web UI task popup, provide a dedicated, user-friendly interface for Accep
 - [x] #3 Users can toggle a criterion done/undone from the UI and it persists
 - [x] #4 Markdown is updated using checkboxes without reformatting other sections
 - [x] #5 Docs and tests updated for UI behaviors
-- [ ] #6 Removing an acceptance criterion is staged and not written to disk until 'Update Task' is clicked
+- [x] #6 Removing an acceptance criterion is staged and not written to disk until 'Update Task' is clicked
 - [ ] #7 Acceptance Criteria editor uses a textarea that starts at one line and auto-grows vertically with content
-- [ ] #8 The task Content area does not display the Acceptance Criteria section; AC editing happens only in the dedicated editor
+- [x] #8 The task Content area does not display the Acceptance Criteria section; AC editing happens only in the dedicated editor
 <!-- AC:END -->
 
 

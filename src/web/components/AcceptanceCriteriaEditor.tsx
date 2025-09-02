@@ -1,69 +1,44 @@
 import React, { useState, useEffect } from "react";
-import { type Task } from "../../types";
-import { AcceptanceCriteriaManager, type AcceptanceCriterion } from "../../core/acceptance-criteria.ts";
-import { apiClient } from "../lib/api";
+import { type AcceptanceCriterion } from "../../types";
 
 interface Props {
-  // Existing task (for immediate persistence)
-  task?: Task;
-  // Full markdown body of the task
-  body: string;
-  // Callback when body updates
-  onChange: (body: string) => void;
+  criteria: AcceptanceCriterion[];
+  onChange: (criteria: AcceptanceCriterion[]) => void;
 }
 
-const AcceptanceCriteriaEditor: React.FC<Props> = ({ task, body, onChange }) => {
-  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>(() =>
-    AcceptanceCriteriaManager.parseAcceptanceCriteria(body),
-  );
+const AcceptanceCriteriaEditor: React.FC<Props> = ({ criteria: initial, onChange }) => {
+  const [criteria, setCriteria] = useState<AcceptanceCriterion[]>(initial || []);
   const [newCriterion, setNewCriterion] = useState("");
 
   useEffect(() => {
-    setCriteria(AcceptanceCriteriaManager.parseAcceptanceCriteria(body));
-  }, [body]);
-
-  const persist = (updated: AcceptanceCriterion[]) => {
-    const updatedBody = AcceptanceCriteriaManager.updateContent(body, updated);
-    onChange(updatedBody);
-    if (task) {
-      void apiClient.updateTask(task.id, { body: updatedBody });
-    }
-  };
+    setCriteria(initial || []);
+  }, [initial]);
 
   const handleToggle = (index: number, checked: boolean) => {
-    const updated = criteria.map((c) =>
-      c.index === index ? { ...c, checked } : c,
-    );
+    const updated = criteria.map((c) => (c.index === index ? { ...c, checked } : c));
     setCriteria(updated);
-    persist(updated);
+    onChange(updated);
   };
 
   const handleTextChange = (index: number, text: string) => {
-    const updated = criteria.map((c) =>
-      c.index === index ? { ...c, text } : c,
-    );
+    const updated = criteria.map((c) => (c.index === index ? { ...c, text } : c));
     setCriteria(updated);
-    persist(updated);
+    onChange(updated);
   };
 
   const handleRemove = (index: number) => {
-    const updated = criteria
-      .filter((c) => c.index !== index)
-      .map((c, i) => ({ ...c, index: i + 1 }));
+    const updated = criteria.filter((c) => c.index !== index).map((c, i) => ({ ...c, index: i + 1 }));
     setCriteria(updated);
-    persist(updated);
+    onChange(updated);
   };
 
   const handleAdd = () => {
     const text = newCriterion.trim();
     if (!text) return;
-    const updated = [
-      ...criteria,
-      { checked: false, text, index: criteria.length + 1 },
-    ];
+    const updated = [...criteria, { checked: false, text, index: criteria.length + 1 }];
     setCriteria(updated);
     setNewCriterion("");
-    persist(updated);
+    onChange(updated);
   };
 
   return (

@@ -1,8 +1,4 @@
-export interface AcceptanceCriterion {
-	checked: boolean;
-	text: string;
-	index: number;
-}
+import type { AcceptanceCriterion } from "../types/index.ts";
 
 /* biome-ignore lint/complexity/noStaticOnlyClass: Utility methods grouped for clarity */
 export class AcceptanceCriteriaManager {
