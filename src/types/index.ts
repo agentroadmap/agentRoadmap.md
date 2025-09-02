@@ -1,5 +1,12 @@
 export type TaskStatus = string;
 
+// Structured Acceptance Criterion (domain-level)
+export interface AcceptanceCriterion {
+	index: number; // 1-based
+	text: string;
+	checked: boolean;
+}
+
 export interface Task {
 	id: string;
 	title: string;
@@ -13,6 +20,8 @@ export interface Task {
 	dependencies: string[];
 	body: string; // Raw markdown content without frontmatter
 	acceptanceCriteria?: string[];
+	/** Structured acceptance criteria parsed from body (checked state + text + index) */
+	acceptanceCriteriaItems?: AcceptanceCriterion[];
 	parentTaskId?: string;
 	subtasks?: string[];
 	priority?: "high" | "medium" | "low";
