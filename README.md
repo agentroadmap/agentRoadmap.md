@@ -88,6 +88,7 @@ backlog browser --no-open
 The web interface provides:
 - **Interactive Kanban board** with drag-and-drop functionality
 - **Task creation and editing** with rich forms and validation
+- **Interactive acceptance criteria editor** with checklist controls and instant persistence
 - **Real-time updates** as you manage tasks
 - **Responsive design** that works on desktop and mobile
 - **Archive tasks** with confirmation dialogs

@@ -1,5 +1,6 @@
 import matter from "gray-matter";
-import type { Decision, Document, ParsedMarkdown, Task } from "../types/index.ts";
+import { AcceptanceCriteriaManager } from "../core/acceptance-criteria.ts";
+import type { AcceptanceCriterion, Decision, Document, ParsedMarkdown, Task } from "../types/index.ts";
 
 function preprocessFrontmatter(frontmatter: string): string {
 	return frontmatter
@@ -105,13 +106,16 @@ export function parseMarkdown(content: string): ParsedMarkdown {
 }
 
 export function parseTask(content: string): Task {
-	const { frontmatter, content: description } = parseMarkdown(content);
+	const { frontmatter, content: body } = parseMarkdown(content);
 
 	// Validate priority field
 	const priority = frontmatter.priority ? String(frontmatter.priority).toLowerCase() : undefined;
 	const validPriorities = ["high", "medium", "low"];
 	const validatedPriority =
 		priority && validPriorities.includes(priority) ? (priority as "high" | "medium" | "low") : undefined;
+
+	// Parse structured acceptance criteria (checked/text/index)
+	const structuredCriteria: AcceptanceCriterion[] = AcceptanceCriteriaManager.parseAcceptanceCriteria(body);
 
 	return {
 		id: String(frontmatter.id || ""),
@@ -128,8 +132,9 @@ export function parseTask(content: string): Task {
 		labels: Array.isArray(frontmatter.labels) ? frontmatter.labels.map(String) : [],
 		milestone: frontmatter.milestone ? String(frontmatter.milestone) : undefined,
 		dependencies: Array.isArray(frontmatter.dependencies) ? frontmatter.dependencies.map(String) : [],
-		body: description,
-		acceptanceCriteria: extractAcceptanceCriteria(description),
+		body: body,
+		acceptanceCriteria: extractAcceptanceCriteria(body),
+		acceptanceCriteriaItems: structuredCriteria,
 		parentTaskId: frontmatter.parent_task_id ? String(frontmatter.parent_task_id) : undefined,
 		subtasks: Array.isArray(frontmatter.subtasks) ? frontmatter.subtasks.map(String) : undefined,
 		priority: validatedPriority,

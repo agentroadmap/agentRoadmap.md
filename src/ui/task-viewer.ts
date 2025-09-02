@@ -646,6 +646,10 @@ function generateDetailContent(task: Task, rawContent = ""): { headerContent: st
 		});
 		const criteriaContent = styleCodePaths(formattedCriteria.join("\n"));
 		bodyContent.push(criteriaContent);
+	} else if (task.acceptanceCriteriaItems?.length) {
+		// Prefer structured criteria if available
+		const criteriaContent = styleCodePaths(task.acceptanceCriteriaItems.map((c) => ` • ${c.text}`).join("\n"));
+		bodyContent.push(criteriaContent);
 	} else if (task.acceptanceCriteria?.length) {
 		// Fallback to parsed criteria if no checkboxes found in raw content
 		const criteriaContent = styleCodePaths(task.acceptanceCriteria.map((text) => ` • ${text}`).join("\n"));
@@ -840,6 +844,11 @@ export function formatTaskPlainText(task: Task, content: string, filePath?: stri
 	if (checkboxLines.length > 0) {
 		for (const line of checkboxLines) {
 			lines.push(line);
+		}
+	} else if (task.acceptanceCriteriaItems?.length) {
+		// Prefer structured criteria if available
+		for (const c of task.acceptanceCriteriaItems) {
+			lines.push(`• ${transformCodePathsPlain(c.text)}`);
 		}
 	} else if (task.acceptanceCriteria?.length) {
 		// Fallback to parsed criteria if no checkboxes found
