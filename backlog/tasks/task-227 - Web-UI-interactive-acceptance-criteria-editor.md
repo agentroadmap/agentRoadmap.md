@@ -1,11 +1,11 @@
 ---
 id: task-227
 title: 'Web UI: interactive acceptance criteria editor'
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-08-09 18:39'
-updated_date: '2025-09-02 20:17'
+updated_date: '2025-09-02 20:56'
 labels:
   - web-ui
   - enhancement
@@ -25,13 +25,11 @@ In the web UI task popup, provide a dedicated, user-friendly interface for Accep
 - [x] #4 Markdown is updated using checkboxes without reformatting other sections
 - [x] #5 Docs and tests updated for UI behaviors
 - [x] #6 Removing an acceptance criterion is staged and not written to disk until 'Update Task' is clicked
-- [ ] #7 Acceptance Criteria editor uses a textarea that starts at one line and auto-grows vertically with content
+- [x] #7 Acceptance Criteria editor uses a textarea that starts at one line and auto-grows vertically with content
 - [x] #8 The task Content area does not display the Acceptance Criteria section; AC editing happens only in the dedicated editor
 <!-- AC:END -->
 
 
 ## Implementation Notes
 
-Implemented interactive acceptance criteria editor in web UI
-
-Implemented interactive Acceptance Criteria editor for web task popup with checklist controls, single-item removal, and toggle persistence. Wired editor into TaskForm, updated README docs, and added unit tests for AcceptanceCriteriaManager. All tests pass.
+Implemented auto-growing textarea for Acceptance Criteria editor: rows=1 with auto-resize on input and on mount for existing items; also applied to new criterion input. Refactored parser naming (body vs description), structured AC type rename, and TaskForm sections model.
