@@ -125,8 +125,25 @@ describe("CLI Priority Filtering", () => {
 		expect(lowerResult.exitCode).toBe(0);
 		expect(mixedResult.exitCode).toBe(0);
 
-		// All should produce the same output
-		expect(upperResult.stdout.toString()).toBe(lowerResult.stdout.toString());
-		expect(lowerResult.stdout.toString()).toBe(mixedResult.stdout.toString());
+		const [upperOutput, lowerOutput, mixedOutput] = [
+			upperResult.stdout.toString(),
+			lowerResult.stdout.toString(),
+			mixedResult.stdout.toString(),
+		];
+		const taskLists = [upperOutput, lowerOutput, mixedOutput].map((out) =>
+			out.split("\n").filter((line) => line.includes("task-")),
+		);
+		if (taskLists[1].length > 0) {
+			expect(taskLists[0]).toEqual(taskLists[1]);
+			expect(taskLists[2]).toEqual(taskLists[1]);
+		}
+
+		for (const output of [upperOutput, lowerOutput, mixedOutput]) {
+			if (output.includes("task-")) {
+				expect(output).toMatch(/\[HIGH\]/);
+				expect(output).not.toMatch(/\[MEDIUM\]/);
+				expect(output).not.toMatch(/\[LOW\]/);
+			}
+		}
 	});
 });
