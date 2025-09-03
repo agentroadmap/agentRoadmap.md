@@ -114,8 +114,13 @@ export function parseTask(content: string): Task {
 	const validatedPriority =
 		priority && validPriorities.includes(priority) ? (priority as "high" | "medium" | "low") : undefined;
 
-	// Parse structured acceptance criteria (checked/text/index)
-	const structuredCriteria: AcceptanceCriterion[] = AcceptanceCriteriaManager.parseAcceptanceCriteria(body);
+	// Parse structured acceptance criteria (checked/text/index) from all sections
+	const structuredCriteria: AcceptanceCriterion[] = AcceptanceCriteriaManager.parseAllCriteria(body);
+
+	// Parse other sections
+	const descriptionSection = extractSection(body, "Description") || "";
+	const planSection = extractSection(body, "Implementation Plan") || undefined;
+	const notesSection = extractSection(body, "Implementation Notes") || undefined;
 
 	return {
 		id: String(frontmatter.id || ""),
@@ -135,6 +140,9 @@ export function parseTask(content: string): Task {
 		body: body,
 		acceptanceCriteria: extractAcceptanceCriteria(body),
 		acceptanceCriteriaItems: structuredCriteria,
+		description: descriptionSection,
+		implementationPlan: planSection,
+		implementationNotes: notesSection,
 		parentTaskId: frontmatter.parent_task_id ? String(frontmatter.parent_task_id) : undefined,
 		subtasks: Array.isArray(frontmatter.subtasks) ? frontmatter.subtasks.map(String) : undefined,
 		priority: validatedPriority,
@@ -183,7 +191,9 @@ function extractAcceptanceCriteria(content: string): string[] {
 }
 
 function extractSection(content: string, sectionTitle: string): string | undefined {
+	// Normalize to LF for reliable matching across platforms
+	const src = content.replace(/\r\n/g, "\n");
 	const regex = new RegExp(`## ${sectionTitle}\\s*\\n([\\s\\S]*?)(?=\\n## |$)`, "i");
-	const match = content.match(regex);
+	const match = src.match(regex);
 	return match?.[1]?.trim();
 }
