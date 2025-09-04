@@ -220,7 +220,7 @@ Good Examples:
 
 - "User can successfully log in with valid credentials"
 - "System processes 1000 requests per second without errors"
-- "When passing \n characters in description, plan, notes, the system correctly handles them by converting to new lines"
+- "CLI preserves literal newlines in description/plan/notes; `\\n` sequences are not auto‑converted"
 
 Bad Example (Implementation Step):
 
@@ -426,6 +426,21 @@ A task is **Done** only when **ALL** of the following are complete:
 | Add plan         | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
 | Add notes        | `backlog task edit 42 --notes "Implementation details"`  |
 | Add dependencies | `backlog task edit 42 --dep task-1 --dep task-2`         |
+
+### Multi‑line Input (Description/Plan/Notes)
+
+The CLI preserves input literally. Shells do not convert `\n` inside normal quotes. Use one of the following to insert real newlines:
+
+- Bash/Zsh (ANSI‑C quoting):
+  - Description: `backlog task edit 42 --desc $'Line1\nLine2\n\nFinal'`
+  - Plan: `backlog task edit 42 --plan $'1. A\n2. B'`
+  - Notes: `backlog task edit 42 --notes $'Done A\nDoing B'`
+- POSIX portable (printf):
+  - `backlog task edit 42 --notes "$(printf 'Line1\nLine2')"`
+- PowerShell (backtick n):
+  - `backlog task edit 42 --notes "Line1`nLine2"`
+
+Do not expect `"...\n..."` to become a newline. That passes the literal backslash + n to the CLI by design.
 
 Descriptions support literal newlines; shell examples may show escaped `\\n`, but enter a single `\n` to create a newline.
 

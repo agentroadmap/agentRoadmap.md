@@ -150,15 +150,20 @@ When re-initializing an existing project, all current configuration values are p
 | Add deps    | `backlog task edit 7 --dep task-1 --dep task-2`     |
 | Archive     | `backlog task archive 7`                             |
 
-#### Multi-line descriptions
+#### Multi‑line input (description/plan/notes)
 
-The CLI preserves literal newline characters; `\n` sequences are not converted. To enter multi-paragraph text:
+The CLI preserves input literally; `\n` sequences are not auto‑converted. Use one of the following to insert real newlines:
 
-- **Bash/Zsh**: `backlog task create "Feature" --desc $'Line1\nLine2\n\nFinal paragraph'`
-- **POSIX sh**: `backlog task create "Feature" --desc "$(printf 'Line1\nLine2\n\nFinal paragraph')"`
-- **PowerShell**: `backlog task create "Feature" --desc "Line1`nLine2`n`nFinal paragraph"`
+- **Bash/Zsh (ANSI‑C quoting)**
+  - Description: `backlog task create "Feature" --desc $'Line1\nLine2\n\nFinal paragraph'`
+  - Plan: `backlog task edit 7 --plan $'1. Research\n2. Implement'`
+  - Notes: `backlog task edit 7 --notes $'Completed A\nWorking on B'`
+- **POSIX sh (printf)**
+  - `backlog task create "Feature" --desc "$(printf 'Line1\nLine2\n\nFinal paragraph')"`
+- **PowerShell (backtick)**
+  - `backlog task create "Feature" --desc "Line1`nLine2`n`nFinal paragraph"`
 
-The CLI help displays the Bash example with escaped `\\n` sequences; when typing the command, use a single `\n` to insert a newline.
+Tip: Help text shows Bash examples with escaped `\\n` for readability; when typing, `$'\n'` expands to a newline.
 
 ### Draft Workflow
 

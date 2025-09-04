@@ -48,6 +48,20 @@ are found, the commit will be blocked until fixed.
 - **Branching**: Use feature branches when working on tasks (e.g. `tasks/task-123-feature-name`)
 - **Committing**: Use the following format: `TASK-123 - Title of the task`
 
+## CLI multi‑line input (description/plan/notes)
+
+The CLI preserves input literally; `\n` sequences in normal quotes are not converted. Use one of the following when you need real newlines:
+
+- Bash/Zsh (ANSI‑C quoting):
+  - `backlog task edit 42 --notes $'Line1\nLine2'`
+  - `backlog task edit 42 --plan $'1. A\n2. B'`
+- POSIX (printf):
+  - `backlog task edit 42 --desc "$(printf 'Line1\nLine2')"`
+- PowerShell (backtick):
+  - `backlog task edit 42 --desc "Line1`nLine2"`
+
+Do not expect `"...\n..."` to create a newline; that passes a literal backslash+n.
+
 ## Using Bun
 Default to using Bun instead of Node.js.
 
