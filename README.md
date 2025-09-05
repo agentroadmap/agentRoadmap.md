@@ -13,7 +13,6 @@
 > **Backlog.md** turns any folder with a Git repo into a **self‑contained project board**  
 > powered by plain Markdown files and a zero‑config CLI.
 
-
 ## Features
 
 * 📝 **Markdown-native tasks** -- manage every issue as a plain `.md` file
