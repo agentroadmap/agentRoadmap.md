@@ -9,14 +9,14 @@ remains fully synchronized and up-to-date.
 
 ### Core Capabilities
 
-✅ **Task Management**: Create, edit, assign, prioritize, and track tasks with full metadata
-✅ **Acceptance Criteria**: Granular control with add/remove/check/uncheck by index
-✅ **Board Visualization**: Terminal-based Kanban board (`backlog board`) and web UI (`backlog browser`)
-✅ **Git Integration**: Automatic tracking of task states across branches
-✅ **Dependencies**: Task relationships and subtask hierarchies
-✅ **Documentation & Decisions**: Structured docs and architectural decision records
-✅ **Export & Reporting**: Generate markdown reports and board snapshots
-✅ **AI-Optimized**: `--plain` flag provides clean text output for AI processing
+- ✅ **Task Management**: Create, edit, assign, prioritize, and track tasks with full metadata
+- ✅ **Acceptance Criteria**: Granular control with add/remove/check/uncheck by index
+- ✅ **Board Visualization**: Terminal-based Kanban board (`backlog board`) and web UI (`backlog browser`)
+- ✅ **Git Integration**: Automatic tracking of task states across branches
+- ✅ **Dependencies**: Task relationships and subtask hierarchies
+- ✅ **Documentation & Decisions**: Structured docs and architectural decision records
+- ✅ **Export & Reporting**: Generate markdown reports and board snapshots
+- ✅ **AI-Optimized**: `--plain` flag provides clean text output for AI processing
 
 ### Why This Matters to You (AI Agent)
 
