@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2025-09-04 19:53'
-updated_date: '2025-09-06 13:34'
+updated_date: '2025-09-04 20:16'
 labels:
   - cli
   - init
@@ -41,10 +41,4 @@ Goal: Make Claude agent an explicit opt-in during initialization, with clear pro
 
 ## Implementation Notes
 
-Implemented default "No" for Claude agent install in init.
-
-- Interactive confirm uses initial:false with message "Install Claude Code Backlog.md agent? (y/N)" and hint "Adds to .claude/agents/ (opt-in)".
-- Non-interactive keeps default false; flag `--install-claude-agent true` opts in.
-- Tests: src/test/cli-init-claude-default.test.ts verifies default non-interactive behavior and flag true installs.
-- Docs: README clarifies opt-in default and flag usage.
-- Validation: bun test passes across suite locally; Biome check shows unrelated warnings.
+Interactive prompt now defaults to No with clarified copy. Non-interactive stays false unless `--install-claude-agent true` is provided. Added tests verifying non-interactive default and explicit opt-in. Docs/help mention remains accurate with the new default.
