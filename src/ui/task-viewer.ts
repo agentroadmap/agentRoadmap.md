@@ -522,11 +522,8 @@ export async function viewTaskEnhanced(
 
 		// Initialize help bar updater now that help bar exists
 		updateHelpBar = function updateHelpBar() {
-			const moveBadge = moveMode ? "{green-fg}Move: ON{/}" : "{gray-fg}Move: OFF{/}";
-			const base = options.filterDescription
-				? ` Filter: ${options.filterDescription} · ${moveBadge} · ↑/↓ navigate · Shift+↑/↓ move · m toggle · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `
-				: ` ${moveBadge} · ↑/↓ navigate · Shift+↑/↓ move · m toggle · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `;
-			helpBar.setContent(base);
+			// Minimal footer: hide filter/move badges and extra controls
+			helpBar.setContent(" ↑/↓ navigate · ← task list · → detail · E edit · q/Esc quit ");
 		};
 
 		updateHelpBar();
