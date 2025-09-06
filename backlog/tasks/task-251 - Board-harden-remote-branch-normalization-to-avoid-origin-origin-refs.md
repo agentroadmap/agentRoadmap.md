@@ -26,7 +26,7 @@ Goal: Harden normalization so only canonical remote refs are used and invalid en
 - [x] #2 normalizeRemoteBranch handles inputs: origin, origin/HEAD, origin/origin, refs/remotes/origin/origin (filtered), and origin/main, refs/remotes/origin/main, main (normalized to use origin/main only).
 - [x] #3 Unit tests cover these cases in task-loader-branch-normalization.test.ts; no call to listFilesInTree/getBranchLastModifiedMap receives origin/origin.
 - [x] #4 listRecentRemoteBranches filters out origin/HEAD and entries that normalize to empty or origin; add a small test if needed.
-- [ ] #5 With remoteOperations=false, board loads using local tasks without attempting remote refs.
+- [x] #5 With remoteOperations=false, board loads using local tasks without attempting remote refs.
 <!-- AC:END -->
 
 
