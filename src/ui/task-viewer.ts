@@ -171,6 +171,24 @@ export async function viewTaskEnhanced(
 	});
 
 	// Create task list using generic list component
+	async function applySelection(selectedTask: Task | null) {
+		if (!selectedTask) return;
+		if (currentSelectedTask && selectedTask.id === currentSelectedTask.id) return;
+		currentSelectedTask = selectedTask;
+		// Notify view switcher of task change
+		options.onTaskChange?.(selectedTask);
+		try {
+			const filePath = await getTaskPath(selectedTask.id, core);
+			if (filePath) {
+				currentSelectedContent = await Bun.file(filePath).text();
+			} else {
+				currentSelectedContent = "";
+			}
+		} catch {
+			currentSelectedContent = "";
+		}
+		refreshDetailPane();
+	}
 	const taskList = createGenericList<Task>({
 		parent: taskListPane,
 		title: "", // Empty title since pane has label
@@ -194,31 +212,97 @@ export async function viewTaskEnhanced(
 		},
 		onSelect: (selected: Task | Task[]) => {
 			const selectedTask = Array.isArray(selected) ? selected[0] : selected;
-			if (!selectedTask) return;
-			currentSelectedTask = selectedTask;
-
-			// Notify view switcher of task change
-			options.onTaskChange?.(selectedTask);
-
-			// Load the content for the selected task asynchronously
-			(async () => {
-				try {
-					const filePath = await getTaskPath(selectedTask.id, core);
-					if (filePath) {
-						currentSelectedContent = await Bun.file(filePath).text();
-					} else {
-						currentSelectedContent = "";
-					}
-				} catch (_error) {
-					currentSelectedContent = "";
-				}
-
-				// Refresh the detail pane
-				refreshDetailPane();
-			})();
+			void applySelection(selectedTask || null);
+		},
+		onHighlight: (selected: Task | null) => {
+			void applySelection(selected);
 		},
 		showHelp: false, // We'll show help in the footer
 	});
+
+	// Shift+Arrow reordering within the same status using ordinal
+	async function reorderSelected(delta: -1 | 1) {
+		try {
+			const listBox = taskList.getListBox();
+			const selIndex = listBox.selected ?? 0;
+			const selected = allTasks[selIndex] || currentSelectedTask;
+			if (!selected) return;
+			const status = (selected.status || "").trim();
+			// Build sibling list in current in-memory order
+			const siblings = allTasks.filter((t) => (t.status || "").trim() === status);
+			if (siblings.length <= 1) return; // nothing to reorder
+
+			const idxInSiblings = siblings.findIndex((t) => t.id === selected.id);
+			if (idxInSiblings < 0) return;
+			const target = idxInSiblings + delta;
+			if (target < 0 || target >= siblings.length) return; // keep within bounds
+
+			// Compute new order
+			const newOrder = [...siblings];
+			const [moved] = newOrder.splice(idxInSiblings, 1);
+			if (!moved) return; // type guard, should not happen due to bounds checks
+			newOrder.splice(target, 0, moved);
+
+			// Reassign ordinals in steps to avoid collisions
+			let ordinal = 1000;
+			const toUpdate: Task[] = [];
+			for (const t of newOrder) {
+				if ((t.ordinal ?? -1) !== ordinal) {
+					toUpdate.push({ ...t, ordinal });
+				}
+				ordinal += 1000;
+			}
+
+			if (toUpdate.length > 0) {
+				await (options.core || new Core(process.cwd())).updateTasksBulk(toUpdate, `Reorder within status ${status}`);
+				// Refresh in-memory tasks so UI stays consistent
+				const updated = await (options.core || new Core(process.cwd())).filesystem.listTasks();
+				// Preserve filtering used for initial list if any
+				allTasks.splice(0, allTasks.length, ...updated);
+				// Maintain selection on the moved task
+				const newIndex = allTasks.findIndex((t) => t.id === selected.id);
+				if (newIndex >= 0) listBox.select(newIndex);
+				screen.render();
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	// Bind Shift+Arrow keys for moving and manage Move Mode indicator
+	const lb = taskList.getListBox();
+	let moveMode = false;
+	let moveModeTimer: ReturnType<typeof setTimeout> | null = null;
+	// Help bar updater placeholder; will be initialized once help bar is created
+	let updateHelpBar: () => void = () => {};
+
+	function setMoveMode(on: boolean, transientMs?: number) {
+		moveMode = on;
+		updateHelpBar();
+		if (moveModeTimer) {
+			clearTimeout(moveModeTimer);
+			moveModeTimer = null;
+		}
+		if (on && transientMs && transientMs > 0) {
+			moveModeTimer = setTimeout(() => {
+				moveMode = false;
+				updateHelpBar();
+				screen.render();
+			}, transientMs);
+		}
+	}
+
+	lb.key(["S-up" as unknown as string], () => {
+		setMoveMode(true, 1500);
+		void reorderSelected(-1);
+	});
+	lb.key(["S-down" as unknown as string], () => {
+		setMoveMode(true, 1500);
+		void reorderSelected(1);
+	});
+
+	// Allow manual toggle to keep the indicator visible
+	lb.key(["m", "M"], () => setMoveMode(!moveMode));
 
 	// Detail pane components
 	let headerBox: BoxInterface | undefined;
@@ -423,20 +507,29 @@ export async function viewTaskEnhanced(
 
 	return new Promise<void>((resolve) => {
 		// Footer hint line
-		const _helpBar = box({
+		const helpBar = box({
 			parent: screen,
 			bottom: 0,
 			left: 0,
 			width: "100%",
 			height: 1,
-			content: options.filterDescription
-				? ` Filter: ${options.filterDescription} · ↑/↓ navigate · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `
-				: ` ↑/↓ navigate · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `,
+			content: "",
 			style: {
 				fg: "gray",
 				bg: "black",
 			},
 		});
+
+		// Initialize help bar updater now that help bar exists
+		updateHelpBar = function updateHelpBar() {
+			const moveBadge = moveMode ? "{green-fg}Move: ON{/}" : "{gray-fg}Move: OFF{/}";
+			const base = options.filterDescription
+				? ` Filter: ${options.filterDescription} · ${moveBadge} · ↑/↓ navigate · Shift+↑/↓ move · m toggle · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `
+				: ` ${moveBadge} · ↑/↓ navigate · Shift+↑/↓ move · m toggle · ← task list · → detail · ${options.viewSwitcher ? "Tab kanban · " : ""}E edit · q/Esc quit `;
+			helpBar.setContent(base);
+		};
+
+		updateHelpBar();
 
 		// Focus management
 		let focusIndex = 0; // 0 = task list, 1 = detail pane
