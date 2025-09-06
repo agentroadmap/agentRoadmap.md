@@ -163,6 +163,11 @@ jobs:
             "files": ["backlog${{ contains(matrix.target,'windows') && '.exe' || '' }}","package.json","LICENSE"]
           }
           EOF
+      - name: Ensure executable permission (non-Windows)
+        if: ${{ !contains(matrix.target,'windows') }}
+        shell: bash
+        run: |
+          chmod +x pkg/backlog
       - uses: actions/setup-node@v4
         with:
           node-version: 20
