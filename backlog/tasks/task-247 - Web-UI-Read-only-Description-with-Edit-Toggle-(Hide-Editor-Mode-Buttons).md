@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2025-09-02 20:19'
-updated_date: '2025-09-06 22:06'
+updated_date: '2025-09-06 22:16'
 labels:
   - web-ui
   - editor
@@ -66,5 +66,86 @@ Notes
 
 ## Implementation Notes
 
-Button sizing
-- Matched "Mark as completed" button height/size to other actions (px-4 py-2, text-sm, rounded-lg) for a consistent header row.
+PR Description
+
+Summary
+- Redesign task popup to a modern, fast, accessible UX with Preview/Edit modes, first-party fields (Description, AC, Plan, Notes), sidebar metadata editing, and a one-click “Mark as completed” action.
+- Align UI patterns with Documentation page for a consistent look (markdown preview, outline buttons with icons).
+
+Motivation
+- The data model exposes first-party fields (Description, Acceptance Criteria, Implementation Plan, Implementation Notes). Embedding Plan/Notes/AC into Description is error‑prone and hard to round‑trip.
+- The old popup mixed states (editor vs preview) and felt cramped; controls weren’t unified with the web UI.
+
+Server & API
+- Added POST /api/tasks/:id/complete
+  - Calls Core.completeTask(taskId), moves the task to the completed archive, respects auto‑commit/staging.
+  - Broadcasts "tasks-updated" to refresh the UI.
+- ApiClient: add completeTask(id).
+
+Modal Framework
+- Modal.tsx
+  - Wider modal: max-w-5xl; taller viewport: max-h-[94vh].
+  - Sticky header with role=dialog/, aria-modal, labelled title.
+  - Optional "actions" area in header for compact action buttons (Edit/Save/Cancel/Mark as completed).
+  - Optional escape lock when editing.
+
+Task Details UI
+- New TaskDetailsModal.tsx
+  - Header: TASK-XXX + title; compact action buttons (outline Edit with pencil, outline Cancel with X, primary Save with check, green "Mark as completed").
+  - Modes: Preview (default) and Edit.
+  - Description / Implementation Plan / Implementation Notes
+    - Preview: MDEditor.Markdown in a prose container with data-color-mode (dark/light consistent).
+    - Edit: full MDEditor (toolbar) with generous heights (Description 320px; Plan/Notes 280px) and no overflow clipping.
+  - Acceptance Criteria
+    - Preview: shows X/Y progress, quick toggle checkboxes (optimistic save).
+    - Edit: structured editor (add/remove/reorder/renumber).
+  - Sidebar metadata
+    - Status, Assignee, Labels, Priority, Dependencies with inline updates (optimistic).
+    - Dates card at top: "Created:" / "Updated:" (bold labels only, normal-weight dates).
+    - Optional Metadata card renders only if content exists (e.g., milestone).
+  - Complete flow
+    - Header button "Mark as completed" (only in Preview and if status is Done) — posts to /api/tasks/:id/complete.
+  - Keyboard shortcuts
+    - E → Edit (from Preview), Esc → Cancel edit (with dirty guard), Cmd/Ctrl+S → Save, C → Mark as completed (from Preview, when Done).
+
+Consistency & Styling
+- Markdown preview list styles
+  - Restored bullets/numbering for .wmde-markdown (Tailwind preflight had reset lists).
+  - Wrapped code blocks and long content for readable preview.
+- Unified buttons
+  - Edit: outline with pencil (same as documentation).
+  - Save: primary blue filled with check icon (distinguishable primary action).
+  - Cancel: outline with X icon.
+  - Mark as completed: green filled; matched size (px-4 py-2, text-sm, rounded-lg).
+- Labels & Dependencies (chips)
+  - Both containers flex-wrap and auto-grow; right padding inside containers so "x" remains visible within the border.
+  - Chip text truncates with responsive max widths; chips use min-w-0/max-w-full to stay within the modal.
+  - Dependencies suggestions dropdown constrained (max-h-64, overscroll-contain); long titles wrap.
+
+App Integration
+- App.tsx
+  - Uses TaskDetailsModal for editing existing tasks.
+  - Keeps TaskForm for creating new tasks (modal shows form only for creation).
+
+Accessibility
+- Proper dialog semantics; sticky header with visible actions; keyboard shortcuts; high-contrast titles/labels; focus rings.
+
+Performance / Offline
+- Optimistic saves for quick interactions; no heavy loaders; local server uses filesystem; UI remains responsive offline.
+
+Testing & Validation
+- Type-check: bunx tsc --noEmit (OK).
+- Full test suite unchanged; previously 526 pass (changes are UI + one server endpoint).
+- Manual validation
+  - Markdown lists render correctly in tasks/docs/decisions.
+  - Editor selection works after scroll; no clipping.
+  - Dependencies and Labels chips never overflow; remove (x) is always visible.
+  - Buttons consistent and clearly distinguishable; "Mark as completed" works and updates board.
+
+How to Test
+1) Run: bun run build && bun run cli browser
+2) Open a task → verify Preview mode, action buttons in header.
+3) Edit (E), make changes, Save (Cmd/Ctrl+S).
+4) Toggle AC in Preview; structured edit mode via Edit.
+5) Modify sidebar metadata (status/assignee/labels/priority/deps).
+6) For a Done task, use "Mark as completed" — confirm archive + board refresh.
