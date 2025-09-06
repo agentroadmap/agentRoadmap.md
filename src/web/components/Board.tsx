@@ -145,26 +145,10 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
     );
   }
 
-  const getGridStyle = () => {
-    const columnCount = statuses.length;
-    
-    // For mobile screens, always use single column
-    if (isMobile) {
-      return { gridTemplateColumns: '1fr' };
-    }
-    
-    // For larger screens, adapt based on number of statuses
-    if (columnCount <= 1) {
-      return { gridTemplateColumns: '1fr' };
-    } else if (columnCount === 2) {
-      return { gridTemplateColumns: 'repeat(2, minmax(20rem, 1fr))' };
-    } else if (columnCount === 3) {
-      return { gridTemplateColumns: 'repeat(3, minmax(22rem, 1fr))' };
-    } else {
-      // For 4+ columns, use all available with minimum width
-      return { gridTemplateColumns: `repeat(${columnCount}, minmax(20rem, 1fr))` };
-    }
-  };
+  // Dynamic layout using flexbox:
+  // - Columns are flex items with equal growth (flex-1) to divide space evenly
+  // - A minimum width keeps columns readable; beyond available space, container scrolls horizontally
+  // - Works uniformly for any number of columns without per-count conditionals
 
   return (
     <div className="w-full">
@@ -177,21 +161,19 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
           + New Task
         </button>
       </div>
-      <div className={statuses.length > 3 ? 'overflow-x-auto pb-4' : ''}>
-        <div 
-          className="grid gap-6 min-w-fit"
-          style={getGridStyle()}
-        >
-          {statuses.map(status => (
-            <TaskColumn
-              key={status}
-              title={status}
-              tasks={getTasksByStatus(status)}
-              onTaskUpdate={handleTaskUpdate}
-              onStatusChange={handleStatusChange}
-              onEditTask={onEditTask}
-              onTaskReorder={handleTaskReorder}
-            />
+      <div className="overflow-x-auto pb-2">
+        <div className="flex flex-row flex-nowrap gap-4 w-full">
+          {statuses.map((status) => (
+            <div key={status} className="flex-1 min-w-[16rem]">
+              <TaskColumn
+                title={status}
+                tasks={getTasksByStatus(status)}
+                onTaskUpdate={handleTaskUpdate}
+                onStatusChange={handleStatusChange}
+                onEditTask={onEditTask}
+                onTaskReorder={handleTaskReorder}
+              />
+            </div>
           ))}
         </div>
       </div>

@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2025-09-04 19:18'
-updated_date: '2025-09-06 14:07'
+updated_date: '2025-09-04 20:22'
 labels:
   - docs
   - bug
@@ -42,10 +42,4 @@ Goal: Support documents stored in subdirectories end-to-end (list, view, ID gene
 
 ## Implementation Notes
 
-Support docs in subdirectories end-to-end (list, view, IDs).
-
-- Recursive listing: FileSystem.listDocuments uses **/*.md under backlog/docs, excluding README; CLI doc list uses it for both plain and interactive.
-- View by ID in subpaths: CLI doc view scans recursively and matches ID-based filenames; test covers viewing a subdir doc by id.
-- Global unique IDs: generateNextDocId aggregates IDs from all branches (when remote ops enabled) and from local listDocuments for offline, ensuring monotonic doc-<n> IDs across subdirectories.
-- Tests: src/test/docs-recursive.test.ts verifies recursive list, view by id, and offline ID generation with subpaths.
-- Docs: README explains that document IDs are global across subdirectories and shows -p examples.
+Docs listing and view now traverse subdirectories recursively. generateNextDocId uses recursive listDocuments so offline/global IDs are sequential across the entire docs tree. Added tests covering recursive listing, subdir view by ID, and offline ID generation.
