@@ -2,8 +2,13 @@
 	"name": "backlog.md",
 	"version": "1.9.2",
 	"type": "module",
+	"files": [
+		"scripts/*.cjs",
+		"README.md",
+		"LICENSE"
+	],
 	"bin": {
-		"backlog": "cli/index.js"
+		"backlog": "scripts/cli.cjs"
 	},
 	"optionalDependencies": {
 		"backlog.md-darwin-arm64": "*",
