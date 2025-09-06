@@ -84,7 +84,18 @@ const version = await getVersion();
 // Bare-run splash screen handling (before Commander parses commands)
 // Show a welcome splash when invoked without subcommands, unless help/version requested
 try {
-	const rawArgs = process.argv.slice(2);
+	let rawArgs = process.argv.slice(2);
+	// Some package managers (e.g., Bun global shims) may inject the resolved
+	// binary path as the first non-node argument. Strip it if detected.
+	if (rawArgs.length > 0) {
+		const first = rawArgs[0];
+		if (
+			typeof first === "string" &&
+			/node_modules[\\/]+backlog\.md-(darwin|linux|windows)-[^\\/]+[\\/]+backlog(\.exe)?$/.test(first)
+		) {
+			rawArgs = rawArgs.slice(1);
+		}
+	}
 	const wantsHelp = rawArgs.includes("-h") || rawArgs.includes("--help");
 	const wantsVersion = rawArgs.includes("-v") || rawArgs.includes("--version");
 	// Treat only --plain as allowed flag for splash; any other args means use normal CLI parsing
