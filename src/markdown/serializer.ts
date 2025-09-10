@@ -24,7 +24,7 @@ export function serializeTask(task: Task): string {
 
 	// Compose from first-party fields when present, preserving other content
 	let contentBody = task.body;
-	if (typeof task.description === "string") {
+	if (typeof task.description === "string" && task.description.trim() !== "") {
 		contentBody = updateTaskDescription(contentBody, task.description);
 	}
 	if (Array.isArray(task.acceptanceCriteriaItems) && task.acceptanceCriteriaItems.length > 0) {
@@ -219,6 +219,86 @@ export function updateTaskImplementationNotes(content: string, notes: string): s
 	return useCRLF ? finalOut2.replace(/\n/g, "\r\n") : finalOut2;
 }
 
+export function appendTaskImplementationNotes(content: string, notesChunks: string | string[]): string {
+	// Normalize to LF while computing, preserve original EOL at return
+	const useCRLF = /\r\n/.test(content);
+	const src = content.replace(/\r\n/g, "\n");
+
+	// Normalize chunks to array of strings and drop empties
+	const chunks = (Array.isArray(notesChunks) ? notesChunks : [notesChunks])
+		.map((c) => String(c))
+		.map((c) => c.replace(/\r\n/g, "\n"))
+		.map((c) => c.trim())
+		.filter(Boolean);
+
+	if (chunks.length === 0) return content;
+
+	// Build appended block ensuring a single blank line between provided chunks
+	const appendedBlock = chunks.join("\n\n");
+
+	// Regex to find Implementation Notes section body
+	const notesRegex = /## Implementation Notes\s*\n([\s\S]*?)(?=\n## |$)/i;
+	const match = src.match(notesRegex);
+
+	let out: string | undefined;
+	if (match && match.index !== undefined) {
+		const fullMatch = match[0];
+		const body = (match[1] || "").replace(/\s+$/, ""); // trim trailing whitespace to normalize boundary
+		const header = fullMatch.slice(0, fullMatch.indexOf(match[1] || ""));
+		const afterIdx = match.index + fullMatch.length;
+		const hasFollowingSection = /\n## /.test(src.slice(afterIdx));
+
+		// Compose new body: existing + exactly one blank line + appended block
+		const combined = body ? `${body}\n\n${appendedBlock}` : appendedBlock;
+		const replacement = `${header}${combined}${hasFollowingSection ? "\n\n" : ""}`;
+		out = src.replace(notesRegex, replacement);
+	} else {
+		// No Implementation Notes section: create it at the correct position
+		const newSection = `## Implementation Notes\n\n${appendedBlock}`;
+
+		// After Implementation Plan if present
+		const planRegex = /## Implementation Plan\s*\n[\s\S]*?(?=\n## |$)/i;
+		const planMatch = src.match(planRegex);
+		if (planMatch && planMatch.index !== undefined) {
+			const insertIndex = planMatch.index + planMatch[0].length;
+			const before = src.slice(0, insertIndex).replace(/\n+$/, "");
+			const after = src.slice(insertIndex).replace(/^\n+/, "");
+			out = `${before}\n\n${newSection}${after ? "\n\n" : ""}${after}`;
+		}
+
+		// Otherwise after Acceptance Criteria
+		if (!out) {
+			const acRegex = /## Acceptance Criteria\s*\n[\s\S]*?(?=\n## |$)/i;
+			const acMatch = src.match(acRegex);
+			if (acMatch && acMatch.index !== undefined) {
+				const insertIndex = acMatch.index + acMatch[0].length;
+				const before = src.slice(0, insertIndex).replace(/\n+$/, "");
+				const after = src.slice(insertIndex).replace(/^\n+/, "");
+				out = `${before}\n\n${newSection}${after ? "\n\n" : ""}${after}`;
+			}
+		}
+
+		// Otherwise after Description
+		if (!out) {
+			const descRegex = /## Description\s*\n[\s\S]*?(?=\n## |$)/i;
+			const descMatch = src.match(descRegex);
+			if (descMatch && descMatch.index !== undefined) {
+				const insertIndex = descMatch.index + descMatch[0].length;
+				const before = src.slice(0, insertIndex).replace(/\n+$/, "");
+				const after = src.slice(insertIndex).replace(/^\n+/, "");
+				out = `${before}\n\n${newSection}${after ? "\n\n" : ""}${after}`;
+			}
+		}
+
+		// Fallback: append to end
+		if (!out) {
+			out = `${src.replace(/\n+$/, "")}\n\n${newSection}`;
+		}
+	}
+
+	return useCRLF ? out.replace(/\n/g, "\r\n") : out;
+}
+
 export function updateTaskDescription(content: string, description: string): string {
 	// Normalize to LF while computing, preserve original EOL at return
 	const useCRLF = /\r\n/.test(content);
@@ -236,16 +316,23 @@ export function updateTaskDescription(content: string, description: string): str
 	}
 
 	// If no Description section found, add at the beginning after any frontmatter
-	// Look for the end of frontmatter (after ---)
+	// and drop any leading unsectioned text (to avoid duplicating old raw body).
 	const frontmatterRegex = /^---\n[\s\S]*?\n---\n\n?/;
 	const frontmatterMatch = src.match(frontmatterRegex);
 
 	if (!out && frontmatterMatch && frontmatterMatch.index !== undefined) {
 		const insertIndex = frontmatterMatch.index + frontmatterMatch[0].length;
-		out = `${src.slice(0, insertIndex)}${newSection}\n\n${src.slice(insertIndex)}`;
+		const afterFm = src.slice(insertIndex);
+		const firstHeaderIdx = afterFm.search(/^##\s+/m);
+		const rest = firstHeaderIdx >= 0 ? afterFm.slice(firstHeaderIdx).replace(/^\n+/, "") : "";
+		out = `${src.slice(0, insertIndex)}${newSection}${rest ? `\n\n${rest}` : ""}`;
 	}
 
-	// If no frontmatter found, add at the beginning
-	if (!out) out = `${newSection}\n\n${src}`;
+	// If no frontmatter found, add at the beginning and preserve other sections
+	if (!out) {
+		const firstHeaderIdx = src.search(/^##\s+/m);
+		const rest = firstHeaderIdx >= 0 ? src.slice(firstHeaderIdx).replace(/^\n+/, "") : "";
+		out = `${newSection}${rest ? `\n\n${rest}` : ""}`;
+	}
 	return useCRLF ? out.replace(/\n/g, "\r\n") : out;
 }

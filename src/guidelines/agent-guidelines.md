@@ -145,7 +145,8 @@ Summary of what was done.
 | Uncheck AC #2           | `backlog task edit 42 --uncheck-ac 2`                    |
 | Remove AC #3            | `backlog task edit 42 --remove-ac 3`                     |
 | Add Plan                | `backlog task edit 42 --plan "1. Step one\n2. Step two"` |
-| Add Notes               | `backlog task edit 42 --notes "What I did"`              |
+| Add Notes (replace)     | `backlog task edit 42 --notes "What I did"`              |
+| Append Notes            | `backlog task edit 42 --append-notes "Another note"` |
 
 ---
 
@@ -280,6 +281,11 @@ finish them.
 
 When you are done implementing a tasks you need to prepare a PR description for it.
 Because you cannot create PRs directly, write the PR as a clean description in the task notes.
+Append notes progressively during implementation using `--append-notes`:
+
+```
+backlog task edit 42 --append-notes "Implemented X" --append-notes "Added tests"
+```
 
 ```bash
 # Example
@@ -293,7 +299,7 @@ implementation.
 - When you begin work, switch to edit, set the task in progress and assign to yourself
   `backlog task edit <id> -s "In Progress" -a "..."`.
 - Think about how you would solve the task and add the plan: `backlog task edit <id> --plan "..."`.
-- Add Implementation Notes only after completing the work: `backlog task edit <id> --notes "..."`.
+- Add Implementation Notes only after completing the work: `backlog task edit <id> --notes "..."` (replace) or append progressively using `--append-notes`.
 
 ## Phase discipline: What goes where
 
@@ -435,6 +441,7 @@ The CLI preserves input literally. Shells do not convert `\n` inside normal quot
   - Description: `backlog task edit 42 --desc $'Line1\nLine2\n\nFinal'`
   - Plan: `backlog task edit 42 --plan $'1. A\n2. B'`
   - Notes: `backlog task edit 42 --notes $'Done A\nDoing B'`
+  - Append notes: `backlog task edit 42 --append-notes $'Progress update line 1\nLine 2'`
 - POSIX portable (printf):
   - `backlog task edit 42 --notes "$(printf 'Line1\nLine2')"`
 - PowerShell (backtick n):

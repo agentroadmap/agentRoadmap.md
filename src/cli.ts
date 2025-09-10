@@ -945,7 +945,8 @@ function buildTaskFromOptions(id: string, title: string, options: Record<string,
 					.filter(Boolean)
 			: [],
 		dependencies,
-		body: options.description || options.desc ? String(options.description || options.desc) : "",
+		body: "",
+		...(options.description || options.desc ? { description: String(options.description || options.desc) } : {}),
 		...(normalizedParent && { parentTaskId: normalizedParent }),
 		...(validatedPriority && { priority: validatedPriority }),
 	};
@@ -1267,7 +1268,12 @@ taskCmd
 	)
 	.option("--acceptance-criteria <criteria>", "set acceptance criteria (comma-separated or use multiple times)")
 	.option("--plan <text>", "set implementation plan")
-	.option("--notes <text>", "add implementation notes")
+	.option("--notes <text>", "set implementation notes (replaces existing)")
+	.option(
+		"--append-notes <text>",
+		"append to implementation notes (can be used multiple times)",
+		createMultiValueAccumulator(),
+	)
 	.option(
 		"--depends-on <taskIds>",
 		"set task dependencies (comma-separated or use multiple times)",
@@ -1432,9 +1438,29 @@ taskCmd
 			task.implementationPlan = String(options.plan);
 		}
 
-		// Handle implementation notes
+		// Handle implementation notes - replace or append
+		if (options.appendNotes && options.notes) {
+			console.error("Cannot use --notes (replace) together with --append-notes (append). Choose one.");
+			process.exitCode = 1;
+			return;
+		}
+
 		if (options.notes) {
+			// Replace semantics
 			task.implementationNotes = String(options.notes);
+		}
+
+		if (options.appendNotes) {
+			const appends = Array.isArray(options.appendNotes) ? options.appendNotes : [options.appendNotes];
+			const combined = appends
+				.map((v: string) => String(v))
+				.filter(Boolean)
+				.join("\n\n");
+			// Merge into existing implementation notes (normalize spacing at the join)
+			const existing = (task.implementationNotes || "").replace(/\s+$/, "").trim();
+			const addition = String(combined).replace(/^\s+|\s+$/g, "");
+			const merged = existing ? `${existing}\n\n${addition}` : addition;
+			(task as { implementationNotes?: string }).implementationNotes = merged;
 		}
 
 		await core.updateTask(task);
@@ -1452,6 +1478,8 @@ taskCmd
 
 		console.log(`Updated task ${task.id}`);
 	});
+
+// Note: Implementation notes appending is handled via `task edit --append-notes` only.
 
 taskCmd
 	.command("view <taskId>")
