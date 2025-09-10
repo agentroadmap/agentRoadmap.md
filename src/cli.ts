@@ -168,7 +168,7 @@ program
 	.description("initialize backlog project in the current repository")
 	.option(
 		"--agent-instructions <instructions>",
-		"comma-separated list of agent instructions to create (e.g., claude,cursor,copilot)",
+		"comma-separated agent instructions to create. Valid: claude, agents, gemini, copilot, cursor (alias of agents), none. Use 'none' to skip; when combined with others, 'none' is ignored.",
 	)
 	.option("--check-branches <boolean>", "check task states across active branches (default: true)")
 	.option("--include-remote <boolean>", "include remote branches when checking (default: true)")
@@ -537,27 +537,23 @@ program
 				}
 
 				// 6. Agent instruction files selection
-				const agentOptions = [
-					".cursorrules",
-					"CLAUDE.md",
-					"AGENTS.md",
-					"GEMINI.md",
-					".github/copilot-instructions.md",
-				] as const;
+				const _agentOptions = ["CLAUDE.md", "AGENTS.md", "GEMINI.md", ".github/copilot-instructions.md"] as const;
 
-				let files: AgentInstructionFile[] = [];
+				type AgentSelection = AgentInstructionFile | "none";
+				let files: AgentSelection[] = [];
 
 				// Use --agent-instructions if provided, otherwise prompt
 				if (options.agentInstructions) {
 					// Map friendly names to actual file names
-					const nameMap: Record<string, string> = {
-						cursor: ".cursorrules",
+					const nameMap: Record<string, AgentSelection> = {
+						// Friendly aliases map to files
+						cursor: "AGENTS.md", // Cursor now uses AGENTS.md
 						claude: "CLAUDE.md",
 						agents: "AGENTS.md",
 						gemini: "GEMINI.md",
 						copilot: ".github/copilot-instructions.md",
+						none: "none",
 						// Also support the full file names
-						".cursorrules": ".cursorrules",
 						"CLAUDE.md": "CLAUDE.md",
 						"AGENTS.md": "AGENTS.md",
 						"GEMINI.md": "GEMINI.md",
@@ -566,36 +562,60 @@ program
 
 					// Parse comma-separated agent instructions
 					const requestedInstructions = options.agentInstructions.split(",").map((f) => f.trim().toLowerCase());
-					const mappedFiles: string[] = [];
+					const mappedFiles: AgentSelection[] = [];
 
 					// Validate and map instruction names
 					for (const instruction of requestedInstructions) {
 						const mappedFile = nameMap[instruction];
 						if (!mappedFile) {
 							console.error(`Invalid agent instruction: ${instruction}`);
-							console.error("Valid options are: cursor, claude, agents, gemini, copilot");
+							console.error("Valid options are: cursor, claude, agents, gemini, copilot, none");
 							process.exit(1);
 						}
 						mappedFiles.push(mappedFile);
 					}
 
-					files = mappedFiles as AgentInstructionFile[];
+					files = mappedFiles;
 				} else if (isNonInteractive) {
 					// No agent instructions in non-interactive mode if not specified
 					files = [];
 				} else {
-					// Interactive prompt
+					// Interactive prompt with built-in validation
 					const { files: selected } = await prompts(
 						{
 							type: "multiselect",
 							name: "files",
-							message: "Select agent instruction files to update (space to select)",
-							choices: agentOptions.map((name) => ({
-								title: name === ".github/copilot-instructions.md" ? "Copilot" : name,
-								value: name,
-							})),
-							hint: "Space to select, Enter to confirm",
+							message: "Select one or more agent instruction files to update (space to toggle)",
+							choices: [
+								{ title: "CLAUDE.md (Claude Code)", value: "CLAUDE.md" },
+								{
+									title: "AGENTS.md (Codex, Jules, Amp, Cursor, Zed, Warp, Aider, GitHub, RooCode)",
+									value: "AGENTS.md",
+								},
+								{ title: "GEMINI.md (Google CLI)", value: "GEMINI.md" },
+								{ title: "Copilot (GitHub Copilot)", value: ".github/copilot-instructions.md" },
+								{
+									title: "Do not add instructions (danger, this will make backlog not usable with ai agents)",
+									value: "none",
+								},
+							],
+							hint: "Space to select, Enter to confirm. Multiple selections allowed\n",
 							instructions: false,
+							onRender: function () {
+								// Ensure the additional guidance appears when the min-selection error is shown
+								try {
+									// 'this' is the MultiselectPrompt instance
+									const base = "Space to select, Enter to confirm. Multiple selections allowed\n";
+									// @ts-expect-error - internal flag from prompts
+									const showErr = !!this.showMinError && !this.done;
+									// @ts-expect-error - safe assignment to built-in hint
+									this.hint = showErr ? `${base}Use space to select the option you prefer` : base;
+								} catch {}
+								return undefined;
+							},
+							// Rely on prompts' min+warn to keep the prompt open
+							min: 1,
+							warn: "Please press space to select at least one option",
 						},
 						{
 							onCancel: () => {
@@ -604,8 +624,18 @@ program
 							},
 						},
 					);
-					files = (selected ?? []) as AgentInstructionFile[];
+
+					files = (selected ?? []) as AgentSelection[];
 				}
+
+				if (files.includes("none")) {
+					if (files.length > 1) {
+						files = files.filter((f) => f !== "none");
+					} else {
+						files = [];
+					}
+				}
+				const agentFiles = files as AgentInstructionFile[];
 
 				// 7. Claude agent installation prompt
 				let claudeAgentPrompt: { installClaudeAgent: boolean };
@@ -691,9 +721,9 @@ program
 				}
 
 				// Add agent instruction files if selected
-				if (files.length > 0) {
-					await addAgentInstructions(cwd, core.gitOps, files, config.autoCommit);
-					console.log(`✓ Created agent instruction files: ${files.join(", ")}`);
+				if (agentFiles.length > 0) {
+					await addAgentInstructions(cwd, core.gitOps, agentFiles, config.autoCommit);
+					console.log(`✓ Created agent instruction files: ${agentFiles.join(", ")}`);
 				}
 
 				// Install Claude agent if selected
@@ -2005,7 +2035,7 @@ agentsCmd
 	.description("manage agent instruction files")
 	.option(
 		"--update-instructions",
-		"update agent instruction files (.cursorrules, CLAUDE.md, AGENTS.md, GEMINI.md, .github/copilot-instructions.md)",
+		"update agent instruction files (CLAUDE.md, AGENTS.md, GEMINI.md, .github/copilot-instructions.md)",
 	)
 	.action(async (options) => {
 		if (!options.updateInstructions) {
@@ -2023,23 +2053,19 @@ agentsCmd
 				process.exit(1);
 			}
 
-			const agentOptions = [
-				".cursorrules",
-				"CLAUDE.md",
-				"AGENTS.md",
-				"GEMINI.md",
-				".github/copilot-instructions.md",
-			] as const;
+			const _agentOptions = ["CLAUDE.md", "AGENTS.md", "GEMINI.md", ".github/copilot-instructions.md"] as const;
 
 			const { files: selected } = await prompts({
 				type: "multiselect",
 				name: "files",
 				message: "Select agent instruction files to update",
-				choices: agentOptions.map((name) => ({
-					title: name === ".github/copilot-instructions.md" ? "Copilot" : name,
-					value: name,
-				})),
-				hint: "Space to select, Enter to confirm",
+				choices: [
+					{ title: "CLAUDE.md (Claude Code)", value: "CLAUDE.md" },
+					{ title: "AGENTS.md (Codex, Jules, Amp, Cursor, Zed, Warp, Aider, GitHub, RooCode)", value: "AGENTS.md" },
+					{ title: "GEMINI.md (Google CLI)", value: "GEMINI.md" },
+					{ title: "Copilot (GitHub Copilot)", value: ".github/copilot-instructions.md" },
+				],
+				hint: "Space to select, Enter to confirm\n",
 				instructions: false,
 			});
 
