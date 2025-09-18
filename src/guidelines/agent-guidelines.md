@@ -451,6 +451,21 @@ Do not expect `"...\n..."` to become a newline. That passes the literal backslas
 
 Descriptions support literal newlines; shell examples may show escaped `\\n`, but enter a single `\n` to create a newline.
 
+### Implementation Notes Formatting
+
+- Keep implementation notes human-friendly and PR-ready: use short paragraphs or
+  bullet lists instead of a single long line.
+- Lead with the outcome, then add supporting details (e.g., testing, follow-up
+  actions) on separate lines or bullets.
+- Prefer Markdown bullets (`-` for unordered, `1.` for ordered) so Maintainers
+  can paste notes straight into GitHub without additional formatting.
+- When using CLI flags like `--append-notes`, remember to include explicit
+  newlines. Example:
+
+  ```bash
+  backlog task edit 42 --append-notes $'- Added new API endpoint\n- Updated tests\n- TODO: monitor staging deploy'
+  ```
+
 ### Task Operations
 
 | Action             | Command                                      |
