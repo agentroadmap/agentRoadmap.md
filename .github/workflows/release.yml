@@ -105,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           corepack enable
-          corepack prepare npm@latest --activate
+          corepack prepare npm@11.6.0 --activate
           npm --version
       - name: Dry run trusted publish
         run: |
@@ -188,7 +188,7 @@ jobs:
         run: |
           set -euo pipefail
           corepack enable
-          corepack prepare npm@latest --activate
+          corepack prepare npm@11.6.0 --activate
           npm --version
       - name: Dry run platform publish
         run: |
