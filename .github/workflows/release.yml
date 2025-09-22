@@ -98,14 +98,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org
-          always-auth: true
       - name: Configure npm for trusted publishing
         shell: bash
         run: |
           set -euo pipefail
-          corepack enable
-          corepack prepare npm@11.6.0 --activate
+          npm install -g npm@11.6.0
           npm --version
       - name: Dry run trusted publish
         run: |
@@ -181,14 +178,11 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 20
-          registry-url: https://registry.npmjs.org
-          always-auth: true
       - name: Configure npm for trusted publishing
         shell: bash
         run: |
           set -euo pipefail
-          corepack enable
-          corepack prepare npm@11.6.0 --activate
+          npm install -g npm@11.6.0
           npm --version
       - name: Dry run platform publish
         run: |
