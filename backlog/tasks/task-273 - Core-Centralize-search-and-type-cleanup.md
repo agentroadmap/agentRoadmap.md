@@ -1,6 +1,6 @@
 ---
 id: task-273
-title: 'Core: Centralize search and type cleanup'
+title: 'Refactor search'
 status: To Do
 assignee:
   - '@codex'
@@ -20,9 +20,9 @@ Refactor types and search to use a single Fuse-based core search that feeds all 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Task, document, and decision types use rawContent instead of body and remove deprecated fields.
-- [ ] #2 Core search module returns SearchResult with tasks/documents/decisions using Fuse in memory (no fs access).
-- [ ] #3 Shared local data store loads all content once and exposes unified search/filter API for browser, board, and task list.
-- [ ] #4 Task list UI uses new search+filter API with search input + status/priority dropdowns.
-- [ ] #5 CLI search command supports --plain for text output and opens task list with pre-filled search/filter when interactive.
+- [x] #1 Task, document, and decision types use rawContent instead of body and remove deprecated fields.
+- [x] #2 Core search module returns SearchResult with tasks/documents/decisions using Fuse in memory (no fs access).
+- [x] #3 Shared local data store loads all content once and exposes unified search/filter API for browser, board, and task list.
+- [x] #4 Task list UI uses new search+filter API with search input + status/priority dropdowns.
+- [x] #5 CLI search command supports --plain for text output and opens task list with pre-filled search/filter when interactive.
 <!-- AC:END -->
