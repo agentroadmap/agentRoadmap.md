@@ -87,6 +87,7 @@ jobs:
               .bin = {backlog:"cli.js"} |
               .files = ["cli.js","resolveBinary.cjs","postuninstall.cjs","package.json","README.md","LICENSE"] |
               .scripts = {"postuninstall": "node postuninstall.cjs"} |
+              .repository = {"type":"git","url":"https://github.com/MrLesk/Backlog.md"} |
               .optionalDependencies = {
                 "backlog.md-linux-x64"  : "'$TAG'",
                 "backlog.md-linux-arm64": "'$TAG'",
@@ -167,7 +168,11 @@ jobs:
             "version": "${TAG}",
             "os": ["${{ matrix.os }}"],
             "cpu": ["${{ matrix.cpu }}"],
-            "files": ["backlog${{ contains(matrix.target,'windows') && '.exe' || '' }}","package.json","LICENSE"]
+            "files": ["backlog${{ contains(matrix.target,'windows') && '.exe' || '' }}","package.json","LICENSE"],
+            "repository": {
+              "type": "git",
+              "url": "https://github.com/MrLesk/Backlog.md"
+            }
           }
           EOF
       - name: Ensure executable permission (non-Windows)
