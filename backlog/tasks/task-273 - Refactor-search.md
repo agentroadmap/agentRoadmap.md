@@ -1,11 +1,11 @@
 ---
 id: task-273
-title: 'Refactor search'
-status: To Do
+title: Refactor search
+status: In Progress
 assignee:
   - '@codex'
 created_date: '2025-09-19 18:09'
-updated_date: '2025-09-19 18:09'
+updated_date: '2025-09-22 20:39'
 labels:
   - core
   - search

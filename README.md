@@ -179,20 +179,18 @@ Tip: Help text shows Bash examples with escaped `\\n` for readability; when typi
 
 Find tasks, documents, and decisions across your entire backlog with fuzzy search:
 
-| Action      | Example                                              |
-|-------------|------------------------------------------------------|
-| Search everything | `backlog search "auth"`                        |
-| Search tasks only | `backlog search "login" --type task`           |
-| Filter by status | `backlog search "api" --status "In Progress"`   |
+| Action             | Example                                              |
+|--------------------|------------------------------------------------------|
+| Search tasks       | `backlog search "auth"`                        |
+| Filter by status   | `backlog search "api" --status "In Progress"`   |
 | Filter by priority | `backlog search "bug" --priority high`        |
-| Combine filters | `backlog search "web" --status "To Do" --priority medium` |
-| Plain text output | `backlog search "feature" --plain` (for scripts/AI) |
+| Combine filters    | `backlog search "web" --status "To Do" --priority medium` |
+| Plain text output  | `backlog search "feature" --plain` (for scripts/AI) |
 
 **Search features:**
 - **Fuzzy matching** -- finds "authentication" when searching for "auth"
 - **Interactive filters** -- refine your search in real-time with the TUI
 - **Live filtering** -- see results update as you type (no Enter needed)
-- **Cross-content search** -- searches titles, descriptions, and full content
 
 ### Draft Workflow
 

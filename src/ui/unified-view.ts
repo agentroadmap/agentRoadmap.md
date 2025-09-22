@@ -168,7 +168,8 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 				// - If we have a search query on initial load, focus search
 				// - If currentView is task-detail, focus detail
 				// - Otherwise (including when coming from kanban), focus task list
-				const shouldFocusSearch = Boolean(options.filter?.searchQuery) && isInitialLoad;
+				const hasSearchQuery = options.filter ? "searchQuery" in options.filter : false;
+				const shouldFocusSearch = isInitialLoad && hasSearchQuery;
 
 				viewTaskEnhanced(taskToView, content, {
 					tasks: availableTasks,

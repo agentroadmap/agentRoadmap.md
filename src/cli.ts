@@ -1505,7 +1505,6 @@ taskCmd
 					sort: options.sort,
 					title,
 					filterDescription,
-					searchQuery: "",
 					parentTaskId: parentId,
 				},
 			});
