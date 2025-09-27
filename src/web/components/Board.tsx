@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { type Task } from '../../types';
 import { apiClient } from '../lib/api';
 import TaskColumn from './TaskColumn';
+import CleanupModal from './CleanupModal';
+import { SuccessToast } from './SuccessToast';
 
 interface BoardProps {
   onEditTask: (task: Task) => void;
@@ -24,6 +26,8 @@ const Board: React.FC<BoardProps> = ({
 }) => {
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [dragSourceStatus, setDragSourceStatus] = useState<string | null>(null);
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [cleanupSuccessMessage, setCleanupSuccessMessage] = useState<string | null>(null);
 
   // Handle highlighting a task (opening its edit popup)
   useEffect(() => {
@@ -66,6 +70,21 @@ const Board: React.FC<BoardProps> = ({
     } catch (err) {
       setUpdateError(err instanceof Error ? err.message : 'Failed to reorder task');
     }
+  };
+
+  const handleCleanupSuccess = async (movedCount: number) => {
+    setShowCleanupModal(false);
+    setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
+
+    // Refresh data to reflect the changes
+    if (onRefreshData) {
+      await onRefreshData();
+    }
+
+    // Auto-dismiss after 4 seconds
+    setTimeout(() => {
+      setCleanupSuccessMessage(null);
+    }, 4000);
   };
 
   const tasksByStatus = useMemo(() => {
@@ -165,11 +184,32 @@ const Board: React.FC<BoardProps> = ({
                 dragSourceStatus={dragSourceStatus}
                 onDragStart={() => setDragSourceStatus(status)}
                 onDragEnd={() => setDragSourceStatus(null)}
+                onCleanup={status.toLowerCase() === 'done' ? () => setShowCleanupModal(true) : undefined}
               />
             </div>
           ))}
         </div>
       </div>
+
+      {/* Cleanup Modal */}
+      <CleanupModal
+        isOpen={showCleanupModal}
+        onClose={() => setShowCleanupModal(false)}
+        onSuccess={handleCleanupSuccess}
+      />
+
+      {/* Cleanup Success Toast */}
+      {cleanupSuccessMessage && (
+        <SuccessToast
+          message={cleanupSuccessMessage}
+          onDismiss={() => setCleanupSuccessMessage(null)}
+          icon={
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          }
+        />
+      )}
     </div>
   );
 };

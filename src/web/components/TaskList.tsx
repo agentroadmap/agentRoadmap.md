@@ -6,6 +6,8 @@ import type {
 	Task,
 	TaskSearchResult,
 } from "../../types";
+import CleanupModal from "./CleanupModal";
+import { SuccessToast } from "./SuccessToast";
 
 interface TaskListProps {
 	onEditTask: (task: Task) => void;
@@ -38,6 +40,8 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 	);
 	const [displayTasks, setDisplayTasks] = useState<Task[]>(() => sortTasksByIdDescending(tasks));
 	const [error, setError] = useState<string | null>(null);
+	const [showCleanupModal, setShowCleanupModal] = useState(false);
+	const [cleanupSuccessMessage, setCleanupSuccessMessage] = useState<string | null>(null);
 
 	const sortedBaseTasks = useMemo(() => sortTasksByIdDescending(tasks), [tasks]);
 	const normalizedSearch = searchValue.trim();
@@ -143,6 +147,43 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		setError(null);
 	};
 
+	const handleCleanupSuccess = (movedCount: number) => {
+		setShowCleanupModal(false);
+		setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
+
+		// Refresh the display
+		if (statusFilter.toLowerCase() === 'done') {
+			// Re-apply the current filters after cleanup
+			const fetchUpdated = async () => {
+				try {
+					const results = await apiClient.search({
+						query: normalizedSearch,
+						types: ["task"],
+						status: statusFilter,
+						priority: priorityFilter || undefined,
+					});
+					const taskResults = results.filter((r): r is TaskSearchResult => r.type === "task");
+					const foundTasks = taskResults.map((r) => r.task);
+					setDisplayTasks(sortTasksByIdDescending(foundTasks));
+				} catch {
+					// Fallback to filtering from base tasks
+					const filtered = sortedBaseTasks.filter((task) => {
+						const matchesStatus = !statusFilter || task.status === statusFilter;
+						const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+						return matchesStatus && matchesPriority;
+					});
+					setDisplayTasks(filtered);
+				}
+			};
+			fetchUpdated();
+		}
+
+		// Auto-dismiss after 4 seconds
+		setTimeout(() => {
+			setCleanupSuccessMessage(null);
+		}, 4000);
+	};
+
 	const getStatusColor = (status: string) => {
 		switch (status.toLowerCase()) {
 			case "to do":
@@ -236,6 +277,20 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 						))}
 					</select>
 
+					{statusFilter.toLowerCase() === 'done' && displayTasks.length > 0 && (
+						<button
+							type="button"
+							onClick={() => setShowCleanupModal(true)}
+							className="py-2 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer flex items-center gap-2"
+							title="Clean up old completed tasks"
+						>
+							<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+							</svg>
+							Clean Up
+						</button>
+					)}
+
 					{hasActiveFilters && (
 						<button
 							type="button"
@@ -326,6 +381,26 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 						</div>
 					))}
 				</div>
+			)}
+
+			{/* Cleanup Modal */}
+			<CleanupModal
+				isOpen={showCleanupModal}
+				onClose={() => setShowCleanupModal(false)}
+				onSuccess={handleCleanupSuccess}
+			/>
+
+			{/* Cleanup Success Toast */}
+			{cleanupSuccessMessage && (
+				<SuccessToast
+					message={cleanupSuccessMessage}
+					onDismiss={() => setCleanupSuccessMessage(null)}
+					icon={
+						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					}
+				/>
 			)}
 		</div>
 	);
