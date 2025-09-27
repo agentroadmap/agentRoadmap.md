@@ -213,6 +213,31 @@ export class ApiClient {
 		});
 	}
 
+	async getCleanupPreview(age: number): Promise<{
+		count: number;
+		tasks: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
+	}> {
+		return this.fetchJson<{
+			count: number;
+			tasks: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
+		}>(`${API_BASE}/tasks/cleanup?age=${age}`);
+	}
+
+	async executeCleanup(
+		age: number,
+	): Promise<{ success: boolean; movedCount: number; totalCount: number; message: string; failedTasks?: string[] }> {
+		return this.fetchJson<{
+			success: boolean;
+			movedCount: number;
+			totalCount: number;
+			message: string;
+			failedTasks?: string[];
+		}>(`${API_BASE}/tasks/cleanup/execute`, {
+			method: "POST",
+			body: JSON.stringify({ age }),
+		});
+	}
+
 	async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
 		return this.updateTask(id, { status });
 	}

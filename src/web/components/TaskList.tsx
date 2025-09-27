@@ -6,12 +6,15 @@ import type {
 	Task,
 	TaskSearchResult,
 } from "../../types";
+import CleanupModal from "./CleanupModal";
+import { SuccessToast } from "./SuccessToast";
 
 interface TaskListProps {
 	onEditTask: (task: Task) => void;
 	onNewTask: () => void;
 	tasks: Task[];
 	availableStatuses: string[];
+	onRefreshData?: () => Promise<void>;
 }
 
 const PRIORITY_OPTIONS: Array<{ label: string; value: "" | SearchPriorityFilter }> = [
@@ -29,7 +32,7 @@ function sortTasksByIdDescending(list: Task[]): Task[] {
 	});
 }
 
-const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, availableStatuses }) => {
+const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, availableStatuses, onRefreshData }) => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [searchValue, setSearchValue] = useState(() => searchParams.get("query") ?? "");
 	const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "");
@@ -38,6 +41,8 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 	);
 	const [displayTasks, setDisplayTasks] = useState<Task[]>(() => sortTasksByIdDescending(tasks));
 	const [error, setError] = useState<string | null>(null);
+	const [showCleanupModal, setShowCleanupModal] = useState(false);
+	const [cleanupSuccessMessage, setCleanupSuccessMessage] = useState<string | null>(null);
 
 	const sortedBaseTasks = useMemo(() => sortTasksByIdDescending(tasks), [tasks]);
 	const normalizedSearch = searchValue.trim();
@@ -102,7 +107,7 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		return () => {
 			cancelled = true;
 		};
-	}, [hasActiveFilters, normalizedSearch, priorityFilter, statusFilter]);
+	}, [hasActiveFilters, normalizedSearch, priorityFilter, statusFilter, tasks]);
 
 	const syncUrl = (nextQuery: string, nextStatus: string, nextPriority: "" | SearchPriorityFilter) => {
 		const params = new URLSearchParams();
@@ -141,6 +146,21 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		syncUrl("", "", "");
 		setDisplayTasks(sortedBaseTasks);
 		setError(null);
+	};
+
+	const handleCleanupSuccess = async (movedCount: number) => {
+		setShowCleanupModal(false);
+		setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
+
+		// Refresh the data - existing effects will handle re-filtering automatically
+		if (onRefreshData) {
+			await onRefreshData();
+		}
+
+		// Auto-dismiss success message after 4 seconds
+		setTimeout(() => {
+			setCleanupSuccessMessage(null);
+		}, 4000);
 	};
 
 	const getStatusColor = (status: string) => {
@@ -236,6 +256,20 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 						))}
 					</select>
 
+					{statusFilter.toLowerCase() === 'done' && displayTasks.length > 0 && (
+						<button
+							type="button"
+							onClick={() => setShowCleanupModal(true)}
+							className="py-2 px-3 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200 cursor-pointer flex items-center gap-2"
+							title="Clean up old completed tasks"
+						>
+							<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+							</svg>
+							Clean Up
+						</button>
+					)}
+
 					{hasActiveFilters && (
 						<button
 							type="button"
@@ -326,6 +360,26 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 						</div>
 					))}
 				</div>
+			)}
+
+			{/* Cleanup Modal */}
+			<CleanupModal
+				isOpen={showCleanupModal}
+				onClose={() => setShowCleanupModal(false)}
+				onSuccess={handleCleanupSuccess}
+			/>
+
+			{/* Cleanup Success Toast */}
+			{cleanupSuccessMessage && (
+				<SuccessToast
+					message={cleanupSuccessMessage}
+					onDismiss={() => setCleanupSuccessMessage(null)}
+					icon={
+						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+					}
+				/>
 			)}
 		</div>
 	);

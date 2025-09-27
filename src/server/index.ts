@@ -218,6 +218,12 @@ export class BacklogServer {
 					"/api/tasks/reorder": {
 						POST: async (req: Request) => await this.handleReorderTask(req),
 					},
+					"/api/tasks/cleanup": {
+						GET: async (req: Request) => await this.handleCleanupPreview(req),
+					},
+					"/api/tasks/cleanup/execute": {
+						POST: async (req: Request) => await this.handleCleanupExecute(req),
+					},
 					"/api/version": {
 						GET: async () => await this.handleGetVersion(),
 					},
@@ -855,6 +861,99 @@ export class BacklogServer {
 		} catch (error) {
 			console.error("Error reordering task:", error);
 			return Response.json({ error: "Failed to reorder task" }, { status: 500 });
+		}
+	}
+
+	private async handleCleanupPreview(req: Request): Promise<Response> {
+		try {
+			const url = new URL(req.url);
+			const ageParam = url.searchParams.get("age");
+
+			if (!ageParam) {
+				return Response.json({ error: "Missing age parameter" }, { status: 400 });
+			}
+
+			const age = Number.parseInt(ageParam, 10);
+			if (Number.isNaN(age) || age < 0) {
+				return Response.json({ error: "Invalid age parameter" }, { status: 400 });
+			}
+
+			// Get Done tasks older than specified days
+			const tasksToCleanup = await this.core.getDoneTasksByAge(age);
+
+			// Return preview of tasks to be cleaned up
+			const preview = tasksToCleanup.map((task) => ({
+				id: task.id,
+				title: task.title,
+				updatedDate: task.updatedDate,
+				createdDate: task.createdDate,
+			}));
+
+			return Response.json({
+				count: preview.length,
+				tasks: preview,
+			});
+		} catch (error) {
+			console.error("Error getting cleanup preview:", error);
+			return Response.json({ error: "Failed to get cleanup preview" }, { status: 500 });
+		}
+	}
+
+	private async handleCleanupExecute(req: Request): Promise<Response> {
+		try {
+			const { age } = await req.json();
+
+			if (age === undefined || age === null) {
+				return Response.json({ error: "Missing age parameter" }, { status: 400 });
+			}
+
+			const ageInDays = Number.parseInt(age, 10);
+			if (Number.isNaN(ageInDays) || ageInDays < 0) {
+				return Response.json({ error: "Invalid age parameter" }, { status: 400 });
+			}
+
+			// Get Done tasks older than specified days
+			const tasksToCleanup = await this.core.getDoneTasksByAge(ageInDays);
+
+			if (tasksToCleanup.length === 0) {
+				return Response.json({
+					success: true,
+					movedCount: 0,
+					message: "No tasks to clean up",
+				});
+			}
+
+			// Move tasks to completed folder
+			let successCount = 0;
+			const failedTasks: string[] = [];
+
+			for (const task of tasksToCleanup) {
+				try {
+					const success = await this.core.completeTask(task.id);
+					if (success) {
+						successCount++;
+					} else {
+						failedTasks.push(task.id);
+					}
+				} catch (error) {
+					console.error(`Failed to complete task ${task.id}:`, error);
+					failedTasks.push(task.id);
+				}
+			}
+
+			// Notify listeners to refresh
+			this.broadcastTasksUpdated();
+
+			return Response.json({
+				success: true,
+				movedCount: successCount,
+				totalCount: tasksToCleanup.length,
+				failedTasks: failedTasks.length > 0 ? failedTasks : undefined,
+				message: `Moved ${successCount} of ${tasksToCleanup.length} tasks to completed folder`,
+			});
+		} catch (error) {
+			console.error("Error executing cleanup:", error);
+			return Response.json({ error: "Failed to execute cleanup" }, { status: 500 });
 		}
 	}
 

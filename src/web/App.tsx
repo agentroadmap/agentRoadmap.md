@@ -258,6 +258,7 @@ function App() {
                   onNewTask={handleNewTask}
                   tasks={tasks}
                   availableStatuses={statuses}
+                  onRefreshData={refreshData}
                 />
               }
             />
