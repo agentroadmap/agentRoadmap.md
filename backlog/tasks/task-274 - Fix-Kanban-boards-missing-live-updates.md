@@ -26,7 +26,6 @@ Make both Kanban experiences reflect live changes (new statuses and new/updated 
 - [x] #1 Web Kanban board shows tasks immediately after they move into a newly added status without a manual browser refresh.
 - [x] #2 Status configuration changes made with 'backlog config set statuses' update the web Kanban column list without restarting the browser session.
 - [x] #3 While 'backlog board' is running, tasks created or edited in another terminal are rendered in the TUI board without restarting the command.
-
 - [x] #4 Make task prop optional in TaskDetailsModal to support create mode
 - [x] #5 Add title field editing when in create mode (currently title is only in header)
 - [x] #6 Add onArchive prop and handler to TaskDetailsModal interface
