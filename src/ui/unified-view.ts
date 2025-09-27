@@ -4,6 +4,7 @@
 
 import type { Core } from "../core/backlog.ts";
 import type { Task } from "../types/index.ts";
+import { watchConfig } from "../utils/config-watcher.ts";
 import { getTaskPath } from "../utils/task-path.ts";
 import { watchTasks } from "../utils/task-watcher.ts";
 import { renderBoardTui } from "./board.ts";
@@ -72,6 +73,16 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 		let currentView: ViewType = options.initialView;
 		let selectedTask: Task | undefined = options.selectedTask;
 		let tasks = baseTasks;
+		let kanbanStatuses = options.preloadedKanbanData?.statuses ?? [];
+		let boardUpdater: ((nextTasks: Task[], nextStatuses: string[]) => void) | null = null;
+
+		const getRenderableTasks = () =>
+			tasks.filter((task) => task.id && task.id.trim() !== "" && task.id.startsWith("task-"));
+
+		const emitBoardUpdate = () => {
+			if (!boardUpdater) return;
+			boardUpdater(getRenderableTasks(), kanbanStatuses);
+		};
 		let isInitialLoad = true; // Track if this is the first view load
 
 		// Track current filter state
@@ -94,6 +105,7 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 					tasks,
 					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
 				});
+				emitBoardUpdate();
 			},
 			onTaskChanged(task) {
 				const idx = tasks.findIndex((t) => t.id === task.id);
@@ -107,6 +119,7 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 					tasks,
 					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
 				});
+				emitBoardUpdate();
 			},
 			onTaskRemoved(taskId) {
 				tasks = tasks.filter((t) => t.id !== taskId);
@@ -118,9 +131,19 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 					tasks,
 					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
 				});
+				emitBoardUpdate();
 			},
 		});
 		process.on("exit", () => watcher.stop());
+
+		const configWatcher = watchConfig(options.core, {
+			onConfigChanged: (config) => {
+				kanbanStatuses = config?.statuses ?? [];
+				emitBoardUpdate();
+			},
+		});
+
+		process.on("exit", () => configWatcher.stop());
 
 		// Function to show task view
 		const showTaskView = async (): Promise<ViewResult> => {
@@ -251,6 +274,7 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 				}
 			}
 
+			kanbanStatuses = [...statuses];
 			const config = await options.core.filesystem.loadConfig();
 			const layout = "horizontal" as const;
 			const maxColumnWidth = config?.maxColumnWidth || 20;
@@ -268,11 +292,16 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 						selectedTask = task;
 					},
 					onTabPress,
+					subscribeUpdates: (updater) => {
+						boardUpdater = updater;
+						emitBoardUpdate();
+					},
 				}).then(() => {
 					// If user wants to exit, do it immediately
 					if (result === "exit") {
 						process.exit(0);
 					}
+					boardUpdater = null;
 					resolve(result);
 				});
 			});

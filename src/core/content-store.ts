@@ -226,6 +226,43 @@ export class ContentStore {
 				console.error("Failed to initialize document watcher", error);
 			}
 		}
+
+		try {
+			const configWatcher = this.createConfigWatcher();
+			if (configWatcher) {
+				this.watchers.push(configWatcher);
+			}
+		} catch (error) {
+			if (process.env.DEBUG) {
+				console.error("Failed to initialize config watcher", error);
+			}
+		}
+	}
+
+	private createConfigWatcher(): WatchHandle | null {
+		const configPath = this.filesystem.configFilePath;
+		try {
+			const watcher: FSWatcher = watch(configPath, (eventType) => {
+				if (eventType !== "change" && eventType !== "rename") {
+					return;
+				}
+				this.enqueue(async () => {
+					this.filesystem.invalidateConfigCache();
+					this.notify("tasks");
+				});
+			});
+
+			return {
+				stop() {
+					watcher.close();
+				},
+			};
+		} catch (error) {
+			if (process.env.DEBUG) {
+				console.error("Failed to watch config file", error);
+			}
+			return null;
+		}
 	}
 
 	private createTaskWatcher(): WatchHandle {

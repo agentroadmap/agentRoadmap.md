@@ -9,6 +9,128 @@ import { getStatusIcon } from "./status-icon.ts";
 import { createTaskPopup } from "./task-viewer.ts";
 import { createScreen } from "./tui.ts";
 
+type ColumnData = {
+	status: string;
+	tasks: Task[];
+};
+
+type ColumnView = {
+	status: string;
+	tasks: Task[];
+	list: ListInterface;
+	box: BoxInterface;
+};
+
+function normalizeStatuses(statuses: string[]): string[] {
+	return statuses.filter((status) => typeof status === "string" && status.trim().length > 0);
+}
+
+function isDoneStatus(status: string): boolean {
+	const normalized = status.trim().toLowerCase();
+	return normalized === "done" || normalized === "completed" || normalized === "complete";
+}
+
+function buildColumnTasks(status: string, items: Task[], byId: Map<string, Task>): Task[] {
+	const topLevel: Task[] = [];
+	const childrenByParent = new Map<string, Task[]>();
+	const sorted = items.slice().sort((a, b) => {
+		const columnIsDone = isDoneStatus(status);
+		if (columnIsDone) {
+			return compareTaskIds(b.id, a.id);
+		}
+		return compareTaskIds(a.id, b.id);
+	});
+
+	for (const task of sorted) {
+		const parent = task.parentTaskId ? byId.get(task.parentTaskId) : undefined;
+		if (parent && parent.status === task.status) {
+			const existing = childrenByParent.get(parent.id) ?? [];
+			existing.push(task);
+			childrenByParent.set(parent.id, existing);
+			continue;
+		}
+		topLevel.push(task);
+	}
+
+	const ordered: Task[] = [];
+	for (const task of topLevel) {
+		ordered.push(task);
+		const subs = childrenByParent.get(task.id) ?? [];
+		subs.sort((a, b) => compareTaskIds(a.id, b.id));
+		ordered.push(...subs);
+	}
+
+	return ordered;
+}
+
+function prepareBoardColumns(tasks: Task[], statuses: string[]): ColumnData[] {
+	const canonicalByLower = new Map<string, string>();
+	const sanitizedStatuses = normalizeStatuses(statuses);
+	for (const status of sanitizedStatuses) {
+		canonicalByLower.set(status.toLowerCase(), status);
+	}
+
+	const byId = new Map<string, Task>(tasks.map((task) => [task.id, task]));
+	const grouped = new Map<string, Task[]>();
+	for (const status of sanitizedStatuses) {
+		grouped.set(status, []);
+	}
+
+	for (const task of tasks) {
+		const raw = (task.status || "").trim();
+		if (!raw) continue;
+		const canonical = canonicalByLower.get(raw.toLowerCase()) || raw;
+		const list = grouped.get(canonical) ?? [];
+		list.push(task);
+		grouped.set(canonical, list);
+	}
+
+	const result: ColumnData[] = [];
+	const seen = new Set<string>();
+
+	const appendColumn = (status: string) => {
+		const items = grouped.get(status) ?? [];
+		const orderedTasks = buildColumnTasks(status, items, byId);
+		result.push({ status, tasks: orderedTasks });
+		seen.add(status);
+	};
+
+	for (const status of sanitizedStatuses) {
+		appendColumn(status);
+	}
+
+	for (const [status, items] of grouped.entries()) {
+		if (seen.has(status)) continue;
+		if (items.length === 0) continue;
+		appendColumn(status);
+	}
+
+	return result;
+}
+
+function formatTaskListItem(task: Task): string {
+	const assignee = task.assignee?.[0]
+		? ` {cyan-fg}${task.assignee[0].startsWith("@") ? task.assignee[0] : `@${task.assignee[0]}`}{/}`
+		: "";
+	const labels = task.labels?.length ? ` {yellow-fg}[${task.labels.join(", ")}]{/}` : "";
+	const branch = (task as Task & { branch?: string }).branch
+		? ` {green-fg}(${(task as Task & { branch?: string }).branch}){/}`
+		: "";
+	return `{bold}${task.id}{/bold} - ${task.title}${assignee}${labels}${branch}`;
+}
+
+function formatColumnLabel(status: string, count: number): string {
+	return `\u00A0${getStatusIcon(status)} ${status || "No Status"} (${count})\u00A0`;
+}
+
+function arraysEqual(left: string[], right: string[]): boolean {
+	if (left.length !== right.length) return false;
+	for (let index = 0; index < left.length; index += 1) {
+		if (left[index] !== right[index]) return false;
+	}
+	return true;
+}
+
 /**
  * Render tasks in an interactive TUI when stdout is a TTY.
  * Falls back to plain-text board when not in a terminal
@@ -23,6 +145,7 @@ export async function renderBoardTui(
 		viewSwitcher?: import("./view-switcher.ts").ViewSwitcher;
 		onTaskSelect?: (task: Task) => void;
 		onTabPress?: () => Promise<void>;
+		subscribeUpdates?: (update: (nextTasks: Task[], nextStatuses: string[]) => void) => void;
 	},
 ): Promise<void> {
 	if (!process.stdout.isTTY) {
@@ -30,197 +153,213 @@ export async function renderBoardTui(
 		return;
 	}
 
-	/* ------------------------------------------------------------------
-     Group tasks by status (case-insensitive), preserving configured casing
-     ------------------------------------------------------------------ */
-	const canonicalByLower = new Map<string, string>();
-	for (const s of statuses) {
-		if (!s) continue;
-		canonicalByLower.set(s.toLowerCase(), s);
-	}
-
-	const tasksByStatus = new Map<string, Task[]>(); // key is display/canonical status label
-	// Initialize configured statuses
-	for (const s of statuses) tasksByStatus.set(s, []);
-
-	for (const t of tasks) {
-		const raw = (t.status || "").trim();
-		if (!raw) continue;
-		const canonical = canonicalByLower.get(raw.toLowerCase()) || raw;
-		const list = tasksByStatus.get(canonical) || [];
-		list.push(t);
-		tasksByStatus.set(canonical, list);
-	}
-
-	// Determine displayed columns: configured statuses with tasks, then any unknown statuses with tasks
-	const nonEmptyConfigured = statuses.filter((s) => (tasksByStatus.get(s) ?? []).length > 0);
-	const unknownWithTasks = Array.from(tasksByStatus.keys()).filter(
-		(s) => !statuses.includes(s) && (tasksByStatus.get(s) ?? []).length > 0,
-	);
-	const nonEmptyStatuses = [...nonEmptyConfigured, ...unknownWithTasks];
-
-	if (nonEmptyStatuses.length === 0) {
-		console.log("No tasks found in any status.");
+	const initialColumns = prepareBoardColumns(tasks, statuses);
+	if (initialColumns.length === 0) {
+		console.log("No tasks available for the Kanban board.");
 		return;
 	}
 
-	/* ------------------------------------------------------------------
-     Blessed screen + columns
-     ------------------------------------------------------------------ */
 	await new Promise<void>((resolve) => {
 		const screen = createScreen({ title: "Backlog Board" });
-
 		const container = box({
 			parent: screen,
 			width: "100%",
 			height: "100%",
 		});
 
-		const columnWidth = Math.floor(100 / nonEmptyStatuses.length);
-		const columns: Array<{ list: ListInterface; tasks: Task[]; box: BoxInterface }> = [];
-
-		nonEmptyStatuses.forEach((status, idx) => {
-			const left = idx * columnWidth;
-			const isLast = idx === nonEmptyStatuses.length - 1;
-			const width = isLast ? `${100 - left}%` : `${columnWidth}%`;
-
-			const column = box({
-				parent: container,
-				left: `${left}%`,
-				top: 0,
-				width,
-				height: "100%-1",
-				border: { type: "line" },
-				style: { border: { fg: "gray" } },
-				label: `\u00A0${getStatusIcon(status)} ${status || "No Status"} (${tasksByStatus.get(status)?.length ?? 0})\u00A0`,
-			});
-
-			const taskList = list({
-				parent: column,
-				top: 1,
-				left: 1,
-				width: "100%-4",
-				height: "100%-3",
-				keys: false,
-				mouse: true,
-				scrollable: true,
-				tags: true,
-				style: { selected: { fg: "white" } },
-			});
-
-			const sortedTasks = [...(tasksByStatus.get(status) ?? [])].sort((a, b) => {
-				if (status === "Done") {
-					return compareTaskIds(b.id, a.id); // Descending for Done
-				}
-				return compareTaskIds(a.id, b.id); // Ascending for others
-			});
-			const items = sortedTasks.map((task) => {
-				const assignee = task.assignee?.[0]
-					? ` {cyan-fg}${task.assignee[0].startsWith("@") ? task.assignee[0] : `@${task.assignee[0]}`}{/}`
-					: "";
-				const labels = task.labels?.length ? ` {yellow-fg}[${task.labels.join(", ")}]{/}` : "";
-				const branch = (task as Task & { branch?: string }).branch
-					? ` {green-fg}(${(task as Task & { branch?: string }).branch}){/}`
-					: "";
-				return `{bold}${task.id}{/bold} - ${task.title}${assignee}${labels}${branch}`;
-			});
-
-			taskList.setItems(items);
-			columns.push({ list: taskList, tasks: sortedTasks, box: column });
-		});
-
-		/* -------------------- navigation & interactions -------------------- */
+		let columns: ColumnView[] = [];
+		let currentColumnsData = initialColumns;
+		let currentStatuses = currentColumnsData.map((column) => column.status);
 		let currentCol = 0;
 		let popupOpen = false;
 
-		const focusColumn = (idx: number) => {
-			if (popupOpen || idx === currentCol || idx < 0 || idx >= columns.length) return;
-			const prev = columns[currentCol];
-			if (!prev) return;
+		const clearColumns = () => {
+			for (const column of columns) {
+				column.box.destroy();
+			}
+			columns = [];
+		};
 
-			// Capture the previously selected row index to preserve row on horizontal move
-			const prevSelectedIndex = typeof prev.list.selected === "number" ? prev.list.selected : 0;
+		const columnWidthFor = (count: number) => Math.max(1, Math.floor(100 / Math.max(1, count)));
 
-			// Reset previous column styles
-			const prevListStyle = prev.list.style as { selected?: { bg?: string } };
-			if (prevListStyle.selected) prevListStyle.selected.bg = undefined;
-			const prevBoxStyle = prev.box.style as { border?: { fg?: string } };
-			if (prevBoxStyle.border) prevBoxStyle.border.fg = "gray";
+		const createColumnViews = (data: ColumnData[]) => {
+			clearColumns();
+			const widthPercent = columnWidthFor(data.length);
+			data.forEach((columnData, idx) => {
+				const left = idx * widthPercent;
+				const isLast = idx === data.length - 1;
+				const width = isLast ? `${Math.max(0, 100 - left)}%` : `${widthPercent}%`;
+				const columnBox = box({
+					parent: container,
+					left: `${left}%`,
+					top: 0,
+					width,
+					height: "100%-1",
+					border: { type: "line" },
+					style: { border: { fg: "gray" } },
+					label: formatColumnLabel(columnData.status, columnData.tasks.length),
+				});
 
-			// Switch current column
+				const taskList = list({
+					parent: columnBox,
+					top: 1,
+					left: 1,
+					width: "100%-4",
+					height: "100%-3",
+					keys: false,
+					mouse: true,
+					scrollable: true,
+					tags: true,
+					style: { selected: { fg: "white" } },
+				});
+
+				taskList.setItems(columnData.tasks.map(formatTaskListItem));
+				columns.push({ status: columnData.status, tasks: columnData.tasks, list: taskList, box: columnBox });
+			});
+		};
+
+		const setColumnActiveState = (column: ColumnView | undefined, active: boolean) => {
+			if (!column) return;
+			const listStyle = column.list.style as { selected?: { bg?: string } };
+			if (listStyle.selected) listStyle.selected.bg = active ? "blue" : undefined;
+			const boxStyle = column.box.style as { border?: { fg?: string } };
+			if (boxStyle.border) boxStyle.border.fg = active ? "yellow" : "gray";
+		};
+
+		const getSelectedTaskId = (): string | undefined => {
+			const column = columns[currentCol];
+			if (!column) return undefined;
+			const selectedIndex = column.list.selected ?? 0;
+			return column.tasks[selectedIndex]?.id;
+		};
+
+		const focusColumn = (idx: number, preferredRow?: number) => {
+			if (popupOpen) return;
+			if (idx < 0 || idx >= columns.length) return;
+			const previous = columns[currentCol];
+			setColumnActiveState(previous, false);
+
 			currentCol = idx;
-			const curr = columns[currentCol];
-			if (!curr) return;
+			const current = columns[currentCol];
+			if (!current) return;
 
-			// Determine the target row index in the new column:
-			// - If destination has at least as many tasks, keep the same row
-			// - Otherwise clamp to last task in that column
-			const destCount = curr.tasks.length;
-			if (destCount > 0) {
-				const targetIndex = prevSelectedIndex < destCount ? prevSelectedIndex : destCount - 1;
-				curr.list.select(targetIndex);
+			const total = current.tasks.length;
+			if (total > 0) {
+				const previousSelected = typeof previous?.list.selected === "number" ? previous.list.selected : 0;
+				const target = preferredRow !== undefined ? preferredRow : Math.min(previousSelected, total - 1);
+				current.list.select(Math.max(0, target));
 			}
 
-			// Focus and update styles for the current column
-			curr.list.focus();
-			const currListStyle = curr.list.style as { selected?: { bg?: string } };
-			if (currListStyle.selected) currListStyle.selected.bg = "blue";
-			const currBoxStyle = curr.box.style as { border?: { fg?: string } };
-			if (currBoxStyle.border) currBoxStyle.border.fg = "yellow";
+			current.list.focus();
+			setColumnActiveState(current, true);
 			screen.render();
 		};
 
-		if (columns.length) {
-			columns[0]?.list.focus();
-			columns[0]?.list.select(0);
-			const firstListStyle = columns[0]?.list.style as { selected?: { bg?: string } } | undefined;
-			if (firstListStyle?.selected) firstListStyle.selected.bg = "blue";
-			const firstBoxStyle = columns[0]?.box.style as { border?: { fg?: string } } | undefined;
-			if (firstBoxStyle?.border) firstBoxStyle.border.fg = "yellow";
+		const restoreSelection = (taskId?: string) => {
+			if (columns.length === 0) return;
+			if (taskId) {
+				for (let colIdx = 0; colIdx < columns.length; colIdx += 1) {
+					const column = columns[colIdx];
+					if (!column) continue;
+					const taskIndex = column.tasks.findIndex((task) => task.id === taskId);
+					if (taskIndex !== -1) {
+						focusColumn(colIdx, taskIndex);
+						return;
+					}
+				}
+			}
+			const safeIndex = Math.min(columns.length - 1, Math.max(0, currentCol));
+			focusColumn(safeIndex);
+		};
+
+		const applyColumnData = (data: ColumnData[], selectedTaskId?: string) => {
+			currentColumnsData = data;
+			data.forEach((columnData, idx) => {
+				const column = columns[idx];
+				if (!column) return;
+				column.status = columnData.status;
+				column.tasks = columnData.tasks;
+				column.list.setItems(columnData.tasks.map(formatTaskListItem));
+				column.box.setLabel?.(formatColumnLabel(columnData.status, columnData.tasks.length));
+			});
+			restoreSelection(selectedTaskId);
+		};
+
+		const rebuildColumns = (data: ColumnData[], selectedTaskId?: string) => {
+			currentColumnsData = data;
+			currentStatuses = data.map((column) => column.status);
+			createColumnViews(data);
+			restoreSelection(selectedTaskId);
+		};
+
+		rebuildColumns(initialColumns);
+		const firstColumn = columns[0];
+		if (firstColumn) {
+			currentCol = 0;
+			setColumnActiveState(firstColumn, true);
+			if (firstColumn.tasks.length > 0) {
+				firstColumn.list.select(0);
+			}
+			firstColumn.list.focus();
 		}
+
+		const updateBoard = (nextTasks: Task[], nextStatuses: string[]) => {
+			const nextData = prepareBoardColumns(nextTasks, nextStatuses);
+			const selectedTaskId = getSelectedTaskId();
+			if (nextData.length === 0) {
+				const fallbackStatus = nextStatuses[0] ?? "No Status";
+				rebuildColumns([{ status: fallbackStatus, tasks: [] }], selectedTaskId);
+				screen.render();
+				return;
+			}
+
+			const nextStatusOrder = nextData.map((column) => column.status);
+			if (!arraysEqual(currentStatuses, nextStatusOrder)) {
+				rebuildColumns(nextData, selectedTaskId);
+			} else {
+				applyColumnData(nextData, selectedTaskId);
+			}
+			screen.render();
+		};
+
+		options?.subscribeUpdates?.(updateBoard);
 
 		screen.key(["left", "h"], () => focusColumn(currentCol - 1));
 		screen.key(["right", "l"], () => focusColumn(currentCol + 1));
 
 		screen.key(["up", "k"], () => {
 			if (popupOpen) return;
-			const list = columns[currentCol]?.list;
-			if (!list) return;
-			const total = list.items.length;
+			const column = columns[currentCol];
+			if (!column) return;
+			const total = column.tasks.length;
 			if (total === 0) return;
-			const sel = list.selected ?? 0;
-			if (sel > 0) {
-				list.select(sel - 1);
-			} else {
-				list.select(total - 1);
-			}
+			const listWidget = column.list;
+			const selected = listWidget.selected ?? 0;
+			const nextIndex = selected > 0 ? selected - 1 : total - 1;
+			listWidget.select(nextIndex);
 			screen.render();
 		});
 
 		screen.key(["down", "j"], () => {
 			if (popupOpen) return;
-			const list = columns[currentCol]?.list;
-			if (!list) return;
-			const total = list.items.length;
+			const column = columns[currentCol];
+			if (!column) return;
+			const total = column.tasks.length;
 			if (total === 0) return;
-			const sel = list.selected ?? 0;
-			if (sel < total - 1) {
-				list.select(sel + 1);
-			} else {
-				list.select(0);
-			}
+			const listWidget = column.list;
+			const selected = listWidget.selected ?? 0;
+			const nextIndex = selected < total - 1 ? selected + 1 : 0;
+			listWidget.select(nextIndex);
 			screen.render();
 		});
 
 		screen.key(["enter"], async () => {
 			if (popupOpen) return;
-			const col = columns[currentCol];
-			if (!col) return;
-			const { list, tasks } = col;
-			const idx = list.selected ?? 0;
-			if (idx < 0 || idx >= tasks.length) return;
-
-			const task = tasks[idx];
+			const column = columns[currentCol];
+			if (!column) return;
+			const idx = column.list.selected ?? 0;
+			if (idx < 0 || idx >= column.tasks.length) return;
+			const task = column.tasks[idx];
 			if (!task) return;
 			popupOpen = true;
 
@@ -232,7 +371,7 @@ export async function renderBoardTui(
 					content = await Bun.file(filePath).text();
 				}
 			} catch {
-				/* fallback to empty content */
+				// Ignore read errors and fall back to empty content
 			}
 
 			const popup = await createTaskPopup(screen, task, content);
@@ -248,7 +387,6 @@ export async function renderBoardTui(
 				columns[currentCol]?.list.focus();
 			});
 
-			// Add edit key handler for popup with proper TUI handoff
 			contentArea.key(["e", "E"], async () => {
 				try {
 					const core = new Core(process.cwd());
@@ -282,13 +420,11 @@ export async function renderBoardTui(
 
 		screen.key(["e", "E"], async () => {
 			if (popupOpen) return;
-			const col = columns[currentCol];
-			if (!col) return;
-			const { list, tasks } = col;
-			const idx = list.selected ?? 0;
-			if (idx < 0 || idx >= tasks.length) return;
-
-			const task = tasks[idx];
+			const column = columns[currentCol];
+			if (!column) return;
+			const idx = column.list.selected ?? 0;
+			if (idx < 0 || idx >= column.tasks.length) return;
+			const task = column.tasks[idx];
 			if (!task) return;
 			try {
 				const core = new Core(process.cwd());
@@ -317,7 +453,6 @@ export async function renderBoardTui(
 			}
 		});
 
-		// Footer help bar with consistent styling
 		box({
 			parent: screen,
 			bottom: 0,
@@ -329,38 +464,25 @@ export async function renderBoardTui(
 				" {cyan-fg}[Tab]{/} Switch View | {cyan-fg}[←→]{/} Columns | {cyan-fg}[↑↓]{/} Tasks | {cyan-fg}[Enter]{/} View | {cyan-fg}[E]{/} Edit | {cyan-fg}[q/Esc]{/} Quit",
 		});
 
-		// Tab key for view switching
 		screen.key(["tab"], async () => {
 			if (popupOpen) return;
-			if (options?.onTabPress) {
-				// Get currently selected task
-				const col2 = columns[currentCol];
-				if (!col2) return;
-				const { list, tasks } = col2;
-				const idx = list.selected ?? 0;
-				if (idx >= 0 && idx < tasks.length) {
-					const selectedTask = tasks[idx];
-					if (!selectedTask) return;
-					options.onTaskSelect?.(selectedTask);
+			const column = columns[currentCol];
+			if (column) {
+				const idx = column.list.selected ?? 0;
+				if (idx >= 0 && idx < column.tasks.length) {
+					const task = column.tasks[idx];
+					if (task) options?.onTaskSelect?.(task);
 				}
+			}
 
-				// Use custom Tab handler - caller manages view switching
+			if (options?.onTabPress) {
 				screen.destroy();
 				await options.onTabPress();
 				resolve();
-			} else if (options?.viewSwitcher) {
-				// Get currently selected task
-				const col3 = columns[currentCol];
-				if (!col3) return;
-				const { list, tasks } = col3;
-				const idx = list.selected ?? 0;
-				if (idx >= 0 && idx < tasks.length) {
-					const selectedTask = tasks[idx];
-					if (!selectedTask) return;
-					options.onTaskSelect?.(selectedTask);
-				}
+				return;
+			}
 
-				// Switch to task view
+			if (options?.viewSwitcher) {
 				screen.destroy();
 				await options.viewSwitcher.switchView();
 				resolve();

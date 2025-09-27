@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { type Task } from '../../types';
 import { apiClient } from '../lib/api';
 import TaskColumn from './TaskColumn';
@@ -9,27 +9,21 @@ interface BoardProps {
   highlightTaskId?: string | null;
   tasks: Task[];
   onRefreshData?: () => Promise<void>;
+  statuses: string[];
+  isLoading: boolean;
 }
 
-const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, tasks, onRefreshData }) => {
-  const [statuses, setStatuses] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    loadStatuses();
-    
-    // Check if mobile on mount and resize
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+const Board: React.FC<BoardProps> = ({
+  onEditTask,
+  onNewTask,
+  highlightTaskId,
+  tasks,
+  onRefreshData,
+  statuses,
+  isLoading,
+}) => {
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [dragSourceStatus, setDragSourceStatus] = useState<string | null>(null);
 
   // Handle highlighting a task (opening its edit popup)
   useEffect(() => {
@@ -44,19 +38,6 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
     }
   }, [highlightTaskId, tasks, onEditTask]);
 
-  const loadStatuses = async () => {
-    try {
-      setLoading(true);
-      const statusesData = await apiClient.fetchStatuses();
-      setStatuses(statusesData);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load statuses');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
     try {
       await apiClient.updateTask(taskId, updates);
@@ -64,9 +45,9 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
       if (onRefreshData) {
         await onRefreshData();
       }
-      setError(null);
+      setUpdateError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+      setUpdateError(err instanceof Error ? err.message : 'Failed to update task');
     }
   };
 
@@ -81,17 +62,35 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
       if (onRefreshData) {
         await onRefreshData();
       }
-      setError(null);
+      setUpdateError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reorder task');
+      setUpdateError(err instanceof Error ? err.message : 'Failed to reorder task');
     }
   };
 
+  const tasksByStatus = useMemo(() => {
+    const grouped = new Map<string, Task[]>();
+    for (const status of statuses) {
+      grouped.set(status, []);
+    }
+
+    for (const task of tasks) {
+      const statusKey = task.status ?? '';
+      const list = grouped.get(statusKey);
+      if (list) {
+        list.push(task);
+      } else if (statusKey) {
+        grouped.set(statusKey, [task]);
+      }
+    }
+    return grouped;
+  }, [statuses, tasks]);
+
   const getTasksByStatus = (status: string): Task[] => {
-    const filteredTasks = tasks.filter(task => task.status === status);
-    
+    const filteredTasks = tasksByStatus.get(status) ?? tasks.filter(task => task.status === status);
+
     // Sort tasks based on ordinal first, then by priority/date
-    return filteredTasks.sort((a, b) => {
+    return filteredTasks.slice().sort((a, b) => {
       // Tasks with ordinal come before tasks without
       if (a.ordinal !== undefined && b.ordinal === undefined) {
         return -1;
@@ -123,24 +122,10 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
     });
   };
 
-  if (loading) {
+  if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-lg text-gray-600 dark:text-gray-300 transition-colors duration-200">Loading tasks...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-red-600 dark:text-red-400 transition-colors duration-200">Error: {error}</div>
-        <button 
-          onClick={loadStatuses}
-          className="ml-4 inline-flex items-center px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 dark:focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200 cursor-pointer"
-        >
-          Retry
-        </button>
       </div>
     );
   }
@@ -152,6 +137,11 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
 
   return (
     <div className="w-full">
+      {updateError && (
+        <div className="mb-4 rounded-md bg-red-100 px-4 py-3 text-sm text-red-700 dark:bg-red-900/40 dark:text-red-200 transition-colors duration-200">
+          {updateError}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 transition-colors duration-200">Kanban Board</h2>
         <button 
@@ -172,6 +162,9 @@ const Board: React.FC<BoardProps> = ({ onEditTask, onNewTask, highlightTaskId, t
                 onStatusChange={handleStatusChange}
                 onEditTask={onEditTask}
                 onTaskReorder={handleTaskReorder}
+                dragSourceStatus={dragSourceStatus}
+                onDragStart={() => setDragSourceStatus(status)}
+                onDragEnd={() => setDragSourceStatus(null)}
               />
             </div>
           ))}

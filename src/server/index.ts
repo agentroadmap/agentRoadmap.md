@@ -5,6 +5,7 @@ import type { ContentStore } from "../core/content-store.ts";
 import type { SearchService } from "../core/search-service.ts";
 import { getTaskStatistics } from "../core/statistics.ts";
 import type { SearchPriorityFilter, SearchResultType, Task } from "../types/index.ts";
+import { watchConfig } from "../utils/config-watcher.ts";
 import { getVersion } from "../utils/version.ts";
 
 const TASK_ID_PREFIX = "task-";
@@ -56,6 +57,7 @@ export class BacklogServer {
 	private searchService: SearchService | null = null;
 	private unsubscribeContentStore?: () => void;
 	private storeReadyBroadcasted = false;
+	private configWatcher: { stop: () => void } | null = null;
 
 	constructor(projectPath: string) {
 		this.core = new Core(projectPath);
@@ -113,6 +115,14 @@ export class BacklogServer {
 		}
 	}
 
+	private broadcastConfigUpdated() {
+		for (const ws of this.sockets) {
+			try {
+				ws.send("config-updated");
+			} catch {}
+		}
+	}
+
 	async start(port?: number, openBrowser = true): Promise<void> {
 		// Prevent duplicate starts (e.g., accidental re-entry)
 		if (this.server) {
@@ -129,6 +139,13 @@ export class BacklogServer {
 		// Check if browser should open (config setting or CLI override)
 		// Default to true if autoOpenBrowser is not explicitly set to false
 		const shouldOpenBrowser = openBrowser && (config?.autoOpenBrowser ?? true);
+
+		// Set up config watcher to broadcast changes
+		this.configWatcher = watchConfig(this.core, {
+			onConfigChanged: () => {
+				this.broadcastConfigUpdated();
+			},
+		});
 
 		try {
 			await this.ensureServicesReady();
@@ -288,6 +305,12 @@ export class BacklogServer {
 		try {
 			this.unsubscribeContentStore?.();
 			this.unsubscribeContentStore = undefined;
+		} catch {}
+
+		// Stop config watcher
+		try {
+			this.configWatcher?.stop();
+			this.configWatcher = null;
 		} catch {}
 
 		this.core.disposeSearchService();
@@ -728,6 +751,9 @@ export class BacklogServer {
 			if (updatedConfig.projectName !== this.projectName) {
 				this.projectName = updatedConfig.projectName;
 			}
+
+			// Notify connected clients so that they refresh configuration-dependent data (e.g., statuses)
+			this.broadcastTasksUpdated();
 
 			return Response.json(updatedConfig);
 		} catch (error) {
