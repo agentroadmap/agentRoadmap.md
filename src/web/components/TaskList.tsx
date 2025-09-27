@@ -14,6 +14,7 @@ interface TaskListProps {
 	onNewTask: () => void;
 	tasks: Task[];
 	availableStatuses: string[];
+	onRefreshData?: () => Promise<void>;
 }
 
 const PRIORITY_OPTIONS: Array<{ label: string; value: "" | SearchPriorityFilter }> = [
@@ -31,7 +32,7 @@ function sortTasksByIdDescending(list: Task[]): Task[] {
 	});
 }
 
-const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, availableStatuses }) => {
+const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, availableStatuses, onRefreshData }) => {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [searchValue, setSearchValue] = useState(() => searchParams.get("query") ?? "");
 	const [statusFilter, setStatusFilter] = useState(() => searchParams.get("status") ?? "");
@@ -147,35 +148,13 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		setError(null);
 	};
 
-	const handleCleanupSuccess = (movedCount: number) => {
+	const handleCleanupSuccess = async (movedCount: number) => {
 		setShowCleanupModal(false);
 		setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
 
-		// Refresh the display
-		if (statusFilter.toLowerCase() === 'done') {
-			// Re-apply the current filters after cleanup
-			const fetchUpdated = async () => {
-				try {
-					const results = await apiClient.search({
-						query: normalizedSearch,
-						types: ["task"],
-						status: statusFilter,
-						priority: priorityFilter || undefined,
-					});
-					const taskResults = results.filter((r): r is TaskSearchResult => r.type === "task");
-					const foundTasks = taskResults.map((r) => r.task);
-					setDisplayTasks(sortTasksByIdDescending(foundTasks));
-				} catch {
-					// Fallback to filtering from base tasks
-					const filtered = sortedBaseTasks.filter((task) => {
-						const matchesStatus = !statusFilter || task.status === statusFilter;
-						const matchesPriority = !priorityFilter || task.priority === priorityFilter;
-						return matchesStatus && matchesPriority;
-					});
-					setDisplayTasks(filtered);
-				}
-			};
-			fetchUpdated();
+		// Refresh the data to get updated task list
+		if (onRefreshData) {
+			await onRefreshData();
 		}
 
 		// Auto-dismiss after 4 seconds
