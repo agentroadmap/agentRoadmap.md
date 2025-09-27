@@ -8,9 +8,11 @@ interface BoardPageProps {
 	onNewTask: () => void;
 	tasks: Task[];
 	onRefreshData?: () => Promise<void>;
+	statuses: string[];
+	isLoading: boolean;
 }
 
-export default function BoardPage({ onEditTask, onNewTask, tasks, onRefreshData }: BoardPageProps) {
+export default function BoardPage({ onEditTask, onNewTask, tasks, onRefreshData, statuses, isLoading }: BoardPageProps) {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
 
@@ -34,7 +36,15 @@ export default function BoardPage({ onEditTask, onNewTask, tasks, onRefreshData 
 
 	return (
 		<div className="container mx-auto px-4 py-8 transition-colors duration-200">
-			<Board onEditTask={handleEditTask} onNewTask={onNewTask} highlightTaskId={highlightTaskId} tasks={tasks} onRefreshData={onRefreshData} />
+			<Board
+				onEditTask={handleEditTask}
+				onNewTask={onNewTask}
+				highlightTaskId={highlightTaskId}
+				tasks={tasks}
+				onRefreshData={onRefreshData}
+				statuses={statuses}
+				isLoading={isLoading}
+			/>
 		</div>
 	);
 }

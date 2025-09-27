@@ -90,6 +90,14 @@ export class FileSystem {
 		return join(this.backlogDir, DEFAULT_DIRECTORIES.DOCS);
 	}
 
+	get configFilePath(): string {
+		return join(this.backlogDir, DEFAULT_FILES.CONFIG);
+	}
+
+	invalidateConfigCache(): void {
+		this.cachedConfig = null;
+	}
+
 	private async getTasksDir(): Promise<string> {
 		const backlogDir = await this.getBacklogDir();
 		return join(backlogDir, DEFAULT_DIRECTORIES.TASKS);

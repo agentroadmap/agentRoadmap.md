@@ -9,15 +9,21 @@ interface TaskColumnProps {
   onStatusChange: (taskId: string, status: string) => void;
   onEditTask: (task: Task) => void;
   onTaskReorder?: (taskId: string, newOrdinal: number, columnTasks: Task[]) => void;
+  dragSourceStatus?: string | null;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
-const TaskColumn: React.FC<TaskColumnProps> = ({ 
-  title, 
-  tasks, 
-  onTaskUpdate, 
+const TaskColumn: React.FC<TaskColumnProps> = ({
+  title,
+  tasks,
+  onTaskUpdate,
   onStatusChange,
   onEditTask,
-  onTaskReorder
+  onTaskReorder,
+  dragSourceStatus,
+  onDragStart,
+  onDragEnd
 }) => {
   const [isDragOver, setIsDragOver] = React.useState(false);
   const [draggedTaskId, setDraggedTaskId] = React.useState<string | null>(null);
@@ -108,10 +114,10 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
   };
 
   return (
-    <div 
+    <div
       className={`rounded-lg p-4 min-h-96 transition-colors duration-200 ${
-        isDragOver 
-          ? 'bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-600 border-dashed' 
+        isDragOver && dragSourceStatus !== title
+          ? 'bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-600 border-dashed'
           : 'bg-gray-50 dark:bg-gray-800 border border-transparent'
       }`}
       onDrop={handleDrop}
@@ -158,10 +164,14 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
               task={task}
               onUpdate={onTaskUpdate}
               onEdit={onEditTask}
-              onDragStart={() => setDraggedTaskId(task.id)}
+              onDragStart={() => {
+                setDraggedTaskId(task.id);
+                onDragStart?.();
+              }}
               onDragEnd={() => {
                 setDraggedTaskId(null);
                 setDropPosition(null);
+                onDragEnd?.();
               }}
               status={title}
             />
@@ -173,18 +183,20 @@ const TaskColumn: React.FC<TaskColumnProps> = ({
           </div>
         ))}
         
-        {/* Drop zone indicator */}
-        {isDragOver && (
+        {/* Drop zone indicator - only show in different columns */}
+        {isDragOver && dragSourceStatus !== title && (
           <div className="border-2 border-green-400 dark:border-green-500 border-dashed rounded-md bg-green-50 dark:bg-green-900/20 p-4 text-center transition-colors duration-200">
             <div className="text-green-600 dark:text-green-400 text-sm font-medium transition-colors duration-200">
-              Drop task here
+              Drop task here to change status
             </div>
           </div>
         )}
         
         {tasks.length === 0 && !isDragOver && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400 text-sm transition-colors duration-200">
-            No tasks in {title}
+            {dragSourceStatus && dragSourceStatus !== title
+              ? `Drop here to move to ${title}`
+              : `No tasks in ${title}`}
           </div>
         )}
       </div>

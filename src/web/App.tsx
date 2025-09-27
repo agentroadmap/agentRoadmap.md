@@ -8,8 +8,6 @@ import TaskList from './components/TaskList';
 import DraftsList from './components/DraftsList';
 import Settings from './components/Settings';
 import Statistics from './components/Statistics';
-import Modal from './components/Modal';
-import TaskForm from './components/TaskForm';
 import TaskDetailsModal from './components/TaskDetailsModal';
 import { SuccessToast } from './components/SuccessToast';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -25,7 +23,6 @@ import {
 import { apiClient } from './lib/api';
 import { useHealthCheckContext } from './contexts/HealthCheckContext';
 import { getWebVersion } from './utils/version';
-import MDEditor from '@uiw/react-md-editor';
 
 function App() {
   const [showModal, setShowModal] = useState(false);
@@ -65,27 +62,28 @@ function App() {
     setDecisions(decisionResults.map((result) => result.decision));
   }, []);
 
-  React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [statusesData, configData, searchResults] = await Promise.all([
-          apiClient.fetchStatuses(),
-          apiClient.fetchConfig(),
-          apiClient.search(),
-        ]);
+  const loadAllData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [statusesData, configData, searchResults] = await Promise.all([
+        apiClient.fetchStatuses(),
+        apiClient.fetchConfig(),
+        apiClient.search(),
+      ]);
 
-        setStatuses(statusesData);
-        setProjectName(configData.projectName);
-        applySearchResults(searchResults);
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadData();
+      setStatuses(statusesData);
+      setProjectName(configData.projectName);
+      applySearchResults(searchResults);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [applySearchResults]);
+
+  React.useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
 
   // Reload data when connection is restored
   React.useEffect(() => {
@@ -161,13 +159,8 @@ function App() {
   };
 
   const refreshData = useCallback(async () => {
-    try {
-      const results = await apiClient.search();
-      applySearchResults(results);
-    } catch (error) {
-      console.error('Failed to refresh data:', error);
-    }
-  }, [applySearchResults]);
+    await loadAllData();
+  }, [loadAllData]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -175,10 +168,13 @@ function App() {
     ws.onmessage = (event) => {
       if (event.data === "tasks-updated") {
         refreshData();
+      } else if (event.data === "config-updated") {
+        // Reload statuses when config changes
+        loadAllData();
       }
     };
     return () => ws.close();
-  }, [refreshData]);
+  }, [refreshData, loadAllData]);
 
   const handleSubmitTask = async (taskData: Partial<Task>) => {
     try {
@@ -241,7 +237,19 @@ function App() {
               />
             }
           >
-            <Route index element={<BoardPage onEditTask={handleEditTask} onNewTask={handleNewTask} tasks={tasks} onRefreshData={refreshData} />} />
+            <Route
+              index
+              element={
+                <BoardPage
+                  onEditTask={handleEditTask}
+                  onNewTask={handleNewTask}
+                  tasks={tasks}
+                  onRefreshData={refreshData}
+                  statuses={statuses}
+                  isLoading={isLoading}
+                />
+              }
+            />
             <Route
               path="tasks"
               element={
@@ -265,29 +273,16 @@ function App() {
           </Route>
         </Routes>
 
-        {editingTask ? (
-          <TaskDetailsModal
-            task={editingTask}
-            isOpen={showModal}
-            onClose={handleCloseModal}
-            onSaved={refreshData}
-          />
-        ) : (
-          <Modal
-            isOpen={showModal}
-            onClose={handleCloseModal}
-            title={isDraftMode ? 'Create New Draft' : 'Create New Task'}
-            maxWidthClass="max-w-2xl"
-          >
-            <TaskForm
-              task={undefined}
-              onSubmit={handleSubmitTask}
-              onCancel={handleCloseModal}
-              availableStatuses={isDraftMode ? ['Draft', ...statuses] : statuses}
-              MDEditor={MDEditor}
-            />
-          </Modal>
-        )}
+        <TaskDetailsModal
+          task={editingTask || undefined}
+          isOpen={showModal}
+          onClose={handleCloseModal}
+          onSaved={refreshData}
+          onSubmit={handleSubmitTask}
+          onArchive={editingTask ? () => handleArchiveTask(editingTask.id) : undefined}
+          availableStatuses={isDraftMode ? ['Draft', ...statuses] : statuses}
+          isDraftMode={isDraftMode}
+        />
 
         {/* Task Creation Confirmation Toast */}
         {taskConfirmation && (
