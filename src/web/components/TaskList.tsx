@@ -157,6 +157,35 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 			await onRefreshData();
 		}
 
+		// Force re-fetch of filtered results after data refresh
+		if (hasActiveFilters) {
+			try {
+				const results = await apiClient.search({
+					query: normalizedSearch || undefined,
+					types: ["task"],
+					status: statusFilter || undefined,
+					priority: (priorityFilter || undefined) as SearchPriorityFilter | undefined,
+				});
+				const taskResults = results.filter((r): r is TaskSearchResult => r.type === "task");
+				const foundTasks = taskResults.map((r) => r.task);
+				setDisplayTasks(sortTasksByIdDescending(foundTasks));
+			} catch (err) {
+				// If search fails, fall back to client-side filtering
+				const filtered = tasks.filter((task) => {
+					const matchesStatus = !statusFilter || task.status === statusFilter;
+					const matchesPriority = !priorityFilter || task.priority === priorityFilter;
+					const matchesSearch = !normalizedSearch ||
+						task.title.toLowerCase().includes(normalizedSearch.toLowerCase()) ||
+						task.description?.toLowerCase().includes(normalizedSearch.toLowerCase());
+					return matchesStatus && matchesPriority && matchesSearch;
+				});
+				setDisplayTasks(sortTasksByIdDescending(filtered));
+			}
+		} else {
+			// No filters active, just use the updated tasks
+			setDisplayTasks(sortTasksByIdDescending(tasks));
+		}
+
 		// Auto-dismiss after 4 seconds
 		setTimeout(() => {
 			setCleanupSuccessMessage(null);
