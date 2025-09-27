@@ -107,7 +107,7 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		return () => {
 			cancelled = true;
 		};
-	}, [hasActiveFilters, normalizedSearch, priorityFilter, statusFilter]);
+	}, [hasActiveFilters, normalizedSearch, priorityFilter, statusFilter, tasks]);
 
 	const syncUrl = (nextQuery: string, nextStatus: string, nextPriority: "" | SearchPriorityFilter) => {
 		const params = new URLSearchParams();
@@ -152,41 +152,12 @@ const TaskList: React.FC<TaskListProps> = ({ onEditTask, onNewTask, tasks, avail
 		setShowCleanupModal(false);
 		setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
 
-		// Refresh the data to get updated task list
+		// Refresh the data - existing effects will handle re-filtering automatically
 		if (onRefreshData) {
 			await onRefreshData();
 		}
 
-		// Force re-fetch of filtered results after data refresh
-		if (hasActiveFilters) {
-			try {
-				const results = await apiClient.search({
-					query: normalizedSearch || undefined,
-					types: ["task"],
-					status: statusFilter || undefined,
-					priority: (priorityFilter || undefined) as SearchPriorityFilter | undefined,
-				});
-				const taskResults = results.filter((r): r is TaskSearchResult => r.type === "task");
-				const foundTasks = taskResults.map((r) => r.task);
-				setDisplayTasks(sortTasksByIdDescending(foundTasks));
-			} catch (err) {
-				// If search fails, fall back to client-side filtering
-				const filtered = tasks.filter((task) => {
-					const matchesStatus = !statusFilter || task.status === statusFilter;
-					const matchesPriority = !priorityFilter || task.priority === priorityFilter;
-					const matchesSearch = !normalizedSearch ||
-						task.title.toLowerCase().includes(normalizedSearch.toLowerCase()) ||
-						task.description?.toLowerCase().includes(normalizedSearch.toLowerCase());
-					return matchesStatus && matchesPriority && matchesSearch;
-				});
-				setDisplayTasks(sortTasksByIdDescending(filtered));
-			}
-		} else {
-			// No filters active, just use the updated tasks
-			setDisplayTasks(sortTasksByIdDescending(tasks));
-		}
-
-		// Auto-dismiss after 4 seconds
+		// Auto-dismiss success message after 4 seconds
 		setTimeout(() => {
 			setCleanupSuccessMessage(null);
 		}, 4000);
