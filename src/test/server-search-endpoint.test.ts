@@ -68,6 +68,7 @@ describe("BacklogServer search endpoint", () => {
 			labels: [],
 			milestones: [],
 			dateFormat: "YYYY-MM-DD",
+			remoteOperations: false,
 		});
 
 		await filesystem.saveTask(baseTask);
