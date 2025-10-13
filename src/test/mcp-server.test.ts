@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
-import { MCP_WORKFLOW_TEXT } from "../guidelines/mcp/index.ts";
+import {
+	MCP_TASK_COMPLETION_GUIDE,
+	MCP_TASK_CREATION_GUIDE,
+	MCP_TASK_EXECUTION_GUIDE,
+	MCP_WORKFLOW_OVERVIEW,
+} from "../guidelines/mcp/index.ts";
 import { createMcpServer, McpServer } from "../mcp/server.ts";
 import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
@@ -29,10 +34,15 @@ describe("McpServer bootstrap", () => {
 		const server = await bootstrapServer();
 
 		const tools = await server.testInterface.listTools();
-		expect(tools.tools.map((tool) => tool.name)).toEqual(["read_backlog_instructions"]);
+		expect(tools.tools.map((tool) => tool.name)).toEqual([]);
 
 		const resources = await server.testInterface.listResources();
-		expect(resources.resources).toEqual([]);
+		expect(resources.resources.map((r) => r.uri)).toEqual([
+			"backlog://workflow/overview",
+			"backlog://workflow/task-creation",
+			"backlog://workflow/task-execution",
+			"backlog://workflow/task-completion",
+		]);
 
 		const prompts = await server.testInterface.listPrompts();
 		expect(prompts.prompts).toEqual([]);
@@ -40,26 +50,60 @@ describe("McpServer bootstrap", () => {
 		await server.stop();
 	});
 
-	it("read_backlog_instructions tool returns workflow instructions", async () => {
+	it("workflow overview resource returns correct content", async () => {
 		const server = await bootstrapServer();
 
-		const result = await server.testInterface.callTool({
-			params: { name: "read_backlog_instructions", arguments: {} },
+		const result = await server.testInterface.readResource({
+			params: { uri: "backlog://workflow/overview" },
 		});
 
-		expect(result).toEqual({
-			content: [
-				{
-					type: "text",
-					text: MCP_WORKFLOW_TEXT,
-				},
-			],
-		});
+		expect(result.contents).toHaveLength(1);
+		expect(result.contents[0]?.text).toBe(MCP_WORKFLOW_OVERVIEW);
+		expect(result.contents[0]?.mimeType).toBe("text/markdown");
 
 		await server.stop();
 	});
 
-	it("registers default tool set via helpers", async () => {
+	it("task creation guide resource returns correct content", async () => {
+		const server = await bootstrapServer();
+
+		const result = await server.testInterface.readResource({
+			params: { uri: "backlog://workflow/task-creation" },
+		});
+
+		expect(result.contents).toHaveLength(1);
+		expect(result.contents[0]?.text).toBe(MCP_TASK_CREATION_GUIDE);
+
+		await server.stop();
+	});
+
+	it("task execution guide resource returns correct content", async () => {
+		const server = await bootstrapServer();
+
+		const result = await server.testInterface.readResource({
+			params: { uri: "backlog://workflow/task-execution" },
+		});
+
+		expect(result.contents).toHaveLength(1);
+		expect(result.contents[0]?.text).toBe(MCP_TASK_EXECUTION_GUIDE);
+
+		await server.stop();
+	});
+
+	it("task completion guide resource returns correct content", async () => {
+		const server = await bootstrapServer();
+
+		const result = await server.testInterface.readResource({
+			params: { uri: "backlog://workflow/task-completion" },
+		});
+
+		expect(result.contents).toHaveLength(1);
+		expect(result.contents[0]?.text).toBe(MCP_TASK_COMPLETION_GUIDE);
+
+		await server.stop();
+	});
+
+	it("registers task tools via helpers", async () => {
 		const server = await bootstrapServer();
 		const config = await server.filesystem.loadConfig();
 		if (!config) {
@@ -70,19 +114,16 @@ describe("McpServer bootstrap", () => {
 
 		const tools = await server.testInterface.listTools();
 		const toolNames = tools.tools.map((tool) => tool.name).sort();
-		expect(toolNames).toEqual([
-			"read_backlog_instructions",
-			"task_archive",
-			"task_create",
-			"task_edit",
-			"task_list",
-			"task_search",
-			"task_view",
-		]);
+		expect(toolNames).toEqual(["task_archive", "task_create", "task_edit", "task_list", "task_search", "task_view"]);
 
 		const resources = await server.testInterface.listResources();
-		expect(resources.resources).toEqual([]);
-		expect(MCP_WORKFLOW_TEXT).toContain("## Backlog.md Overview (MCP)");
+		expect(resources.resources.map((r) => r.uri)).toEqual([
+			"backlog://workflow/overview",
+			"backlog://workflow/task-creation",
+			"backlog://workflow/task-execution",
+			"backlog://workflow/task-completion",
+		]);
+		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
 
 		await server.stop();
 	});
@@ -102,7 +143,6 @@ describe("McpServer bootstrap", () => {
 
 		const tools = await server.testInterface.listTools();
 		expect(tools.tools.map((tool) => tool.name)).toEqual([
-			"read_backlog_instructions",
 			"task_create",
 			"task_list",
 			"task_search",
@@ -112,8 +152,13 @@ describe("McpServer bootstrap", () => {
 		]);
 
 		const resources = await server.testInterface.listResources();
-		expect(resources.resources).toEqual([]);
-		expect(MCP_WORKFLOW_TEXT).toContain("## Backlog.md Overview (MCP)");
+		expect(resources.resources.map((r) => r.uri)).toEqual([
+			"backlog://workflow/overview",
+			"backlog://workflow/task-creation",
+			"backlog://workflow/task-execution",
+			"backlog://workflow/task-completion",
+		]);
+		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
 
 		await server.connect();
 		await server.start();

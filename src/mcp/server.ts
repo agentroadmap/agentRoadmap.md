@@ -11,7 +11,7 @@ import {
 import { Core } from "../core/backlog.ts";
 import { getPackageName } from "../utils/app-info.ts";
 import { getVersion } from "../utils/version.ts";
-import { registerCoreTools } from "./tools/core/index.ts";
+import { registerWorkflowResources } from "./resources/workflow/index.ts";
 import { registerTaskTools } from "./tools/tasks/index.ts";
 import type {
 	CallToolResult,
@@ -35,7 +35,7 @@ import type {
 const APP_NAME = getPackageName();
 const APP_VERSION = await getVersion();
 const INSTRUCTIONS_POINTER =
-	"At the beginning of each session, call the `read_backlog_instructions` tool once and follow the Backlog.md workflow it returns. That tool response is the authoritative instruction set for all work on this project.";
+	"At the beginning of each session, read the backlog://workflow/overview resource to understand when and how to use Backlog.md for task management. Additional detailed guides are available as resources when needed.";
 
 type ServerInitOptions = {
 	debug?: boolean;
@@ -68,7 +68,7 @@ export class McpServer extends Core {
 		);
 
 		this.setupHandlers();
-		registerCoreTools(this);
+		registerWorkflowResources(this);
 	}
 
 	private setupHandlers(): void {
