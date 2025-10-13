@@ -148,7 +148,8 @@ describe("Implementation Notes CLI", () => {
 				createdDate: "2025-07-03",
 				labels: [],
 				dependencies: [],
-				description: "Test description\n\n## Implementation Notes\n\nInitial implementation completed",
+				description: "Test description",
+				implementationNotes: "Initial implementation completed",
 			};
 			await core.createTask(task2, false);
 
@@ -176,7 +177,11 @@ describe("Implementation Notes CLI", () => {
 				createdDate: "2025-07-03",
 				labels: ["feature"],
 				dependencies: [],
-				description: "Implement new feature\n\n## Acceptance Criteria\n\n- [ ] Feature works\n- [ ] Tests pass",
+				description: "Implement new feature",
+				acceptanceCriteriaItems: [
+					{ index: 1, text: "Feature works", checked: false },
+					{ index: 2, text: "Tests pass", checked: false },
+				],
 			};
 			await core.createTask(task3, false);
 

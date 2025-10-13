@@ -101,7 +101,7 @@ describe("Implementation Notes - append", () => {
 		expect(extractStructuredSection(updatedBody ?? "", "implementationNotes")).toBe("First\n\nSecond");
 	});
 
-	it("edit --append-notes works and errors if combined with --notes", async () => {
+	it("edit --append-notes works and allows combining with --notes", async () => {
 		const resOk = await $`bun ${[CLI_PATH, "task", "create", "T", "--plan", "1. A\n2. B"]}`.cwd(TEST_DIR).quiet();
 		expect(resOk.exitCode).toBe(0);
 
@@ -111,13 +111,17 @@ describe("Implementation Notes - append", () => {
 		expect(res1.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		const taskBody = await core.getTaskContent("task-1");
+		let taskBody = await core.getTaskContent("task-1");
 		expect(extractStructuredSection(taskBody ?? "", "implementationNotes")).toBe("Alpha\n\nBeta");
 
-		const bad = await $`bun ${[CLI_PATH, "task", "edit", "1", "--append-notes", "X", "--notes", "Y"]}`
+		// Combining --notes (replace) with --append-notes (append) should work
+		const combined = await $`bun ${[CLI_PATH, "task", "edit", "1", "--notes", "Y", "--append-notes", "X"]}`
 			.cwd(TEST_DIR)
 			.quiet()
 			.nothrow();
-		expect(bad.exitCode).not.toBe(0);
+		expect(combined.exitCode).toBe(0);
+
+		taskBody = await core.getTaskContent("task-1");
+		expect(extractStructuredSection(taskBody ?? "", "implementationNotes")).toBe("Y\n\nX");
 	});
 });

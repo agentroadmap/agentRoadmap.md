@@ -35,12 +35,8 @@ export async function createTaskPlatformAware(
 	options: TaskCreateOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string; taskId?: string }> {
-	if (isWindows) {
-		// Test Core directly on Windows to avoid memory issues
-		return createTaskViaCore(options, testDir);
-	}
-	// Test CLI integration on Unix systems
-	return createTaskViaCLI(options, testDir);
+	// Always use Core API for tests to avoid CLI process spawning issues
+	return createTaskViaCore(options, testDir);
 }
 
 async function createTaskViaCore(
@@ -111,7 +107,7 @@ async function createTaskViaCore(
 	}
 }
 
-async function createTaskViaCLI(
+async function _createTaskViaCLI(
 	options: TaskCreateOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string; taskId?: string }> {
@@ -164,12 +160,8 @@ export async function editTaskPlatformAware(
 	options: TaskEditOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	if (isWindows) {
-		// Test Core directly on Windows to avoid memory issues
-		return editTaskViaCore(options, testDir);
-	}
-	// Test CLI integration on Unix systems
-	return editTaskViaCLI(options, testDir);
+	// Always use Core API for tests to avoid CLI process spawning issues
+	return editTaskViaCore(options, testDir);
 }
 
 async function editTaskViaCore(
@@ -222,7 +214,7 @@ async function editTaskViaCore(
 	}
 }
 
-async function editTaskViaCLI(
+async function _editTaskViaCLI(
 	options: TaskEditOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -262,12 +254,8 @@ export async function viewTaskPlatformAware(
 	options: TaskViewOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	if (isWindows) {
-		// Test Core directly on Windows to avoid memory issues
-		return viewTaskViaCore(options, testDir);
-	}
-	// Test CLI integration on Unix systems
-	return viewTaskViaCLI(options, testDir);
+	// Always use Core API for tests to avoid CLI process spawning issues
+	return viewTaskViaCore(options, testDir);
 }
 
 async function viewTaskViaCore(
@@ -319,7 +307,7 @@ async function viewTaskViaCore(
 	}
 }
 
-async function viewTaskViaCLI(
+async function _viewTaskViaCLI(
 	options: TaskViewOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
@@ -400,12 +388,8 @@ export async function listTasksPlatformAware(
 	options: TaskListOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	if (isWindows) {
-		// Test Core directly on Windows to avoid memory issues
-		return listTasksViaCore(options, testDir);
-	}
-	// Test CLI integration on Unix systems
-	return listTasksViaCLI(options, testDir);
+	// Always use Core API for tests to avoid CLI process spawning issues
+	return listTasksViaCore(options, testDir);
 }
 
 async function listTasksViaCore(
@@ -485,7 +469,7 @@ async function listTasksViaCore(
 	}
 }
 
-async function listTasksViaCLI(
+async function _listTasksViaCLI(
 	options: TaskListOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {

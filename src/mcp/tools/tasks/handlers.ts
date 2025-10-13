@@ -1,6 +1,5 @@
 import type { SearchPriorityFilter, Task, TaskListFilter, TaskSearchResult } from "../../../types/index.ts";
 import type { TaskEditArgs, TaskEditRequest } from "../../../types/task-edit-args.ts";
-import { normalizeDependencies } from "../../../utils/task-builders.ts";
 import { buildTaskUpdateInput } from "../../../utils/task-edit-builder.ts";
 import { sortTasks } from "../../../utils/task-sorting.ts";
 import { McpError } from "../../errors/mcp-errors.ts";

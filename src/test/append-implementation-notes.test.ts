@@ -145,6 +145,7 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 			.quiet()
 			.nothrow();
 
+		// Should succeed: --notes replaces existing, then --append-notes appends
 		expect(res.exitCode).toBe(0);
 		const updatedBody = await core.getTaskContent("task-4");
 		const body = extractStructuredSection(updatedBody ?? "", "implementationNotes") || "";

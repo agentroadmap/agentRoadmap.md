@@ -126,6 +126,9 @@ describe("Parallel remote task loading", () => {
 			fetch: async () => {
 				throw new Error("Network error");
 			},
+			listRecentRemoteBranches: async (_daysAgo: number) => {
+				throw new Error("Network error");
+			},
 		} as unknown as GitOperations;
 
 		// Should return empty array on error

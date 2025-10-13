@@ -93,7 +93,7 @@ function toMcpServerName(projectName: string): string {
 		.toLowerCase()
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-+|-+$/g, "");
-	return (base.length > 0 ? base : "backlog") + "-backlog";
+	return `${base.length > 0 ? base : "backlog"}-backlog`;
 }
 
 const MCP_CLIENT_INSTRUCTION_MAP: Record<string, AgentInstructionFile> = {
@@ -411,7 +411,7 @@ program
 				}
 
 				let integrationMode: IntegrationMode | null = integrationOption ?? (isNonInteractive ? "mcp" : null);
-				const needsInteractiveIntegration = !integrationOption && !isNonInteractive;
+				const _needsInteractiveIntegration = !integrationOption && !isNonInteractive;
 				const mcpServerName = toMcpServerName(name);
 				type AgentSelection = AgentSelectionValue;
 				let agentFiles: AgentInstructionFile[] = [];
@@ -1735,12 +1735,6 @@ taskCmd
 				return;
 			}
 			ordinalValue = parsed;
-		}
-
-		if (options.appendNotes && options.notes) {
-			console.error("Cannot use --notes (replace) together with --append-notes (append). Choose one.");
-			process.exitCode = 1;
-			return;
 		}
 
 		let removeCriteria: number[] | undefined;
