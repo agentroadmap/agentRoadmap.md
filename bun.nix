@@ -896,9 +896,9 @@
   };
   "cookie" = {
     out_path = "cookie";
-    name = "cookie@1.0.2";
-    url = "https://registry.npmjs.org/cookie/-/cookie-1.0.2.tgz";
-    hash = "sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==";
+    name = "cookie@0.7.2";
+    url = "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz";
+    hash = "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==";
   };
   "cookie-signature" = {
     out_path = "cookie-signature";
@@ -1134,12 +1134,6 @@
     name = "express-rate-limit@7.5.1";
     url = "https://registry.npmjs.org/express-rate-limit/-/express-rate-limit-7.5.1.tgz";
     hash = "sha512-7iN8iPMDzOMHPUYllBEsQdWVB6fPDMPqwjBaFrgr4Jgr/+okjvzAy+UHlYYL/Vs0OsOrMkwS6PJDkFlJwoxUnw==";
-  };
-  "express/cookie" = {
-    out_path = "express/node_modules/cookie";
-    name = "cookie@0.7.2";
-    url = "https://registry.npmjs.org/cookie/-/cookie-0.7.2.tgz";
-    hash = "sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==";
   };
   "extend" = {
     out_path = "extend";
@@ -2310,6 +2304,12 @@
     name = "react-router-dom@7.9.1";
     url = "https://registry.npmjs.org/react-router-dom/-/react-router-dom-7.9.1.tgz";
     hash = "sha512-U9WBQssBE9B1vmRjo9qTM7YRzfZ3lUxESIZnsf4VjR/lXYz9MHjvOxHzr/aUm4efpktbVOrF09rL/y4VHa8RMw==";
+  };
+  "react-router/cookie" = {
+    out_path = "react-router/node_modules/cookie";
+    name = "cookie@1.0.2";
+    url = "https://registry.npmjs.org/cookie/-/cookie-1.0.2.tgz";
+    hash = "sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==";
   };
   "react-tooltip" = {
     out_path = "react-tooltip";
