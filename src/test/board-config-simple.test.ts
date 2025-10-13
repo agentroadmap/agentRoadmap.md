@@ -36,6 +36,11 @@ describe("Board loading with checkActiveBranches config", () => {
 			isInsideGitRepo: async () => true,
 			fetch: async () => {},
 			listRecentRemoteBranches: async () => [],
+			listRecentBranches: async () => ["main"],
+			listAllBranches: async () => ["main"],
+			listFilesInTree: async () => [],
+			getBranchLastModifiedMap: async () => new Map<string, Date>(),
+			getCurrentBranch: async () => "main",
 		};
 
 		// Track progress messages
@@ -91,7 +96,10 @@ describe("Board loading with checkActiveBranches config", () => {
 			fetch: async () => {},
 			listRecentRemoteBranches: async () => [],
 			listRecentBranches: async () => ["main"],
+			listAllBranches: async () => ["main"],
 			listFilesInTree: async () => [],
+			getBranchLastModifiedMap: async () => new Map<string, Date>(),
+			getCurrentBranch: async () => "main",
 		};
 
 		// Track progress messages
@@ -146,7 +154,10 @@ describe("Board loading with checkActiveBranches config", () => {
 			fetch: async () => {},
 			listRecentRemoteBranches: async () => [],
 			listRecentBranches: async () => ["main"],
+			listAllBranches: async () => ["main"],
 			listFilesInTree: async () => [],
+			getBranchLastModifiedMap: async () => new Map<string, Date>(),
+			getCurrentBranch: async () => "main",
 		};
 
 		// Track progress messages
