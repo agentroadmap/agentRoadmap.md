@@ -681,6 +681,8 @@ program
 									const result = await runMcpClientCommand("Claude Code", "claude", [
 										"mcp",
 										"add",
+										"--scope",
+										"user",
 										mcpServerName,
 										"--",
 										"backlog",
@@ -695,11 +697,10 @@ program
 									const result = await runMcpClientCommand("OpenAI Codex", "codex", [
 										"mcp",
 										"add",
-										mcpServerName,
-										"--",
 										"backlog",
 										"mcp",
 										"start",
+										mcpServerName,
 									]);
 									results.push(result);
 									await recordGuidelinesForClient(client);
@@ -709,6 +710,8 @@ program
 									const result = await runMcpClientCommand("Gemini CLI", "gemini", [
 										"mcp",
 										"add",
+										"-s",
+										"user",
 										mcpServerName,
 										"backlog",
 										"mcp",

@@ -111,7 +111,7 @@ Connect Backlog.md to an MCP-compatible AI tool so it can launch `backlog mcp st
   <summary><strong>Claude Code</strong></summary>
 
   ```bash
-  claude mcp add my-project-backlog -- backlog mcp start
+  claude mcp add backlog --scope user -- backlog mcp start
   ```
 
 </details>
@@ -120,7 +120,7 @@ Connect Backlog.md to an MCP-compatible AI tool so it can launch `backlog mcp st
   <summary><strong>Codex</strong></summary>
 
   ```bash
-  codex mcp add my-project-backlog -- backlog mcp start
+  codex mcp add backlog mcp start backlog
   ```
 
 </details>
@@ -129,21 +129,19 @@ Connect Backlog.md to an MCP-compatible AI tool so it can launch `backlog mcp st
   <summary><strong>Gemini CLI</strong></summary>
 
   ```bash
-  gemini mcp add my-project-backlog backlog mcp start
+  gemini mcp add backlog -s user backlog mcp start
   ```
 
 </details>
+
+Use the shared `backlog` server name everywhere – the MCP server auto-detects whether the current directory is initialized and falls back to `backlog://init-required` when needed.
 
 ### Manual config
 
 ```json
 {
   "mcpServers": {
-    "my-project-backlog": {
-      "command": "backlog",
-      "args": ["mcp", "start"]
-    },
-    "my-other-project-backlog": {
+    "backlog": {
       "command": "backlog",
       "args": ["mcp", "start"]
     }
