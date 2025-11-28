@@ -30,11 +30,6 @@ function buildColumnTasks(status: string, items: Task[], byId: Map<string, Task>
 	const topLevel: Task[] = [];
 	const childrenByParent = new Map<string, Task[]>();
 	const sorted = items.slice().sort((a, b) => {
-		const columnIsDone = isDoneStatus(status);
-		if (columnIsDone) {
-			return compareTaskIds(b.id, a.id);
-		}
-
 		// Use ordinal for custom sorting if available
 		const aOrd = a.ordinal;
 		const bOrd = b.ordinal;
@@ -48,6 +43,11 @@ function buildColumnTasks(status: string, items: Task[], byId: Map<string, Task>
 		} else if (typeof bOrd === "number") {
 			// Only B has ordinal -> B comes first
 			return 1;
+		}
+
+		const columnIsDone = isDoneStatus(status);
+		if (columnIsDone) {
+			return compareTaskIds(b.id, a.id);
 		}
 
 		return compareTaskIds(a.id, b.id);
@@ -181,6 +181,8 @@ export async function renderBoardTui(
 		// Move mode state
 		type MoveOperation = {
 			taskId: string;
+			originalStatus: string;
+			originalIndex: number;
 			targetStatus: string;
 			targetIndex: number;
 		};
@@ -405,22 +407,31 @@ export async function renderBoardTui(
 
 		options?.subscribeUpdates?.(updateBoard);
 
+		// Helper to get target column size (excluding the moving task if it's currently there)
+		const getTargetColumnSize = (status: string): number => {
+			const columnData = currentColumnsData.find((c) => c.status === status);
+			if (!columnData) return 0;
+			// If the moving task is currently in this column, we need to account for it
+			if (moveOp && moveOp.targetStatus === status) {
+				// The task is already "in" this column in the projected view
+				return columnData.tasks.length;
+			}
+			// Otherwise, the task will be added to this column
+			return columnData.tasks.length;
+		};
+
 		screen.key(["left", "h"], () => {
 			if (moveOp) {
-				// Find current status index
 				const currentStatusIndex = currentStatuses.indexOf(moveOp.targetStatus);
 				if (currentStatusIndex > 0) {
 					const prevStatus = currentStatuses[currentStatusIndex - 1];
-
-					// We need to know how many items are in the target column to clamp the index
-					// Note: This is an approximation since we don't have the projected column yet
-					// But since we render immediately after, it visualizes correctly
-					moveOp.targetStatus = prevStatus;
-
-					// When switching columns, try to maintain relative vertical position but clamp to size
-					// We can just let the next render clamp it, or reset to 0.
-					// Let's keep current index, renderView will clamp it.
-					renderView();
+					if (prevStatus) {
+						const prevColumnSize = getTargetColumnSize(prevStatus);
+						moveOp.targetStatus = prevStatus;
+						// Clamp index to valid range for new column (0 to size, where size means append at end)
+						moveOp.targetIndex = Math.min(moveOp.targetIndex, prevColumnSize);
+						renderView();
+					}
 				}
 			} else {
 				focusColumn(currentCol - 1);
@@ -432,8 +443,13 @@ export async function renderBoardTui(
 				const currentStatusIndex = currentStatuses.indexOf(moveOp.targetStatus);
 				if (currentStatusIndex < currentStatuses.length - 1) {
 					const nextStatus = currentStatuses[currentStatusIndex + 1];
-					moveOp.targetStatus = nextStatus;
-					renderView();
+					if (nextStatus) {
+						const nextColumnSize = getTargetColumnSize(nextStatus);
+						moveOp.targetStatus = nextStatus;
+						// Clamp index to valid range for new column
+						moveOp.targetIndex = Math.min(moveOp.targetIndex, nextColumnSize);
+						renderView();
+					}
 				}
 			} else {
 				focusColumn(currentCol + 1);
@@ -584,6 +600,16 @@ export async function renderBoardTui(
 		const performTaskMove = async () => {
 			if (!moveOp) return;
 
+			// Check if any actual change occurred
+			const noChange = moveOp.targetStatus === moveOp.originalStatus && moveOp.targetIndex === moveOp.originalIndex;
+
+			if (noChange) {
+				// No change, just exit move mode
+				moveOp = null;
+				renderView();
+				return;
+			}
+
 			try {
 				const core = new Core(process.cwd());
 				const config = await core.fs.loadConfig();
@@ -592,29 +618,39 @@ export async function renderBoardTui(
 				const projectedData = getProjectedColumns(currentTasks, moveOp);
 				const targetColumn = projectedData.find((c) => c.status === moveOp?.targetStatus);
 
-				if (!targetColumn) return;
+				if (!targetColumn) {
+					moveOp = null;
+					renderView();
+					return;
+				}
 
 				const orderedTaskIds = targetColumn.tasks.map((task) => task.id);
 
 				// Persist the move using core API
-				await core.reorderTask({
+				const { updatedTask, changedTasks } = await core.reorderTask({
 					taskId: moveOp.taskId,
 					targetStatus: moveOp.targetStatus,
 					orderedTaskIds,
 					autoCommit: config?.autoCommit ?? false,
 				});
 
+				// Update local state with all changed tasks (includes ordinal updates)
+				const changedTasksMap = new Map(changedTasks.map((t) => [t.id, t]));
+				changedTasksMap.set(updatedTask.id, updatedTask);
+				currentTasks = currentTasks.map((t) => changedTasksMap.get(t.id) ?? t);
+
 				// Exit move mode
 				moveOp = null;
 
-				// Update UI
+				// Render with updated local state
 				renderView();
-
-				// Refresh board data
-				const allTasks = await core.queryTasks();
-				updateBoard(allTasks, currentStatuses);
-			} catch (_error) {
-				// Silently handle errors
+			} catch (error) {
+				// On error, cancel the move and restore original position
+				if (process.env.DEBUG) {
+					console.error("Move failed:", error);
+				}
+				moveOp = null;
+				renderView();
 			}
 		};
 		const cancelMove = () => {
@@ -636,9 +672,11 @@ export async function renderBoardTui(
 				const task = column.tasks[taskIndex];
 				if (!task) return;
 
-				// Enter move mode
+				// Enter move mode - store original position for cancel
 				moveOp = {
 					taskId: task.id,
+					originalStatus: column.status,
+					originalIndex: taskIndex,
 					targetStatus: column.status,
 					targetIndex: taskIndex,
 				};
