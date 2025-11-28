@@ -1,6 +1,6 @@
 {
 	"name": "backlog.md",
-	"version": "1.22.0",
+	"version": "1.22.1",
 	"type": "module",
 	"files": [
 		"scripts/*.cjs",
