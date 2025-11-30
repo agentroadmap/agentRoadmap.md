@@ -3,11 +3,11 @@ id: task-289
 title: >-
   Implement resource templates list handler to return empty list instead of
   error
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-10-15 18:25'
-updated_date: '2025-10-15 18:47'
+updated_date: '2025-11-30 14:46'
 labels:
   - mcp
   - enhancement

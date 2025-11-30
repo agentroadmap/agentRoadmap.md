@@ -1,11 +1,11 @@
 ---
 id: task-280
 title: Fix TUI task list selection and detail pane synchronization bug
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2025-09-27 13:54'
-updated_date: '2025-09-27 15:50'
+updated_date: '2025-11-30 14:46'
 labels:
   - bug
   - tui
