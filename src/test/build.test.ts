@@ -7,7 +7,7 @@ import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 const isWindows = platform() === "win32";
-const executableName = isWindows ? "backlog.exe" : "backlog";
+const executableName = isWindows ? "roadmap.exe" : "roadmap";
 
 describe("CLI packaging", () => {
 	beforeEach(async () => {
@@ -47,7 +47,7 @@ describe("CLI packaging", () => {
 
 		const helpResult = await $`${OUTFILE} --help`.quiet();
 		const helpOutput = helpResult.stdout.toString();
-		expect(helpOutput).toContain("Backlog.md - Project management CLI");
+		expect(helpOutput).toContain("Roadmap.md - Project management CLI");
 
 		// Also test version command
 		const versionResult = await $`${OUTFILE} --version`.quiet();

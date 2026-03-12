@@ -1,34 +1,34 @@
-<!-- BACKLOG.MD MCP GUIDELINES START -->
+<!-- ROADMAP.MD MCP GUIDELINES START -->
 
 <CRITICAL_INSTRUCTION>
 
-## BACKLOG WORKFLOW INSTRUCTIONS
+## ROADMAP WORKFLOW INSTRUCTIONS
 
-This project uses Backlog.md MCP for all task and project management.
+This project uses agentRoadmap.md MCP for all state and project management.
 
-**CRITICAL RESOURCE**: Read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+**CRITICAL RESOURCE**: Read `roadmap://workflow/overview` to understand when and how to use Roadmap for this project.
 
 - **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
-- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
-- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+- **Already familiar?** You should have the overview cached ("## agentRoadmap.md Overview (MCP)")
+- **When to read it**: BEFORE creating states, or when you're unsure whether to track work
 
 The overview resource contains:
-- Decision framework for when to create tasks
+- Decision framework for when to create states
 - Search-first workflow to avoid duplicates
-- Links to detailed guides for task creation, execution, and completion
+- Links to detailed guides for state creation, execution, and completion
 - MCP tools reference
 
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
 
 </CRITICAL_INSTRUCTION>
 
-<!-- BACKLOG.MD MCP GUIDELINES END -->
+<!-- ROADMAP.MD MCP GUIDELINES END -->
 
-When you're working on a task, you should assign it yourself: -a @{your-name}
+When you're working on a state, you should assign it yourself: -a @{your-name}
 
 In addition to the rules above, please consider the following:
-At the end of every task implementation, try to take a moment to see if you can simplify it.
-When you are done implementing, you know much more about a task than when you started.
+At the end of every state implementation, try to take a moment to see if you can simplify it.
+When you are done implementing, you know much more about a state than when you started.
 At this point you can better judge retrospectively what can be the simplest architecture to solve the problem.
 If you can simplify the code, do it.
 
@@ -82,12 +82,12 @@ CLAUDECODE=1 bun test --timeout 180000 # Full test suite (failures-only output)
 - `bun run cli config set <key> <value>` - Set with validation
 
 ## Core Structure
-- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g backlog.md`)
+- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g roadmap.md`)
 - **Source Code**: Located in `/src` directory with modular TypeScript structure
-- **Task Management**: Uses markdown files in `backlog/` directory structure
-- **Git Workflow**: Task IDs referenced in commits and PRs (`TASK-123 - Title`)
-  - **Branching**: Use feature branches when working on tasks (e.g. `tasks/task-123-feature-name`)
-  - **PR titles**: Use `{taskId} - {taskTitle}` (e.g. `BACK-123 - Title of the task`)
+- **State Management**: Uses markdown files in `roadmap/` directory structure
+- **Git Workflow**: State IDs referenced in commits and PRs (`STATE-123 - Title`)
+  - **Branching**: Use feature branches when working on states (e.g. `states/state-123-feature-name`)
+  - **PR titles**: Use `{stateId} - {stateTitle}` (e.g. `BACK-123 - Title of the state`)
 
 ## Code Standards
 - **Runtime**: Bun with TypeScript 5
@@ -102,16 +102,16 @@ The pre-commit hook automatically runs `biome check --write` on staged files to 
 - **Separation of Concerns**: CLI logic and utility functions are kept separate to avoid side effects during testing
 - **Utility Functions**: Reusable utility functions (like ID generators) are placed in `src/utils/` directory
 - **No Side Effects on Import**: Modules should not execute CLI code when imported by other modules or tests
-- **Branching**: Use feature branches when working on tasks (e.g. `tasks/back-123-feature-name`)
-- **Committing**: Use the following format: `BACK-123 - Title of the task`
+- **Branching**: Use feature branches when working on states (e.g. `states/back-123-feature-name`)
+- **Committing**: Use the following format: `BACK-123 - Title of the state`
 - **Github CLI**: Use `gh` whenever possible for PRs and issues
 
 ## MCP Architecture Principles
 - **MCP is a Pure Protocol Wrapper**: Protocol translation ONLY - no business logic, no feature extensions
 - **CLI Feature Parity**: MCP = strict subset of CLI capabilities
 - **Core API Usage**: All operations MUST use Core APIs (never direct filesystem/git)
-- **Shared Utilities**: Reuse exact same utilities as CLI (`src/utils/task-builders.ts`)
-- **🔒 Local Development Only**: stdio transport only (see [/backlog/docs/mcp/README.md](backlog/docs/mcp/README.md))
+- **Shared Utilities**: Reuse exact same utilities as CLI (`src/utils/state-builders.ts`)
+- **🔒 Local Development Only**: stdio transport only (see [/roadmap/docs/mcp/README.md](roadmap/docs/mcp/README.md))
 
 **Violations to Avoid**:
 - Custom business logic in MCP handlers
@@ -124,12 +124,12 @@ See MCP implementation in `/src/mcp/` for development details.
 The CLI preserves input literally; `\n` sequences in normal quotes are not converted. Use one of the following when you need real newlines:
 
 - **Bash/Zsh (ANSI‑C quoting)**:
-  - `backlog task edit 42 --notes $'Line1\nLine2'`
-  - `backlog task edit 42 --plan $'1. A\n2. B'`
+  - `roadmap state edit 42 --notes $'Line1\nLine2'`
+  - `roadmap state edit 42 --plan $'1. A\n2. B'`
 - **POSIX (printf)**:
-  - `backlog task edit 42 --desc "$(printf 'Line1\nLine2')"`
+  - `roadmap state edit 42 --desc "$(printf 'Line1\nLine2')"`
 - **PowerShell (backtick)**:
-  - `backlog task edit 42 --desc "Line1\`nLine2"`
+  - `roadmap state edit 42 --desc "Line1\`nLine2"`
 
 *Note: `"...\n..."` passes literal backslash+n, not newline*
 

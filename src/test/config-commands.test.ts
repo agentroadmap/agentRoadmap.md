@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import type { PromptRunner } from "../commands/advanced-config-wizard.ts";
 import { configureAdvancedSettings } from "../commands/configure-advanced-settings.ts";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;

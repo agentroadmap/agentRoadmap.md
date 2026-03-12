@@ -31,20 +31,20 @@ describe("CLI description newline handling", () => {
 		} catch {}
 	});
 
-	it("should preserve literal newlines when creating task", async () => {
+	it("should preserve literal newlines when creating state", async () => {
 		const desc = "First line\nSecond line\n\nThird paragraph";
-		await $`bun ${[cliPath, "task", "create", "Multi-line", "--desc", desc]}`.cwd(TEST_DIR).quiet();
+		await $`bun ${[cliPath, "state", "create", "Multi-line", "--desc", desc]}`.cwd(TEST_DIR).quiet();
 
 		const core = new Core(TEST_DIR);
-		const body = await core.getTaskContent("task-1");
+		const body = await core.getStateContent("state-1");
 		expect(body).toContain(desc);
 	});
 
-	it("should preserve literal newlines when editing task", async () => {
+	it("should preserve literal newlines when editing state", async () => {
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "Edit me",
 				status: "To Do",
 				assignee: [],
@@ -57,18 +57,18 @@ describe("CLI description newline handling", () => {
 		);
 
 		const desc = "First line\nSecond line\n\nThird paragraph";
-		await $`bun ${[cliPath, "task", "edit", "1", "--desc", desc]}`.cwd(TEST_DIR).quiet();
+		await $`bun ${[cliPath, "state", "edit", "1", "--desc", desc]}`.cwd(TEST_DIR).quiet();
 
-		const updatedBody = await core.getTaskContent("task-1");
+		const updatedBody = await core.getStateContent("state-1");
 		expect(updatedBody).toContain(desc);
 	});
 
 	it("should not interpret \\n sequences as newlines", async () => {
 		const literal = "First line\\nSecond line";
-		await $`bun ${[cliPath, "task", "create", "Literal", "--desc", literal]}`.cwd(TEST_DIR).quiet();
+		await $`bun ${[cliPath, "state", "create", "Literal", "--desc", literal]}`.cwd(TEST_DIR).quiet();
 
 		const core = new Core(TEST_DIR);
-		const body = await core.getTaskContent("task-1");
+		const body = await core.getStateContent("state-1");
 		expect(body).toContain("First line\\nSecond line");
 	});
 });

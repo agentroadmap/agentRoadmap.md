@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import type { Task } from "../types/index.ts";
-import { createTaskPopup } from "../ui/task-viewer-with-search.ts";
+import type { State } from "../types/index.ts";
+import { createStatePopup } from "../ui/state-viewer-with-search.ts";
 import { createScreen } from "../ui/tui.ts";
 
 describe("TUI documentation display", () => {
-	it("shows documentation entries in task popup content", async () => {
+	it("shows documentation entries in state popup content", async () => {
 		const screen = createScreen({ smartCSR: false });
 		const originalIsTTY = process.stdout.isTTY;
 		let patchedTTY = false;
@@ -15,9 +15,9 @@ describe("TUI documentation display", () => {
 				patchedTTY = true;
 			}
 
-			const task: Task = {
-				id: "TASK-1",
-				title: "Documented task",
+			const state: State = {
+				id: "STATE-1",
+				title: "Documented state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-01-01",
@@ -26,7 +26,7 @@ describe("TUI documentation display", () => {
 				documentation: ["README.md", "https://docs.example.com"],
 			};
 
-			const popup = await createTaskPopup(screen, task);
+			const popup = await createStatePopup(screen, state);
 			expect(popup).not.toBeNull();
 
 			const contentArea = popup?.contentArea as

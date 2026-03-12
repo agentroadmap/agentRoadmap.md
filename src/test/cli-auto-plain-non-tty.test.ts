@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { Task } from "../types";
+import { Core } from "../core/roadmap.ts";
+import type { State } from "../types";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
@@ -24,17 +24,17 @@ describe("CLI auto-plain behavior in non-TTY runs", () => {
 		core = new Core(TEST_DIR);
 		await core.initializeProject("Auto Plain Non-TTY Test");
 
-		const seedTask: Task = {
-			id: "task-1",
-			title: "First Task",
+		const seedState: State = {
+			id: "state-1",
+			title: "First State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2026-01-01 00:00",
 			labels: [],
 			dependencies: [],
-			description: "Seed task description",
+			description: "Seed state description",
 		};
-		await core.createTask(seedTask, false);
+		await core.createState(seedState, false);
 	});
 
 	afterEach(async () => {
@@ -45,40 +45,40 @@ describe("CLI auto-plain behavior in non-TTY runs", () => {
 		}
 	});
 
-	test("task list falls back to plain output without --plain", async () => {
-		const result = await $`bun ${CLI_PATH} task list`.cwd(TEST_DIR).quiet();
+	test("state list falls back to plain output without --plain", async () => {
+		const result = await $`bun ${CLI_PATH} state list`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const out = result.stdout.toString();
 		expect(out).toContain("To Do:");
-		expect(out.toLowerCase()).toContain("task-1 - first task");
+		expect(out.toLowerCase()).toContain("state-1 - first state");
 		expect(out).not.toContain("\x1b");
 	});
 
-	test("task view falls back to plain output without --plain", async () => {
-		const result = await $`bun ${CLI_PATH} task view 1`.cwd(TEST_DIR).quiet();
+	test("state view falls back to plain output without --plain", async () => {
+		const result = await $`bun ${CLI_PATH} state view 1`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const out = result.stdout.toString();
-		expect(out).toContain("Task TASK-1 - First Task");
+		expect(out).toContain("State STATE-1 - First State");
 		expect(out).toContain("Description:");
-		expect(out).toContain("Seed task description");
+		expect(out).toContain("Seed state description");
 		expect(out).not.toContain("\x1b");
 	});
 
-	test("task create preserves legacy concise output without --plain", async () => {
-		const result = await $`bun ${CLI_PATH} task create "Second Task"`.cwd(TEST_DIR).quiet();
+	test("state create preserves legacy concise output without --plain", async () => {
+		const result = await $`bun ${CLI_PATH} state create "Second State"`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const out = result.stdout.toString();
-		expect(out).toContain("Created task TASK-2");
+		expect(out).toContain("Created state STATE-2");
 		expect(out).toContain("File: ");
-		expect(out).not.toContain("Task TASK-2 - Second Task");
+		expect(out).not.toContain("State STATE-2 - Second State");
 	});
 
-	test("task edit preserves legacy concise output without --plain", async () => {
-		const result = await $`bun ${CLI_PATH} task edit 1 -s "In Progress"`.cwd(TEST_DIR).quiet();
+	test("state edit preserves legacy concise output without --plain", async () => {
+		const result = await $`bun ${CLI_PATH} state edit 1 -s "In Progress"`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
-		expect(result.stdout.toString()).toContain("Updated task TASK-1");
+		expect(result.stdout.toString()).toContain("Updated state STATE-1");
 	});
 });

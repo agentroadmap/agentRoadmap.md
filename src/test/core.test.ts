@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { Document, Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { Document, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -13,7 +13,7 @@ describe("Core", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-core");
 		core = new Core(TEST_DIR);
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 
 		// Initialize git repository for testing
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
@@ -45,102 +45,102 @@ describe("Core", () => {
 		});
 	});
 
-	describe("task operations", () => {
-		const sampleTask: Task = {
-			id: "task-1",
-			title: "Test Task",
+	describe("state operations", () => {
+		const sampleState: State = {
+			id: "state-1",
+			title: "Test State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2025-06-07",
 			labels: ["test"],
 			dependencies: [],
-			description: "This is a test task",
+			description: "This is a test state",
 		};
 
 		beforeEach(async () => {
 			await core.initializeProject("Test Project", true);
 		});
 
-		it("should create task without auto-commit", async () => {
-			await core.createTask(sampleTask, false);
+		it("should create state without auto-commit", async () => {
+			await core.createState(sampleState, false);
 
-			const loadedTask = await core.filesystem.loadTask("task-1");
-			expect(loadedTask?.id).toBe("TASK-1");
-			expect(loadedTask?.title).toBe("Test Task");
+			const loadedState = await core.filesystem.loadState("state-1");
+			expect(loadedState?.id).toBe("STATE-1");
+			expect(loadedState?.title).toBe("Test State");
 		});
 
-		it("should create task with auto-commit", async () => {
-			await core.createTask(sampleTask, true);
+		it("should create state with auto-commit", async () => {
+			await core.createState(sampleState, true);
 
-			// Check if task file was created
-			const loadedTask = await core.filesystem.loadTask("task-1");
-			expect(loadedTask?.id).toBe("TASK-1");
+			// Check if state file was created
+			const loadedState = await core.filesystem.loadState("state-1");
+			expect(loadedState?.id).toBe("STATE-1");
 
 			// Check git status to see if there are uncommitted changes
 			const _hasChanges = await core.gitOps.hasUncommittedChanges();
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			// For now, just check that we have a commit (could be initialization or task)
+			// For now, just check that we have a commit (could be initialization or state)
 			expect(lastCommit).toBeDefined();
 			expect(lastCommit.length).toBeGreaterThan(0);
 		});
 
-		it("should update task with auto-commit", async () => {
-			await core.createTask(sampleTask, true);
+		it("should update state with auto-commit", async () => {
+			await core.createState(sampleState, true);
 
-			// Check original task
-			const originalTask = await core.filesystem.loadTask("task-1");
-			expect(originalTask?.title).toBe("Test Task");
+			// Check original state
+			const originalState = await core.filesystem.loadState("state-1");
+			expect(originalState?.title).toBe("Test State");
 
-			await core.updateTaskFromInput("task-1", { title: "Updated Task" }, true);
+			await core.updateStateFromInput("state-1", { title: "Updated State" }, true);
 
-			// Check if task was updated
-			const loadedTask = await core.filesystem.loadTask("task-1");
-			expect(loadedTask?.title).toBe("Updated Task");
+			// Check if state was updated
+			const loadedState = await core.filesystem.loadState("state-1");
+			expect(loadedState?.title).toBe("Updated State");
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			// For now, just check that we have a commit (could be initialization or task)
+			// For now, just check that we have a commit (could be initialization or state)
 			expect(lastCommit).toBeDefined();
 			expect(lastCommit.length).toBeGreaterThan(0);
 		});
 
-		it("should archive task with auto-commit", async () => {
-			await core.createTask(sampleTask, true);
+		it("should archive state with auto-commit", async () => {
+			await core.createState(sampleState, true);
 
-			const archived = await core.archiveTask("task-1", true);
+			const archived = await core.archiveState("state-1", true);
 			expect(archived).toBe(true);
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			expect(lastCommit).toContain("backlog: Archive task TASK-1");
+			expect(lastCommit).toContain("roadmap: Archive state STATE-1");
 		});
 
-		it("should demote task with auto-commit", async () => {
-			await core.createTask(sampleTask, true);
+		it("should demote state with auto-commit", async () => {
+			await core.createState(sampleState, true);
 
-			const demoted = await core.demoteTask("task-1", true);
+			const demoted = await core.demoteState("state-1", true);
 			expect(demoted).toBe(true);
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			expect(lastCommit).toContain("backlog: Demote task TASK-1");
+			expect(lastCommit).toContain("roadmap: Demote state STATE-1");
 		});
 
-		it("should resolve tasks using flexible ID formats", async () => {
-			const standardTask: Task = { ...sampleTask, id: "task-5", title: "Standard" };
-			const paddedTask: Task = { ...sampleTask, id: "task-007", title: "Padded" };
-			await core.createTask(standardTask, false);
-			await core.createTask(paddedTask, false);
+		it("should resolve states using flexible ID formats", async () => {
+			const standardState: State = { ...sampleState, id: "state-5", title: "Standard" };
+			const paddedState: State = { ...sampleState, id: "state-007", title: "Padded" };
+			await core.createState(standardState, false);
+			await core.createState(paddedState, false);
 
-			const uppercase = await core.getTask("TASK-5");
-			expect(uppercase?.id).toBe("TASK-5");
+			const uppercase = await core.getState("STATE-5");
+			expect(uppercase?.id).toBe("STATE-5");
 
-			const bare = await core.getTask("5");
-			expect(bare?.id).toBe("TASK-5");
+			const bare = await core.getState("5");
+			expect(bare?.id).toBe("STATE-5");
 
-			const zeroPadded = await core.getTask("0007");
-			expect(zeroPadded?.id).toBe("TASK-007");
+			const zeroPadded = await core.getState("0007");
+			expect(zeroPadded?.id).toBe("STATE-007");
 
-			const mixedCase = await core.getTask("Task-007");
-			expect(mixedCase?.id).toBe("TASK-007");
+			const mixedCase = await core.getState("State-007");
+			expect(mixedCase?.id).toBe("STATE-007");
 		});
 
 		it("should resolve numeric-only IDs with custom prefix (BACK-364)", async () => {
@@ -151,30 +151,30 @@ describe("Core", () => {
 			}
 			await core.filesystem.saveConfig({
 				...config,
-				prefixes: { task: "back" },
+				prefixes: { state: "back" },
 			});
 
-			// Create tasks with custom prefix
-			const task1: Task = { ...sampleTask, id: "back-358", title: "Custom Prefix Task" };
-			const task2: Task = { ...sampleTask, id: "back-5.1", title: "Custom Prefix Subtask" };
-			await core.createTask(task1, false);
-			await core.createTask(task2, false);
+			// Create states with custom prefix
+			const state1: State = { ...sampleState, id: "back-358", title: "Custom Prefix State" };
+			const state2: State = { ...sampleState, id: "back-5.1", title: "Custom Prefix Substate" };
+			await core.createState(state1, false);
+			await core.createState(state2, false);
 
-			// Numeric-only lookup should find task with custom prefix
-			const byNumeric = await core.getTask("358");
+			// Numeric-only lookup should find state with custom prefix
+			const byNumeric = await core.getState("358");
 			expect(byNumeric?.id).toBe("BACK-358");
-			expect(byNumeric?.title).toBe("Custom Prefix Task");
+			expect(byNumeric?.title).toBe("Custom Prefix State");
 
-			// Dotted numeric lookup should find subtask
-			const byDotted = await core.getTask("5.1");
+			// Dotted numeric lookup should find substate
+			const byDotted = await core.getState("5.1");
 			expect(byDotted?.id).toBe("BACK-5.1");
-			expect(byDotted?.title).toBe("Custom Prefix Subtask");
+			expect(byDotted?.title).toBe("Custom Prefix Substate");
 
 			// Full prefixed ID should also work (case-insensitive)
-			const byFullId = await core.getTask("BACK-358");
+			const byFullId = await core.getState("BACK-358");
 			expect(byFullId?.id).toBe("BACK-358");
 
-			const byLowercase = await core.getTask("back-358");
+			const byLowercase = await core.getState("back-358");
 			expect(byLowercase?.id).toBe("BACK-358");
 		});
 
@@ -186,158 +186,158 @@ describe("Core", () => {
 			}
 			await core.filesystem.saveConfig({
 				...config,
-				prefixes: { task: "back" },
+				prefixes: { state: "back" },
 			});
 
-			// Create task with custom prefix
-			const task: Task = { ...sampleTask, id: "back-358", title: "Custom Prefix Task" };
-			await core.createTask(task, false);
+			// Create state with custom prefix
+			const state: State = { ...sampleState, id: "back-358", title: "Custom Prefix State" };
+			await core.createState(state, false);
 
 			// Typos should NOT match (prevent parseInt coercion bug)
-			const withTypo = await core.getTask("358a");
+			const withTypo = await core.getState("358a");
 			expect(withTypo).toBeNull();
 
-			const withTypo2 = await core.getTask("35x8");
+			const withTypo2 = await core.getState("35x8");
 			expect(withTypo2).toBeNull();
 		});
 
-		it("should return false when archiving non-existent task", async () => {
-			const archived = await core.archiveTask("non-existent", true);
+		it("should return false when archiving non-existent state", async () => {
+			const archived = await core.archiveState("non-existent", true);
 			expect(archived).toBe(false);
 		});
 
-		it("should apply default status when task has empty status", async () => {
-			const taskWithoutStatus: Task = {
-				...sampleTask,
+		it("should apply default status when state has empty status", async () => {
+			const stateWithoutStatus: State = {
+				...sampleState,
 				status: "",
 			};
 
-			await core.createTask(taskWithoutStatus, false);
+			await core.createState(stateWithoutStatus, false);
 
-			const loadedTask = await core.filesystem.loadTask("task-1");
-			expect(loadedTask?.status).toBe("To Do"); // Should use default from config
+			const loadedState = await core.filesystem.loadState("state-1");
+			expect(loadedState?.status).toBe("To Do"); // Should use default from config
 		});
 
 		it("should not override existing status", async () => {
-			const taskWithStatus: Task = {
-				...sampleTask,
+			const stateWithStatus: State = {
+				...sampleState,
 				status: "In Progress",
 			};
 
-			await core.createTask(taskWithStatus, false);
+			await core.createState(stateWithStatus, false);
 
-			const loadedTask = await core.filesystem.loadTask("task-1");
-			expect(loadedTask?.status).toBe("In Progress");
+			const loadedState = await core.filesystem.loadState("state-1");
+			expect(loadedState?.status).toBe("In Progress");
 		});
 
 		it("should preserve description text when saving without header markers", async () => {
-			const taskNoHeader: Task = {
-				...sampleTask,
-				id: "task-2",
+			const stateNoHeader: State = {
+				...sampleState,
+				id: "state-2",
 				description: "Just text",
 			};
 
-			await core.createTask(taskNoHeader, false);
-			const loaded = await core.filesystem.loadTask("task-2");
+			await core.createState(stateNoHeader, false);
+			const loaded = await core.filesystem.loadState("state-2");
 			expect(loaded?.description).toBe("Just text");
-			const body = await core.getTaskContent("task-2");
+			const body = await core.getStateContent("state-2");
 			const matches = (body?.match(/## Description/g) ?? []).length;
 			expect(matches).toBe(1);
 		});
 
 		it("should not duplicate description header in saved content", async () => {
-			const taskWithHeader: Task = {
-				...sampleTask,
-				id: "task-3",
+			const stateWithHeader: State = {
+				...sampleState,
+				id: "state-3",
 				description: "Existing",
 			};
 
-			await core.createTask(taskWithHeader, false);
-			const body = await core.getTaskContent("task-3");
+			await core.createState(stateWithHeader, false);
+			const body = await core.getStateContent("state-3");
 			const matches = (body?.match(/## Description/g) ?? []).length;
 			expect(matches).toBe(1);
 		});
 
-		it("should handle task creation without auto-commit when git fails", async () => {
-			// Create task in directory without git
+		it("should handle state creation without auto-commit when git fails", async () => {
+			// Create state in directory without git
 			const nonGitCore = new Core(join(TEST_DIR, "no-git"));
-			await nonGitCore.filesystem.ensureBacklogStructure();
+			await nonGitCore.filesystem.ensureRoadmapStructure();
 
 			// This should succeed even without git
-			await nonGitCore.createTask(sampleTask, false);
+			await nonGitCore.createState(sampleState, false);
 
-			const loadedTask = await nonGitCore.filesystem.loadTask("task-1");
-			expect(loadedTask?.id).toBe("TASK-1");
+			const loadedState = await nonGitCore.filesystem.loadState("state-1");
+			expect(loadedState?.id).toBe("STATE-1");
 		});
 
 		it("should normalize assignee for string and array inputs", async () => {
-			const stringTask = {
-				...sampleTask,
-				id: "task-2",
+			const stringState = {
+				...sampleState,
+				id: "state-2",
 				title: "String Assignee",
 				assignee: "@alice",
-			} as unknown as Task;
-			await core.createTask(stringTask, false);
-			const loadedString = await core.filesystem.loadTask("task-2");
+			} as unknown as State;
+			await core.createState(stringState, false);
+			const loadedString = await core.filesystem.loadState("state-2");
 			expect(loadedString?.assignee).toEqual(["@alice"]);
 
-			const arrayTask: Task = {
-				...sampleTask,
-				id: "task-3",
+			const arrayState: State = {
+				...sampleState,
+				id: "state-3",
 				title: "Array Assignee",
 				assignee: ["@bob"],
 			};
-			await core.createTask(arrayTask, false);
-			const loadedArray = await core.filesystem.loadTask("task-3");
+			await core.createState(arrayState, false);
+			const loadedArray = await core.filesystem.loadState("state-3");
 			expect(loadedArray?.assignee).toEqual(["@bob"]);
 		});
 
-		it("should normalize assignee when updating tasks", async () => {
-			await core.createTask(sampleTask, false);
+		it("should normalize assignee when updating states", async () => {
+			await core.createState(sampleState, false);
 
-			await core.updateTaskFromInput("task-1", { assignee: ["@carol"] }, false);
-			let loaded = await core.filesystem.loadTask("task-1");
+			await core.updateStateFromInput("state-1", { assignee: ["@carol"] }, false);
+			let loaded = await core.filesystem.loadState("state-1");
 			expect(loaded?.assignee).toEqual(["@carol"]);
 
-			await core.updateTaskFromInput("task-1", { assignee: ["@dave"] }, false);
-			loaded = await core.filesystem.loadTask("task-1");
+			await core.updateStateFromInput("state-1", { assignee: ["@dave"] }, false);
+			loaded = await core.filesystem.loadState("state-1");
 			expect(loaded?.assignee).toEqual(["@dave"]);
 		});
 
-		it("should create sub-tasks with proper hierarchical IDs", async () => {
-			await core.initializeProject("Subtask Project", true);
+		it("should create sub-states with proper hierarchical IDs", async () => {
+			await core.initializeProject("Substate Project", true);
 
-			// Create parent task
-			const { task: parent } = await core.createTaskFromInput({
-				title: "Parent Task",
+			// Create parent state
+			const { state: parent } = await core.createStateFromInput({
+				title: "Parent State",
 				status: "To Do",
 			});
-			expect(parent.id).toBe("TASK-1");
+			expect(parent.id).toBe("STATE-1");
 
-			// Create first sub-task
-			const { task: child1 } = await core.createTaskFromInput({
+			// Create first sub-state
+			const { state: child1 } = await core.createStateFromInput({
 				title: "First Child",
-				parentTaskId: parent.id,
+				parentStateId: parent.id,
 				status: "To Do",
 			});
-			expect(child1.id).toBe("TASK-1.1");
-			expect(child1.parentTaskId).toBe("TASK-1");
+			expect(child1.id).toBe("STATE-1.1");
+			expect(child1.parentStateId).toBe("STATE-1");
 
-			// Create second sub-task
-			const { task: child2 } = await core.createTaskFromInput({
+			// Create second sub-state
+			const { state: child2 } = await core.createStateFromInput({
 				title: "Second Child",
-				parentTaskId: parent.id,
+				parentStateId: parent.id,
 				status: "To Do",
 			});
-			expect(child2.id).toBe("TASK-1.2");
-			expect(child2.parentTaskId).toBe("TASK-1");
+			expect(child2.id).toBe("STATE-1.2");
+			expect(child2.parentStateId).toBe("STATE-1");
 
-			// Create another parent task to ensure sequential numbering still works
-			const { task: parent2 } = await core.createTaskFromInput({
+			// Create another parent state to ensure sequential numbering still works
+			const { state: parent2 } = await core.createStateFromInput({
 				title: "Second Parent",
 				status: "To Do",
 			});
-			expect(parent2.id).toBe("TASK-2");
+			expect(parent2.id).toBe("STATE-2");
 		});
 	});
 
@@ -394,8 +394,8 @@ describe("Core", () => {
 			await $`git add -A`.cwd(TEST_DIR).quiet();
 			const diffResult = await $`git diff --name-status -M HEAD`.cwd(TEST_DIR).quiet();
 			const diff = diffResult.stdout.toString();
-			const previousPath = "backlog/docs/doc-1 - Operations-Guide.md";
-			const renamedPath = "backlog/docs/doc-1 - Operations-Guide-Renamed.md";
+			const previousPath = "roadmap/docs/doc-1 - Operations-Guide.md";
+			const renamedPath = "roadmap/docs/doc-1 - Operations-Guide-Renamed.md";
 			const escapeForRegex = (value: string) => value.replace(/[|\\{}()[\]^$+*?.]/g, "\\$&");
 			expect(diff).toMatch(
 				new RegExp(`^R\\d*\\t${escapeForRegex(previousPath)}\\t${escapeForRegex(renamedPath)}`, "m"),
@@ -405,15 +405,15 @@ describe("Core", () => {
 
 	describe("draft operations", () => {
 		// Drafts now use DRAFT-X id format and draft-x filename prefix
-		const sampleDraft: Task = {
+		const sampleDraft: State = {
 			id: "draft-1",
-			title: "Draft Task",
+			title: "Draft State",
 			status: "Draft",
 			assignee: [],
 			createdDate: "2025-06-07",
 			labels: [],
 			dependencies: [],
-			description: "Draft task",
+			description: "Draft state",
 		};
 
 		beforeEach(async () => {
@@ -445,7 +445,7 @@ describe("Core", () => {
 			expect(promoted).toBe(true);
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			expect(lastCommit).toContain("backlog: Promote draft DRAFT-1");
+			expect(lastCommit).toContain("roadmap: Promote draft DRAFT-1");
 		});
 
 		it("should archive draft with auto-commit", async () => {
@@ -455,7 +455,7 @@ describe("Core", () => {
 			expect(archived).toBe(true);
 
 			const lastCommit = await core.gitOps.getLastCommitMessage();
-			expect(lastCommit).toContain("backlog: Archive draft DRAFT-1");
+			expect(lastCommit).toContain("roadmap: Archive draft DRAFT-1");
 		});
 
 		it("should normalize assignee for string and array inputs", async () => {
@@ -464,12 +464,12 @@ describe("Core", () => {
 				id: "draft-2",
 				title: "Draft String",
 				assignee: "@erin",
-			} as unknown as Task;
+			} as unknown as State;
 			await core.createDraft(draftString, false);
 			const loadedString = await core.filesystem.loadDraft("draft-2");
 			expect(loadedString?.assignee).toEqual(["@erin"]);
 
-			const draftArray: Task = {
+			const draftArray: State = {
 				...sampleDraft,
 				id: "draft-3",
 				title: "Draft Array",
@@ -493,21 +493,21 @@ describe("Core", () => {
 				await core.filesystem.saveConfig(config);
 			}
 
-			const taskWithoutStatus: Task = {
-				id: "task-custom",
-				title: "Custom Task",
+			const stateWithoutStatus: State = {
+				id: "state-custom",
+				title: "Custom State",
 				status: "",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task without status",
+				description: "State without status",
 			};
 
-			await core.createTask(taskWithoutStatus, false);
+			await core.createState(stateWithoutStatus, false);
 
-			const loadedTask = await core.filesystem.loadTask("task-custom");
-			expect(loadedTask?.status).toBe("Custom Status");
+			const loadedState = await core.filesystem.loadState("state-custom");
+			expect(loadedState?.status).toBe("Custom Status");
 		});
 
 		it("should fall back to To Do when config has no default status", async () => {
@@ -521,21 +521,21 @@ describe("Core", () => {
 				await core.filesystem.saveConfig(config);
 			}
 
-			const taskWithoutStatus: Task = {
-				id: "task-fallback",
-				title: "Fallback Task",
+			const stateWithoutStatus: State = {
+				id: "state-fallback",
+				title: "Fallback State",
 				status: "",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task without status",
+				description: "State without status",
 			};
 
-			await core.createTask(taskWithoutStatus, false);
+			await core.createState(stateWithoutStatus, false);
 
-			const loadedTask = await core.filesystem.loadTask("task-fallback");
-			expect(loadedTask?.status).toBe("To Do");
+			const loadedState = await core.filesystem.loadState("state-fallback");
+			expect(loadedState?.status).toBe("To Do");
 		});
 	});
 
@@ -543,9 +543,9 @@ describe("Core", () => {
 		it("should use FileSystem directory accessors for git operations", async () => {
 			await core.initializeProject("Accessor Test");
 
-			const task: Task = {
-				id: "task-accessor",
-				title: "Accessor Test Task",
+			const state: State = {
+				id: "state-accessor",
+				title: "Accessor Test State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
@@ -554,19 +554,19 @@ describe("Core", () => {
 				description: "Testing directory accessors",
 			};
 
-			// Create task without auto-commit to avoid potential git timing issues
-			await core.createTask(task, false);
+			// Create state without auto-commit to avoid potential git timing issues
+			await core.createState(state, false);
 
-			// Verify the task file was created in the correct directory
-			const _tasksDir = core.filesystem.tasksDir;
+			// Verify the state file was created in the correct directory
+			const _statesDir = core.filesystem.statesDir;
 
 			// List all files to see what was actually created
-			const allFiles = await core.filesystem.listTasks();
+			const allFiles = await core.filesystem.listStates();
 
-			// Check that a task with the expected ID exists
-			const createdTask = allFiles.find((t) => t.id === "TASK-ACCESSOR");
-			expect(createdTask).toBeDefined();
-			expect(createdTask?.title).toBe("Accessor Test Task");
+			// Check that a state with the expected ID exists
+			const createdState = allFiles.find((t) => t.id === "STATE-ACCESSOR");
+			expect(createdState).toBeDefined();
+			expect(createdState?.title).toBe("Accessor Test State");
 		}, 10000);
 	});
 });

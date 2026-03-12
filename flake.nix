@@ -1,5 +1,5 @@
 {
-  description = "Backlog.md - A markdown-based task management CLI tool";
+  description = "agentRoadmap.md - A markdown-based state management CLI tool";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -49,8 +49,8 @@
           ]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
         '';
 
-        backlog-md = bun2nix.lib.${system}.mkBunDerivation {
-          pname = "backlog";
+        roadmap-md = bun2nix.lib.${system}.mkBunDerivation {
+          pname = "roadmap";
           inherit version;
           src = ./.;
           packageJson = ./package.json;
@@ -69,7 +69,7 @@
 
             # Build the CLI tool with embedded version
             # Note: CSS is pre-compiled and committed to git, no need to build here
-            bun build --compile --minify --define "__EMBEDDED_VERSION__=${version}" --outfile=dist/backlog src/cli.ts
+            bun build --compile --minify --define "__EMBEDDED_VERSION__=${version}" --outfile=dist/roadmap src/cli.ts
 
             runHook postBuild
           '';
@@ -78,20 +78,20 @@
             runHook preInstall
             
             mkdir -p $out/bin
-            cp dist/backlog $out/bin/backlog
-            chmod +x $out/bin/backlog
+            cp dist/roadmap $out/bin/roadmap
+            chmod +x $out/bin/roadmap
             
             runHook postInstall
           '';
           
           meta = with pkgs.lib; {
-            description = "A markdown-based task management CLI tool with Kanban board";
+            description = "A markdown-based state management CLI tool with Kanban board";
             longDescription = ''
-              Backlog.md is a command-line tool for managing tasks and projects using markdown files.
-              It provides Kanban board visualization, task management, and integrates with Git workflows.
+              agentRoadmap.md is a command-line tool for managing states and projects using markdown files.
+              It provides Kanban board visualization, state management, and integrates with Git workflows.
             '';
-            homepage = "https://backlog.md";
-            changelog = "https://github.com/MrLesk/Backlog.md/releases";
+            homepage = "https://roadmap.md";
+            changelog = "https://github.com/MrLesk/agentRoadmap.md/releases";
             license = licenses.mit;
             maintainers = let
               mrlesk = {
@@ -102,20 +102,20 @@
             in
               with maintainers; [ anpryl mrlesk ];
             platforms = platforms.all;
-            mainProgram = "backlog";
+            mainProgram = "roadmap";
           };
         };
       in
       {
         packages = {
-          default = backlog-md;
-          "backlog-md" = backlog-md;
+          default = roadmap-md;
+          "roadmap-md" = roadmap-md;
         };
         
         apps = {
           default = flake-utils.lib.mkApp {
-            drv = backlog-md;
-            name = "backlog";
+            drv = roadmap-md;
+            name = "roadmap";
           };
         };
         
@@ -135,7 +135,7 @@
           shellHook = ''
             export ${ldLibraryPath}
 
-            echo "Backlog.md development environment"
+            echo "agentRoadmap.md development environment"
             echo "Available commands:"
             echo "  bun i          - Install dependencies"
             echo "  bun test       - Run tests"

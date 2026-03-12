@@ -8,8 +8,8 @@ import type {
 	Document,
 	DocumentSearchResult,
 	SearchResult,
-	Task,
-	TaskSearchResult,
+	State,
+	StateSearchResult,
 } from "../types/index.ts";
 import { createUniqueTestDir, getPlatformTimeout, safeCleanup, sleep } from "./test-utils.ts";
 
@@ -20,9 +20,9 @@ describe("SearchService", () => {
 	let store: ContentStore;
 	let search: SearchService;
 
-	const baseTask: Task = {
-		id: "task-1",
-		title: "Centralized search task",
+	const baseState: State = {
+		id: "state-1",
+		title: "Centralized search state",
 		status: "In Progress",
 		assignee: ["@codex"],
 		reporter: "@codex",
@@ -56,7 +56,7 @@ describe("SearchService", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("search-service");
 		filesystem = new FileSystem(TEST_DIR);
-		await filesystem.ensureBacklogStructure();
+		await filesystem.ensureRoadmapStructure();
 		store = new ContentStore(filesystem);
 		search = new SearchService(store);
 	});
@@ -71,8 +71,8 @@ describe("SearchService", () => {
 		}
 	});
 
-	it("indexes tasks, documents, and decisions and returns combined results", async () => {
-		await filesystem.saveTask(baseTask);
+	it("indexes states, documents, and decisions and returns combined results", async () => {
+		await filesystem.saveState(baseState);
 		await filesystem.saveDocument(baseDoc);
 		await filesystem.saveDecision(baseDecision);
 
@@ -81,10 +81,10 @@ describe("SearchService", () => {
 		const results = search.search({ query: "centralized" });
 		expect(results).toHaveLength(3);
 
-		const taskResult = results.find(isTaskResult);
-		expect(taskResult).toBeDefined();
-		expect(taskResult?.task.id).toBe("TASK-1");
-		expect(taskResult?.score).not.toBeNull();
+		const stateResult = results.find(isStateResult);
+		expect(stateResult).toBeDefined();
+		expect(stateResult?.state.id).toBe("STATE-1");
+		expect(stateResult?.score).not.toBeNull();
 
 		const docResult = results.find(isDocumentResult);
 		expect(docResult?.document.id).toBe("doc-1");
@@ -93,124 +93,124 @@ describe("SearchService", () => {
 	});
 
 	it("applies status and priority filters without running a text query", async () => {
-		const secondTask: Task = {
-			...baseTask,
-			id: "task-2",
-			title: "Another task",
+		const secondState: State = {
+			...baseState,
+			id: "state-2",
+			title: "Another state",
 			status: "To Do",
 			priority: "low",
 			rawContent: "## Description\nSecondary",
 		};
 
-		const thirdTask: Task = {
-			...baseTask,
-			id: "task-3",
+		const thirdState: State = {
+			...baseState,
+			id: "state-3",
 			title: "In progress medium",
 			priority: "medium",
 			rawContent: "## Description\nMedium priority",
 		};
 
-		await filesystem.saveTask(baseTask);
-		await filesystem.saveTask(secondTask);
-		await filesystem.saveTask(thirdTask);
+		await filesystem.saveState(baseState);
+		await filesystem.saveState(secondState);
+		await filesystem.saveState(thirdState);
 
 		await search.ensureInitialized();
 
 		const statusFiltered = search
 			.search({
-				types: ["task"],
+				types: ["state"],
 				filters: { status: "In Progress" },
 			})
-			.filter(isTaskResult);
-		expect(statusFiltered.map((result) => result.task.id)).toStrictEqual(["TASK-1", "TASK-3"]);
+			.filter(isStateResult);
+		expect(statusFiltered.map((result) => result.state.id)).toStrictEqual(["STATE-1", "STATE-3"]);
 
 		const priorityFiltered = search
 			.search({
-				types: ["task"],
+				types: ["state"],
 				filters: { priority: "high" },
 			})
-			.filter(isTaskResult);
+			.filter(isStateResult);
 		expect(priorityFiltered).toHaveLength(1);
-		expect(priorityFiltered[0]?.task.id).toBe("TASK-1");
+		expect(priorityFiltered[0]?.state.id).toBe("STATE-1");
 
 		const combinedFiltered = search
 			.search({
-				types: ["task"],
+				types: ["state"],
 				filters: { status: ["In Progress"], priority: ["medium"] },
 			})
-			.filter(isTaskResult);
-		expect(combinedFiltered.map((result) => result.task.id)).toStrictEqual(["TASK-3"]);
+			.filter(isStateResult);
+		expect(combinedFiltered.map((result) => result.state.id)).toStrictEqual(["STATE-3"]);
 	});
 
-	it("filters tasks by labels (requiring all selected labels)", async () => {
-		const uiTask: Task = {
-			...baseTask,
-			id: "task-2",
+	it("filters states by labels (requiring all selected labels)", async () => {
+		const uiState: State = {
+			...baseState,
+			id: "state-2",
 			title: "UI polish",
 			status: "To Do",
 			labels: ["ui", "frontend"],
 			rawContent: "## Description\nUI work",
 		};
 
-		const docsTask: Task = {
-			...baseTask,
-			id: "task-3",
+		const docsState: State = {
+			...baseState,
+			id: "state-3",
 			title: "Docs update",
 			status: "Done",
 			labels: ["docs"],
 			rawContent: "## Description\nDocs",
 		};
 
-		await filesystem.saveTask(baseTask);
-		await filesystem.saveTask(uiTask);
-		await filesystem.saveTask(docsTask);
+		await filesystem.saveState(baseState);
+		await filesystem.saveState(uiState);
+		await filesystem.saveState(docsState);
 
 		await search.ensureInitialized();
 
 		const uiFiltered = search
 			.search({
-				types: ["task"],
+				types: ["state"],
 				filters: { labels: ["ui"] },
 			})
-			.filter(isTaskResult);
-		expect(uiFiltered.map((result) => result.task.id)).toStrictEqual(["TASK-2"]);
+			.filter(isStateResult);
+		expect(uiFiltered.map((result) => result.state.id)).toStrictEqual(["STATE-2"]);
 
 		const anyFiltered = search
 			.search({
-				types: ["task"],
+				types: ["state"],
 				filters: { labels: ["ui", "frontend"] },
 			})
-			.filter(isTaskResult);
-		expect(anyFiltered.map((result) => result.task.id)).toStrictEqual(["TASK-2"]);
+			.filter(isStateResult);
+		expect(anyFiltered.map((result) => result.state.id)).toStrictEqual(["STATE-2"]);
 	});
 
 	it("refreshes the index when content changes", async () => {
-		await filesystem.saveTask(baseTask);
+		await filesystem.saveState(baseState);
 		await search.ensureInitialized();
 
-		const initialResults = search.search({ query: "Fuse", types: ["task"] }).filter(isTaskResult);
+		const initialResults = search.search({ query: "Fuse", types: ["state"] }).filter(isStateResult);
 		expect(initialResults).toHaveLength(1);
 
-		await filesystem.saveTask({
-			...baseTask,
+		await filesystem.saveState({
+			...baseState,
 			rawContent: "## Description\nReindexed to new term",
 			title: "Centralized service updated",
 		});
 
 		await waitForSearch(
-			async () => search.search({ query: "Reindexed", types: ["task"] }).filter(isTaskResult),
+			async () => search.search({ query: "Reindexed", types: ["state"] }).filter(isStateResult),
 			(results) => {
-				return results.length === 1 && results[0]?.task.title === "Centralized service updated";
+				return results.length === 1 && results[0]?.state.title === "Centralized service updated";
 			},
 		);
 
-		const staleResults = search.search({ query: "Fuse", types: ["task"] }).filter(isTaskResult);
+		const staleResults = search.search({ query: "Fuse", types: ["state"] }).filter(isStateResult);
 		expect(staleResults).toHaveLength(0);
 	});
 });
 
-function isTaskResult(result: SearchResult): result is TaskSearchResult {
-	return result.type === "task";
+function isStateResult(result: SearchResult): result is StateSearchResult {
+	return result.type === "state";
 }
 
 function isDocumentResult(result: SearchResult): result is DocumentSearchResult {

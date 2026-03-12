@@ -27,90 +27,90 @@ describe("CLI milestone filtering", () => {
 		await core.initializeProject("Milestone Filter Test Project");
 		const newMilestone = await core.filesystem.createMilestone("New Milestones UI");
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
-				title: "Milestone task one",
+				id: "state-1",
+				title: "Milestone state one",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task in release milestone",
+				description: "State in release milestone",
 				milestone: "Release-1",
 			},
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-2",
-				title: "Milestone task two",
+				id: "state-2",
+				title: "Milestone state two",
 				status: "In Progress",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task in same milestone with different case",
+				description: "State in same milestone with different case",
 				milestone: "release-1",
 			},
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-3",
-				title: "Other milestone task",
+				id: "state-3",
+				title: "Other milestone state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task in different milestone",
+				description: "State in different milestone",
 				milestone: "Release-2",
 			},
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-4",
-				title: "No milestone task",
+				id: "state-4",
+				title: "No milestone state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task without milestone",
+				description: "State without milestone",
 			},
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-5",
-				title: "Roadmap milestone task",
+				id: "state-5",
+				title: "Roadmap milestone state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task in roadmap milestone",
+				description: "State in roadmap milestone",
 				milestone: "Roadmap Alpha",
 			},
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-6",
-				title: "ID milestone task",
+				id: "state-6",
+				title: "ID milestone state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
 				labels: [],
 				dependencies: [],
-				description: "Task with milestone stored as ID",
+				description: "State with milestone stored as ID",
 				milestone: newMilestone.id,
 			},
 			false,
@@ -126,80 +126,80 @@ describe("CLI milestone filtering", () => {
 	});
 
 	it("filters by milestone with case-insensitive matching", async () => {
-		const result = await $`bun ${cliPath} task list --milestone RELEASE-1 --plain`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${cliPath} state list --milestone RELEASE-1 --plain`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
 		const output = result.stdout.toString();
 
-		expect(output).toContain("TASK-1 - Milestone task one");
-		expect(output).toContain("TASK-2 - Milestone task two");
-		expect(output).not.toContain("TASK-3 - Other milestone task");
-		expect(output).not.toContain("TASK-4 - No milestone task");
-		expect(output).not.toContain("TASK-5 - Roadmap milestone task");
-		expect(output).not.toContain("TASK-6 - ID milestone task");
+		expect(output).toContain("STATE-1 - Milestone state one");
+		expect(output).toContain("STATE-2 - Milestone state two");
+		expect(output).not.toContain("STATE-3 - Other milestone state");
+		expect(output).not.toContain("STATE-4 - No milestone state");
+		expect(output).not.toContain("STATE-5 - Roadmap milestone state");
+		expect(output).not.toContain("STATE-6 - ID milestone state");
 	});
 
 	it("supports -m shorthand and combines milestone with status filter", async () => {
-		const result = await $`bun ${cliPath} task list -m release-1 --status "To Do" --plain`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${cliPath} state list -m release-1 --status "To Do" --plain`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
 		const output = result.stdout.toString();
 
-		expect(output).toContain("TASK-1 - Milestone task one");
-		expect(output).not.toContain("TASK-2 - Milestone task two");
-		expect(output).not.toContain("TASK-3 - Other milestone task");
-		expect(output).not.toContain("TASK-4 - No milestone task");
-		expect(output).not.toContain("TASK-5 - Roadmap milestone task");
-		expect(output).not.toContain("TASK-6 - ID milestone task");
+		expect(output).toContain("STATE-1 - Milestone state one");
+		expect(output).not.toContain("STATE-2 - Milestone state two");
+		expect(output).not.toContain("STATE-3 - Other milestone state");
+		expect(output).not.toContain("STATE-4 - No milestone state");
+		expect(output).not.toContain("STATE-5 - Roadmap milestone state");
+		expect(output).not.toContain("STATE-6 - ID milestone state");
 	});
 
 	it("matches closest milestone for partial and typo inputs", async () => {
-		const typoResult = await $`bun ${cliPath} task list --milestone releas-1 --plain`.cwd(TEST_DIR).quiet();
+		const typoResult = await $`bun ${cliPath} state list --milestone releas-1 --plain`.cwd(TEST_DIR).quiet();
 		expect(typoResult.exitCode).toBe(0);
 		const typoOutput = typoResult.stdout.toString();
 
-		expect(typoOutput).toContain("TASK-1 - Milestone task one");
-		expect(typoOutput).toContain("TASK-2 - Milestone task two");
-		expect(typoOutput).not.toContain("TASK-3 - Other milestone task");
-		expect(typoOutput).not.toContain("TASK-4 - No milestone task");
-		expect(typoOutput).not.toContain("TASK-5 - Roadmap milestone task");
+		expect(typoOutput).toContain("STATE-1 - Milestone state one");
+		expect(typoOutput).toContain("STATE-2 - Milestone state two");
+		expect(typoOutput).not.toContain("STATE-3 - Other milestone state");
+		expect(typoOutput).not.toContain("STATE-4 - No milestone state");
+		expect(typoOutput).not.toContain("STATE-5 - Roadmap milestone state");
 
-		const partialResult = await $`bun ${cliPath} task list --milestone roadmp --plain`.cwd(TEST_DIR).quiet();
+		const partialResult = await $`bun ${cliPath} state list --milestone roadmp --plain`.cwd(TEST_DIR).quiet();
 		expect(partialResult.exitCode).toBe(0);
 		const partialOutput = partialResult.stdout.toString();
 
-		expect(partialOutput).toContain("TASK-5 - Roadmap milestone task");
-		expect(partialOutput).not.toContain("TASK-1 - Milestone task one");
-		expect(partialOutput).not.toContain("TASK-2 - Milestone task two");
-		expect(partialOutput).not.toContain("TASK-3 - Other milestone task");
-		expect(partialOutput).not.toContain("TASK-4 - No milestone task");
-		expect(partialOutput).not.toContain("TASK-6 - ID milestone task");
+		expect(partialOutput).toContain("STATE-5 - Roadmap milestone state");
+		expect(partialOutput).not.toContain("STATE-1 - Milestone state one");
+		expect(partialOutput).not.toContain("STATE-2 - Milestone state two");
+		expect(partialOutput).not.toContain("STATE-3 - Other milestone state");
+		expect(partialOutput).not.toContain("STATE-4 - No milestone state");
+		expect(partialOutput).not.toContain("STATE-6 - ID milestone state");
 	});
 
-	it("matches milestone title when tasks store milestone IDs", async () => {
-		const result = await $`bun ${cliPath} task list -m new --plain`.cwd(TEST_DIR).quiet();
+	it("matches milestone title when states store milestone IDs", async () => {
+		const result = await $`bun ${cliPath} state list -m new --plain`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 		const output = result.stdout.toString();
 
-		expect(output).toContain("TASK-6 - ID milestone task");
-		expect(output).not.toContain("TASK-1 - Milestone task one");
-		expect(output).not.toContain("TASK-2 - Milestone task two");
-		expect(output).not.toContain("TASK-3 - Other milestone task");
-		expect(output).not.toContain("TASK-4 - No milestone task");
-		expect(output).not.toContain("TASK-5 - Roadmap milestone task");
+		expect(output).toContain("STATE-6 - ID milestone state");
+		expect(output).not.toContain("STATE-1 - Milestone state one");
+		expect(output).not.toContain("STATE-2 - Milestone state two");
+		expect(output).not.toContain("STATE-3 - Other milestone state");
+		expect(output).not.toContain("STATE-4 - No milestone state");
+		expect(output).not.toContain("STATE-5 - Roadmap milestone state");
 	});
 
 	it("preserves existing listing behavior when milestone filter is omitted", async () => {
-		const result = await $`bun ${cliPath} task list --plain`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${cliPath} state list --plain`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
 		const output = result.stdout.toString();
 
-		expect(output).toContain("TASK-1 - Milestone task one");
-		expect(output).toContain("TASK-2 - Milestone task two");
-		expect(output).toContain("TASK-3 - Other milestone task");
-		expect(output).toContain("TASK-4 - No milestone task");
-		expect(output).toContain("TASK-5 - Roadmap milestone task");
-		expect(output).toContain("TASK-6 - ID milestone task");
+		expect(output).toContain("STATE-1 - Milestone state one");
+		expect(output).toContain("STATE-2 - Milestone state two");
+		expect(output).toContain("STATE-3 - Other milestone state");
+		expect(output).toContain("STATE-4 - No milestone state");
+		expect(output).toContain("STATE-5 - Roadmap milestone state");
+		expect(output).toContain("STATE-6 - ID milestone state");
 	});
 });

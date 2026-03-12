@@ -24,7 +24,7 @@ interface ThemeProviderProps {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 	const [theme, setTheme] = useState<Theme>(() => {
 		// Check localStorage for saved theme preference
-		const savedTheme = localStorage.getItem('backlog-theme') as Theme;
+		const savedTheme = localStorage.getItem('roadmap-theme') as Theme;
 		if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
 			return savedTheme;
 		}
@@ -48,7 +48,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 		}
 		
 		// Save to localStorage
-		localStorage.setItem('backlog-theme', theme);
+		localStorage.setItem('roadmap-theme', theme);
 	}, [theme]);
 
 	const toggleTheme = () => {

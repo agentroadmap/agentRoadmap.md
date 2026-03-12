@@ -3,15 +3,15 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { BacklogConfig } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 
 describe("Offline Integration Tests", () => {
 	let tempDir: string;
 	let core: Core;
 
 	beforeEach(async () => {
-		tempDir = await mkdtemp(join(tmpdir(), "backlog-offline-integration-"));
+		tempDir = await mkdtemp(join(tmpdir(), "roadmap-offline-integration-"));
 
 		// Initialize a git repo without remote
 		await $`git init`.cwd(tempDir).quiet();
@@ -23,14 +23,14 @@ describe("Offline Integration Tests", () => {
 		await $`git add README.md`.cwd(tempDir).quiet();
 		await $`git commit -m "Initial commit"`.cwd(tempDir).quiet();
 
-		// Create basic backlog structure
-		const backlogDir = join(tempDir, "backlog");
-		await mkdir(backlogDir, { recursive: true });
-		await mkdir(join(backlogDir, "tasks"), { recursive: true });
-		await mkdir(join(backlogDir, "drafts"), { recursive: true });
+		// Create basic roadmap structure
+		const roadmapDir = join(tempDir, "roadmap");
+		await mkdir(roadmapDir, { recursive: true });
+		await mkdir(join(roadmapDir, "nodes"), { recursive: true });
+		await mkdir(join(roadmapDir, "drafts"), { recursive: true });
 
 		// Create config with remote operations disabled
-		const config: BacklogConfig = {
+		const config: RoadmapConfig = {
 			projectName: "Offline Test Project",
 			statuses: ["To Do", "In Progress", "Done"],
 			labels: ["bug", "feature"],
@@ -40,13 +40,13 @@ describe("Offline Integration Tests", () => {
 		};
 
 		await writeFile(
-			join(backlogDir, "config.yml"),
+			join(roadmapDir, "config.yml"),
 			`project_name: "${config.projectName}"
 statuses: ["To Do", "In Progress", "Done"]
 labels: ["bug", "feature"]
 milestones: []
 date_format: YYYY-MM-DD
-backlog_directory: "backlog"
+roadmap_directory: "roadmap"
 remote_operations: false
 `,
 		);
@@ -66,11 +66,11 @@ remote_operations: false
 		const config = await core.filesystem.loadConfig();
 		expect(config?.remoteOperations).toBe(false);
 
-		// Create a task - this should work without any remote operations
-		const task = {
-			id: "task-1",
-			title: "Test task in offline mode",
-			description: "This task should be created without remote operations",
+		// Create a state - this should work without any remote operations
+		const state = {
+			id: "state-1",
+			title: "Test state in offline mode",
+			description: "This state should be created without remote operations",
 			status: "To Do",
 			assignee: [],
 			createdDate: new Date().toISOString().split("T")[0] ?? "",
@@ -80,22 +80,22 @@ remote_operations: false
 			priority: "medium" as const,
 		};
 
-		const filepath = await core.createTask(task);
-		expect(filepath).toContain("task-1");
+		const filepath = await core.createState(state);
+		expect(filepath).toContain("state-1");
 
-		// List tasks should work without remote operations
-		const tasks = await core.listTasksWithMetadata();
-		expect(tasks).toHaveLength(1);
-		expect(tasks[0]?.id).toBe("TASK-1");
-		expect(tasks[0]?.title).toBe("Test task in offline mode");
+		// List states should work without remote operations
+		const states = await core.listStatesWithMetadata();
+		expect(states).toHaveLength(1);
+		expect(states[0]?.id).toBe("STATE-1");
+		expect(states[0]?.title).toBe("Test state in offline mode");
 	});
 
-	it("should handle task ID generation in offline mode", async () => {
-		// Create multiple tasks to test ID generation
-		const task1 = {
-			id: "task-1",
-			title: "First task",
-			description: "First task description",
+	it("should handle state ID generation in offline mode", async () => {
+		// Create multiple states to test ID generation
+		const state1 = {
+			id: "state-1",
+			title: "First state",
+			description: "First state description",
 			status: "To Do",
 			assignee: [],
 			createdDate: new Date().toISOString().split("T")[0] ?? "",
@@ -105,10 +105,10 @@ remote_operations: false
 			priority: "medium" as const,
 		};
 
-		const task2 = {
-			id: "task-2",
-			title: "Second task",
-			description: "Second task description",
+		const state2 = {
+			id: "state-2",
+			title: "Second state",
+			description: "Second state description",
 			status: "In Progress",
 			assignee: [],
 			createdDate: new Date().toISOString().split("T")[0] ?? "",
@@ -118,15 +118,15 @@ remote_operations: false
 			priority: "high" as const,
 		};
 
-		await core.createTask(task1);
-		await core.createTask(task2);
+		await core.createState(state1);
+		await core.createState(state2);
 
-		const tasks = await core.listTasksWithMetadata();
-		expect(tasks).toHaveLength(2);
+		const states = await core.listStatesWithMetadata();
+		expect(states).toHaveLength(2);
 
-		const taskIds = tasks.map((t) => t.id);
-		expect(taskIds).toContain("TASK-1");
-		expect(taskIds).toContain("TASK-2");
+		const stateIds = states.map((t) => t.id);
+		expect(stateIds).toContain("STATE-1");
+		expect(stateIds).toContain("STATE-2");
 	});
 
 	it("should handle repository without remote origin gracefully", async () => {
@@ -158,7 +158,7 @@ remote_operations: false
 
 		// Simulate config set command
 		if (!initialConfig) throw new Error("Config not loaded");
-		const updatedConfig: BacklogConfig = { ...initialConfig, remoteOperations: true };
+		const updatedConfig: RoadmapConfig = { ...initialConfig, remoteOperations: true };
 		await core.filesystem.saveConfig(updatedConfig);
 
 		// Verify config was updated
@@ -167,7 +167,7 @@ remote_operations: false
 
 		// Test changing it back
 		if (!newConfig) throw new Error("Config not loaded");
-		const finalConfig: BacklogConfig = { ...newConfig, remoteOperations: false };
+		const finalConfig: RoadmapConfig = { ...newConfig, remoteOperations: false };
 		await core.filesystem.saveConfig(finalConfig);
 
 		const verifyConfig = await core.filesystem.loadConfig();
@@ -176,15 +176,15 @@ remote_operations: false
 
 	it("should migrate existing configs to include remoteOperations", async () => {
 		// Create a config without remoteOperations field
-		const backlogDir = join(tempDir, "backlog");
+		const roadmapDir = join(tempDir, "roadmap");
 		await writeFile(
-			join(backlogDir, "config.yml"),
+			join(roadmapDir, "config.yml"),
 			`project_name: "Legacy Project"
 statuses: ["To Do", "Done"]
 labels: []
 milestones: []
 date_format: YYYY-MM-DD
-backlog_directory: "backlog"
+roadmap_directory: "roadmap"
 `,
 		);
 
@@ -198,18 +198,18 @@ backlog_directory: "backlog"
 		expect(migratedConfig?.projectName).toBe("Legacy Project");
 	});
 
-	it("should handle loadRemoteTasks in offline mode", async () => {
+	it("should handle loadRemoteStates in offline mode", async () => {
 		const config = await core.filesystem.loadConfig();
 		expect(config?.remoteOperations).toBe(false);
 
-		// Import loadRemoteTasks
-		const { loadRemoteTasks } = await import("../core/task-loader.ts");
+		// Import loadRemoteStates
+		const { loadRemoteStates } = await import("../core/state-loader.ts");
 
 		const progressMessages: string[] = [];
-		const remoteTasks = await loadRemoteTasks(core.gitOps, config, (msg: string) => progressMessages.push(msg));
+		const remoteStates = await loadRemoteStates(core.gitOps, config, (msg: string) => progressMessages.push(msg));
 
 		// Should return empty array and skip remote operations
-		expect(remoteTasks).toEqual([]);
-		expect(progressMessages).toContain("Remote operations disabled - skipping remote tasks");
+		expect(remoteStates).toEqual([]);
+		expect(progressMessages).toContain("Remote operations disabled - skipping remote states");
 	});
 });

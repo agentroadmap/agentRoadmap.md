@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { parseTask } from "../markdown/parser.ts";
+import { parseState } from "../markdown/parser.ts";
 
 const TEMP_DIR = join(process.cwd(), ".tmp-structured-ac-test");
 
@@ -21,7 +21,7 @@ describe("Structured Acceptance Criteria parsing", () => {
 
 	it("parses acceptance criteria items with checked state and index", () => {
 		const content = `---
-id: task-999
+id: state-999
 title: Demo
 status: To Do
 assignee: []
@@ -41,13 +41,13 @@ X
 <!-- AC:END -->
 `;
 
-		const task = parseTask(content);
-		expect(task.acceptanceCriteriaItems?.length).toBe(2);
-		expect(task.acceptanceCriteriaItems?.[0]).toEqual({ index: 1, text: "First", checked: false });
-		expect(task.acceptanceCriteriaItems?.[1]).toEqual({ index: 2, text: "Second", checked: true });
+		const state = parseState(content);
+		expect(state.acceptanceCriteriaItems?.length).toBe(2);
+		expect(state.acceptanceCriteriaItems?.[0]).toEqual({ index: 1, text: "First", checked: false });
+		expect(state.acceptanceCriteriaItems?.[1]).toEqual({ index: 2, text: "Second", checked: true });
 
 		// Derived legacy-friendly text remains accessible by mapping items
-		expect(task.acceptanceCriteriaItems?.map((item) => `#${item.index} ${item.text}`)).toEqual([
+		expect(state.acceptanceCriteriaItems?.map((item) => `#${item.index} ${item.text}`)).toEqual([
 			"#1 First",
 			"#2 Second",
 		]);

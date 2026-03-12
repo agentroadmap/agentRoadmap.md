@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import {
-	MCP_TASK_CREATION_GUIDE,
-	MCP_TASK_EXECUTION_GUIDE,
-	MCP_TASK_FINALIZATION_GUIDE,
+	MCP_STATE_CREATION_GUIDE,
+	MCP_STATE_EXECUTION_GUIDE,
+	MCP_STATE_FINALIZATION_GUIDE,
 	MCP_WORKFLOW_OVERVIEW,
 	MCP_WORKFLOW_OVERVIEW_TOOLS,
 } from "../guidelines/mcp/index.ts";
 import { registerWorkflowResources } from "../mcp/resources/workflow/index.ts";
 import { createMcpServer, McpServer } from "../mcp/server.ts";
 import { registerDefinitionOfDoneTools } from "../mcp/tools/definition-of-done/index.ts";
-import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
+import { registerStateTools } from "../mcp/tools/states/index.ts";
 import { registerWorkflowTools } from "../mcp/tools/workflow/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
@@ -31,7 +31,7 @@ async function bootstrapServer(): Promise<McpServer> {
 	// Use normal mode instructions for bootstrapped test server
 	const server = new McpServer(TEST_DIR, "Test instructions");
 
-	await server.filesystem.ensureBacklogStructure();
+	await server.filesystem.ensureRoadmapStructure();
 	await $`git init -b main`.cwd(TEST_DIR).quiet();
 	await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 	await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
@@ -56,17 +56,17 @@ describe("McpServer bootstrap", () => {
 		const tools = await server.testInterface.listTools();
 		expect(tools.tools.map((tool) => tool.name)).toEqual([
 			"get_workflow_overview",
-			"get_task_creation_guide",
-			"get_task_execution_guide",
-			"get_task_finalization_guide",
+			"get_state_creation_guide",
+			"get_state_execution_guide",
+			"get_state_finalization_guide",
 		]);
 
 		const resources = await server.testInterface.listResources();
 		expect(resources.resources.map((r) => r.uri)).toEqual([
-			"backlog://workflow/overview",
-			"backlog://workflow/task-creation",
-			"backlog://workflow/task-execution",
-			"backlog://workflow/task-finalization",
+			"roadmap://workflow/overview",
+			"roadmap://workflow/state-creation",
+			"roadmap://workflow/state-execution",
+			"roadmap://workflow/state-finalization",
 		]);
 
 		const prompts = await server.testInterface.listPrompts();
@@ -82,7 +82,7 @@ describe("McpServer bootstrap", () => {
 		const server = await bootstrapServer();
 
 		const result = await server.testInterface.readResource({
-			params: { uri: "backlog://workflow/overview" },
+			params: { uri: "roadmap://workflow/overview" },
 		});
 
 		expect(result.contents).toHaveLength(1);
@@ -92,41 +92,41 @@ describe("McpServer bootstrap", () => {
 		await server.stop();
 	});
 
-	it("task creation guide resource returns correct content", async () => {
+	it("state creation guide resource returns correct content", async () => {
 		const server = await bootstrapServer();
 
 		const result = await server.testInterface.readResource({
-			params: { uri: "backlog://workflow/task-creation" },
+			params: { uri: "roadmap://workflow/state-creation" },
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_CREATION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(MCP_STATE_CREATION_GUIDE);
 
 		await server.stop();
 	});
 
-	it("task execution guide resource returns correct content", async () => {
+	it("state execution guide resource returns correct content", async () => {
 		const server = await bootstrapServer();
 
 		const result = await server.testInterface.readResource({
-			params: { uri: "backlog://workflow/task-execution" },
+			params: { uri: "roadmap://workflow/state-execution" },
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_EXECUTION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(MCP_STATE_EXECUTION_GUIDE);
 
 		await server.stop();
 	});
 
-	it("task finalization guide resource returns correct content", async () => {
+	it("state finalization guide resource returns correct content", async () => {
 		const server = await bootstrapServer();
 
 		const result = await server.testInterface.readResource({
-			params: { uri: "backlog://workflow/task-finalization" },
+			params: { uri: "roadmap://workflow/state-finalization" },
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(getContentsText(result.contents)).toBe(MCP_TASK_FINALIZATION_GUIDE);
+		expect(getContentsText(result.contents)).toBe(MCP_STATE_FINALIZATION_GUIDE);
 
 		await server.stop();
 	});
@@ -140,21 +140,21 @@ describe("McpServer bootstrap", () => {
 		expect(getText(overview.content)).toBe(MCP_WORKFLOW_OVERVIEW_TOOLS);
 
 		const creation = await server.testInterface.callTool({
-			params: { name: "get_task_creation_guide", arguments: {} },
+			params: { name: "get_state_creation_guide", arguments: {} },
 		});
-		expect(getText(creation.content)).toBe(MCP_TASK_CREATION_GUIDE);
+		expect(getText(creation.content)).toBe(MCP_STATE_CREATION_GUIDE);
 
 		await server.stop();
 	});
 
-	it("registers task tools via helpers", async () => {
+	it("registers state tools via helpers", async () => {
 		const server = await bootstrapServer();
 		const config = await server.filesystem.loadConfig();
 		if (!config) {
 			throw new Error("Failed to load config");
 		}
 
-		registerTaskTools(server, config);
+		registerStateTools(server, config);
 		registerDefinitionOfDoneTools(server);
 
 		const tools = await server.testInterface.listTools();
@@ -162,27 +162,27 @@ describe("McpServer bootstrap", () => {
 		expect(toolNames).toEqual([
 			"definition_of_done_defaults_get",
 			"definition_of_done_defaults_upsert",
-			"get_task_creation_guide",
-			"get_task_execution_guide",
-			"get_task_finalization_guide",
+			"get_state_creation_guide",
+			"get_state_execution_guide",
+			"get_state_finalization_guide",
 			"get_workflow_overview",
-			"task_archive",
-			"task_complete",
-			"task_create",
-			"task_edit",
-			"task_list",
-			"task_search",
-			"task_view",
+			"state_archive",
+			"state_complete",
+			"state_create",
+			"state_edit",
+			"state_list",
+			"state_search",
+			"state_view",
 		]);
 
 		const resources = await server.testInterface.listResources();
 		expect(resources.resources.map((r) => r.uri)).toEqual([
-			"backlog://workflow/overview",
-			"backlog://workflow/task-creation",
-			"backlog://workflow/task-execution",
-			"backlog://workflow/task-finalization",
+			"roadmap://workflow/overview",
+			"roadmap://workflow/state-creation",
+			"roadmap://workflow/state-execution",
+			"roadmap://workflow/state-finalization",
 		]);
-		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
+		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Roadmap.md Overview (MCP)");
 
 		const resourceTemplates = await server.testInterface.listResourceTemplates();
 		expect(resourceTemplates.resourceTemplates).toEqual([]);
@@ -194,7 +194,7 @@ describe("McpServer bootstrap", () => {
 		TEST_DIR = createUniqueTestDir("mcp-server-factory");
 
 		const bootstrap = new McpServer(TEST_DIR, "Bootstrap instructions");
-		await bootstrap.filesystem.ensureBacklogStructure();
+		await bootstrap.filesystem.ensureRoadmapStructure();
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
@@ -206,16 +206,16 @@ describe("McpServer bootstrap", () => {
 		const tools = await server.testInterface.listTools();
 		expect(tools.tools.map((tool) => tool.name)).toEqual([
 			"get_workflow_overview",
-			"get_task_creation_guide",
-			"get_task_execution_guide",
-			"get_task_finalization_guide",
-			"task_create",
-			"task_list",
-			"task_search",
-			"task_edit",
-			"task_view",
-			"task_archive",
-			"task_complete",
+			"get_state_creation_guide",
+			"get_state_execution_guide",
+			"get_state_finalization_guide",
+			"state_create",
+			"state_list",
+			"state_search",
+			"state_edit",
+			"state_view",
+			"state_archive",
+			"state_complete",
 			"milestone_list",
 			"milestone_add",
 			"milestone_rename",
@@ -232,12 +232,12 @@ describe("McpServer bootstrap", () => {
 
 		const resources = await server.testInterface.listResources();
 		expect(resources.resources.map((r) => r.uri)).toEqual([
-			"backlog://workflow/overview",
-			"backlog://workflow/task-creation",
-			"backlog://workflow/task-execution",
-			"backlog://workflow/task-finalization",
+			"roadmap://workflow/overview",
+			"roadmap://workflow/state-creation",
+			"roadmap://workflow/state-execution",
+			"roadmap://workflow/state-finalization",
 		]);
-		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Backlog.md Overview (MCP)");
+		expect(MCP_WORKFLOW_OVERVIEW).toContain("## Roadmap.md Overview (MCP)");
 
 		const resourceTemplates = await server.testInterface.listResourceTemplates();
 		expect(resourceTemplates.resourceTemplates).toEqual([]);

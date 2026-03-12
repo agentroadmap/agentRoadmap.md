@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import { createTaskPlatformAware, editTaskPlatformAware, viewTaskPlatformAware } from "./test-helpers.ts";
+import { Core } from "../core/roadmap.ts";
+import { createStatePlatformAware, editStatePlatformAware, viewStatePlatformAware } from "./test-helpers.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 describe("CLI Dependency Support", () => {
@@ -35,158 +35,158 @@ describe("CLI Dependency Support", () => {
 		}
 	});
 
-	test("should create task with single dependency using --dep", async () => {
-		// Create base task first
-		const result1 = await createTaskPlatformAware({ title: "Base Task" }, TEST_DIR);
+	test("should create state with single dependency using --dep", async () => {
+		// Create base state first
+		const result1 = await createStatePlatformAware({ title: "Base State" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
 
-		// Create task with dependency
-		const result2 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-1" }, TEST_DIR);
+		// Create state with dependency
+		const result2 = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-1" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
-		expect(result2.stdout).toContain("Created task TASK-2");
+		expect(result2.stdout).toContain("Created state STATE-2");
 
 		// Verify dependency was set
-		const task = await core.filesystem.loadTask("task-2");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1"]);
+		const state = await core.filesystem.loadState("state-2");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1"]);
 	});
 
-	test("should create task with single dependency using --depends-on", async () => {
-		// Create base task first
-		const result1 = await createTaskPlatformAware({ title: "Base Task" }, TEST_DIR);
+	test("should create state with single dependency using --depends-on", async () => {
+		// Create base state first
+		const result1 = await createStatePlatformAware({ title: "Base State" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
 
-		// Create task with dependency
-		const result2 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-1" }, TEST_DIR);
+		// Create state with dependency
+		const result2 = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-1" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
-		expect(result2.stdout).toContain("Created task TASK-2");
+		expect(result2.stdout).toContain("Created state STATE-2");
 
 		// Verify dependency was set
-		const task = await core.filesystem.loadTask("task-2");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1"]);
+		const state = await core.filesystem.loadState("state-2");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1"]);
 	});
 
-	test("should create task with multiple dependencies (comma-separated)", async () => {
-		// Create base tasks first
-		const result1 = await createTaskPlatformAware({ title: "Base Task 1" }, TEST_DIR);
+	test("should create state with multiple dependencies (comma-separated)", async () => {
+		// Create base states first
+		const result1 = await createStatePlatformAware({ title: "Base State 1" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
-		const result2 = await createTaskPlatformAware({ title: "Base Task 2" }, TEST_DIR);
+		const result2 = await createStatePlatformAware({ title: "Base State 2" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
 
-		// Create task with multiple dependencies
-		const result3 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-1,task-2" }, TEST_DIR);
+		// Create state with multiple dependencies
+		const result3 = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-1,state-2" }, TEST_DIR);
 		expect(result3.exitCode).toBe(0);
-		expect(result3.stdout).toContain("Created task TASK-3");
+		expect(result3.stdout).toContain("Created state STATE-3");
 
 		// Verify dependencies were set
-		const task = await core.filesystem.loadTask("task-3");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1", "TASK-2"]);
+		const state = await core.filesystem.loadState("state-3");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1", "STATE-2"]);
 	});
 
-	test("should create task with multiple dependencies (multiple flags)", async () => {
-		// Create base tasks first
-		const result1 = await createTaskPlatformAware({ title: "Base Task 1" }, TEST_DIR);
+	test("should create state with multiple dependencies (multiple flags)", async () => {
+		// Create base states first
+		const result1 = await createStatePlatformAware({ title: "Base State 1" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
-		const result2 = await createTaskPlatformAware({ title: "Base Task 2" }, TEST_DIR);
+		const result2 = await createStatePlatformAware({ title: "Base State 2" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
 
-		// Create task with multiple dependencies using multiple flags (simulated as comma-separated)
-		const result3 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-1,task-2" }, TEST_DIR);
+		// Create state with multiple dependencies using multiple flags (simulated as comma-separated)
+		const result3 = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-1,state-2" }, TEST_DIR);
 		expect(result3.exitCode).toBe(0);
-		expect(result3.stdout).toContain("Created task TASK-3");
+		expect(result3.stdout).toContain("Created state STATE-3");
 
 		// Verify dependencies were set
-		const task = await core.filesystem.loadTask("task-3");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1", "TASK-2"]);
+		const state = await core.filesystem.loadState("state-3");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1", "STATE-2"]);
 	});
 
-	test("should normalize task IDs in dependencies", async () => {
-		// Create base task first
-		const result1 = await createTaskPlatformAware({ title: "Base Task" }, TEST_DIR);
+	test("should normalize state IDs in dependencies", async () => {
+		// Create base state first
+		const result1 = await createStatePlatformAware({ title: "Base State" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
 
-		// Create task with dependency using numeric ID (should be normalized to TASK-X)
-		const result2 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "1" }, TEST_DIR);
+		// Create state with dependency using numeric ID (should be normalized to STATE-X)
+		const result2 = await createStatePlatformAware({ title: "Dependent State", dependencies: "1" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
-		expect(result2.stdout).toContain("Created task TASK-2");
+		expect(result2.stdout).toContain("Created state STATE-2");
 
 		// Verify dependency was normalized
-		const task = await core.filesystem.loadTask("task-2");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1"]);
+		const state = await core.filesystem.loadState("state-2");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1"]);
 	});
 
-	test("should fail when dependency task does not exist", async () => {
-		// Try to create task with non-existent dependency
-		const result = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-999" }, TEST_DIR);
+	test("should fail when dependency state does not exist", async () => {
+		// Try to create state with non-existent dependency
+		const result = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-999" }, TEST_DIR);
 		expect(result.exitCode).toBe(1);
-		expect(result.stderr).toContain("The following dependencies do not exist: TASK-999");
+		expect(result.stderr).toContain("The following dependencies do not exist: STATE-999");
 	});
 
-	test("should edit task to add dependencies", async () => {
-		// Create base tasks first
-		const result1 = await createTaskPlatformAware({ title: "Base Task 1" }, TEST_DIR);
+	test("should edit state to add dependencies", async () => {
+		// Create base states first
+		const result1 = await createStatePlatformAware({ title: "Base State 1" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
-		const result2 = await createTaskPlatformAware({ title: "Base Task 2" }, TEST_DIR);
+		const result2 = await createStatePlatformAware({ title: "Base State 2" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
-		const result3 = await createTaskPlatformAware({ title: "Task to Edit" }, TEST_DIR);
+		const result3 = await createStatePlatformAware({ title: "State to Edit" }, TEST_DIR);
 		expect(result3.exitCode).toBe(0);
 
-		// Edit task to add dependencies
-		const result4 = await editTaskPlatformAware({ taskId: "task-3", dependencies: "task-1,task-2" }, TEST_DIR);
+		// Edit state to add dependencies
+		const result4 = await editStatePlatformAware({ stateId: "state-3", dependencies: "state-1,state-2" }, TEST_DIR);
 		expect(result4.exitCode).toBe(0);
-		expect(result4.stdout).toContain("Updated task task-3");
+		expect(result4.stdout).toContain("Updated state state-3");
 
 		// Verify dependencies were added
-		const task = await core.filesystem.loadTask("task-3");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-1", "TASK-2"]);
+		const state = await core.filesystem.loadState("state-3");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-1", "STATE-2"]);
 	});
 
-	test("should edit task to update dependencies", async () => {
-		// Create base tasks using platform-aware helper
-		const result1 = await createTaskPlatformAware({ title: "Base Task 1" }, TEST_DIR);
+	test("should edit state to update dependencies", async () => {
+		// Create base states using platform-aware helper
+		const result1 = await createStatePlatformAware({ title: "Base State 1" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
-		const result2 = await createTaskPlatformAware({ title: "Base Task 2" }, TEST_DIR);
+		const result2 = await createStatePlatformAware({ title: "Base State 2" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
-		const result3 = await createTaskPlatformAware({ title: "Base Task 3" }, TEST_DIR);
+		const result3 = await createStatePlatformAware({ title: "Base State 3" }, TEST_DIR);
 		expect(result3.exitCode).toBe(0);
 
-		// Create task with initial dependency
-		const result4 = await createTaskPlatformAware(
+		// Create state with initial dependency
+		const result4 = await createStatePlatformAware(
 			{
-				title: "Task with Dependency",
-				dependencies: "task-1",
+				title: "State with Dependency",
+				dependencies: "state-1",
 			},
 			TEST_DIR,
 		);
 		expect(result4.exitCode).toBe(0);
 
-		// Edit task to change dependencies using platform-aware helper
-		const result5 = await editTaskPlatformAware(
+		// Edit state to change dependencies using platform-aware helper
+		const result5 = await editStatePlatformAware(
 			{
-				taskId: "task-4",
-				dependencies: "task-2,task-3",
+				stateId: "state-4",
+				dependencies: "state-2,state-3",
 			},
 			TEST_DIR,
 		);
 		expect(result5.exitCode).toBe(0);
 
 		// Verify dependencies were updated (should replace, not append)
-		const task = await core.filesystem.loadTask("task-4");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["TASK-2", "TASK-3"]);
+		const state = await core.filesystem.loadState("state-4");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["STATE-2", "STATE-3"]);
 	});
 
-	test("should handle dependencies on draft tasks", async () => {
-		// Create draft task first using platform-aware helper
+	test("should handle dependencies on draft states", async () => {
+		// Create draft state first using platform-aware helper
 		// Drafts now get DRAFT-X ids
-		const result1 = await createTaskPlatformAware(
+		const result1 = await createStatePlatformAware(
 			{
-				title: "Draft Task",
+				title: "Draft State",
 				draft: true,
 			},
 			TEST_DIR,
@@ -194,11 +194,11 @@ describe("CLI Dependency Support", () => {
 		expect(result1.exitCode).toBe(0);
 		expect(result1.stdout).toContain("Created draft DRAFT-1");
 
-		// Create task that depends on draft
-		// Note: Tasks and drafts have separate ID sequences now
-		const result2 = await createTaskPlatformAware(
+		// Create state that depends on draft
+		// Note: States and drafts have separate ID sequences now
+		const result2 = await createStatePlatformAware(
 			{
-				title: "Task depending on draft",
+				title: "State depending on draft",
 				dependencies: "DRAFT-1",
 			},
 			TEST_DIR,
@@ -206,24 +206,24 @@ describe("CLI Dependency Support", () => {
 		expect(result2.exitCode).toBe(0);
 
 		// Verify dependency on draft was set
-		// First non-draft task will be TASK-1
-		const task = await core.filesystem.loadTask("task-1");
-		expect(task).not.toBeNull();
-		expect(task?.dependencies).toEqual(["DRAFT-1"]);
+		// First non-draft state will be STATE-1
+		const state = await core.filesystem.loadState("state-1");
+		expect(state).not.toBeNull();
+		expect(state?.dependencies).toEqual(["DRAFT-1"]);
 	});
 
 	test("should display dependencies in plain text view", async () => {
-		// Create base task
-		const result1 = await createTaskPlatformAware({ title: "Base Task" }, TEST_DIR);
+		// Create base state
+		const result1 = await createStatePlatformAware({ title: "Base State" }, TEST_DIR);
 		expect(result1.exitCode).toBe(0);
 
-		// Create task with dependency
-		const result2 = await createTaskPlatformAware({ title: "Dependent Task", dependencies: "task-1" }, TEST_DIR);
+		// Create state with dependency
+		const result2 = await createStatePlatformAware({ title: "Dependent State", dependencies: "state-1" }, TEST_DIR);
 		expect(result2.exitCode).toBe(0);
 
-		// View task in plain text mode
-		const result3 = await viewTaskPlatformAware({ taskId: "task-2", plain: true }, TEST_DIR);
+		// View state in plain text mode
+		const result3 = await viewStatePlatformAware({ stateId: "state-2", plain: true }, TEST_DIR);
 		expect(result3.exitCode).toBe(0);
-		expect(result3.stdout).toContain("Dependencies: TASK-1");
+		expect(result3.stdout).toContain("Dependencies: STATE-1");
 	});
 });

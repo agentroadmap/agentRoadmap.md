@@ -8,7 +8,7 @@ interface CleanupModalProps {
 	onSuccess: (movedCount: number) => void;
 }
 
-interface TaskPreview {
+interface StatePreview {
 	id: string;
 	title: string;
 	updatedDate?: string;
@@ -27,7 +27,7 @@ const AGE_OPTIONS = [
 
 const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess }) => {
 	const [selectedAge, setSelectedAge] = useState<number | null>(null);
-	const [previewTasks, setPreviewTasks] = useState<TaskPreview[]>([]);
+	const [previewStates, setPreviewStates] = useState<StatePreview[]>([]);
 	const [previewCount, setPreviewCount] = useState(0);
 	const [isLoadingPreview, setIsLoadingPreview] = useState(false);
 	const [isExecuting, setIsExecuting] = useState(false);
@@ -41,12 +41,12 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 
 		try {
 			const preview = await apiClient.getCleanupPreview(age);
-			setPreviewTasks(preview.tasks);
+			setPreviewStates(preview.states);
 			setPreviewCount(preview.count);
 			setShowConfirmation(false);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load preview');
-			setPreviewTasks([]);
+			setPreviewStates([]);
 			setPreviewCount(0);
 		} finally {
 			setIsLoadingPreview(false);
@@ -77,7 +77,7 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 
 	const handleClose = () => {
 		setSelectedAge(null);
-		setPreviewTasks([]);
+		setPreviewStates([]);
 		setPreviewCount(0);
 		setError(null);
 		setShowConfirmation(false);
@@ -95,12 +95,12 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 	};
 
 	return (
-		<Modal isOpen={isOpen} onClose={handleClose} title="Clean Up Completed Tasks" maxWidthClass="max-w-3xl">
+		<Modal isOpen={isOpen} onClose={handleClose} title="Clean Up Completed States" maxWidthClass="max-w-3xl">
 			<div className="space-y-6">
 				{/* Age Selector */}
 				<div>
 					<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-						Move tasks to completed folder if they are older than:
+						Move states to completed folder if they are older than:
 					</label>
 					<div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
 							{AGE_OPTIONS.map(option => (
@@ -119,7 +119,7 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 							))}
 						</div>
 						<p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-							Tasks will be moved to the backlog/completed/ folder and removed from the board
+							States will be moved to the roadmap/completed/ folder and removed from the board
 						</p>
 					</div>
 
@@ -142,24 +142,24 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 					<div>
 						{previewCount === 0 ? (
 							<div className="text-center py-8 text-gray-500 dark:text-gray-400">
-								No tasks found that are older than {AGE_OPTIONS.find(o => o.value === selectedAge)?.label}.
+								No states found that are older than {AGE_OPTIONS.find(o => o.value === selectedAge)?.label}.
 							</div>
 						) : (
 							<>
 								<h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-									Found {previewCount} task{previewCount !== 1 ? 's' : ''} to clean up:
+									Found {previewCount} state{previewCount !== 1 ? 's' : ''} to clean up:
 								</h3>
 								<div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
 									<ul className="divide-y divide-gray-200 dark:divide-gray-700">
-										{previewTasks.slice(0, 10).map(task => (
-											<li key={task.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
+										{previewStates.slice(0, 10).map(state => (
+											<li key={state.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-200">
 												<div className="flex justify-between items-start">
 													<div className="flex-1 min-w-0">
 														<p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-															{task.title}
+															{state.title}
 														</p>
 														<p className="text-xs text-gray-500 dark:text-gray-400">
-															{task.id} • {formatDate(task.updatedDate || task.createdDate)}
+															{state.id} • {formatDate(state.updatedDate || state.createdDate)}
 														</p>
 													</div>
 												</div>
@@ -184,8 +184,8 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 							Confirm Cleanup
 						</h3>
 							<p className="text-sm text-amber-700 dark:text-amber-300">
-								Are you sure you want to move {previewCount} task{previewCount !== 1 ? 's' : ''} to the completed folder?
-								These tasks will be moved to backlog/completed/ and removed from the board.
+								Are you sure you want to move {previewCount} state{previewCount !== 1 ? 's' : ''} to the completed folder?
+								These states will be moved to roadmap/completed/ and removed from the board.
 							</p>
 						</div>
 					)}
@@ -216,7 +216,7 @@ const CleanupModal: React.FC<CleanupModalProps> = ({ isOpen, onClose, onSuccess 
 										disabled={isExecuting}
 										className="px-4 py-2 text-sm font-medium text-white bg-red-500 dark:bg-red-600 rounded-md hover:bg-red-600 dark:hover:bg-red-700 disabled:opacity-50 transition-colors duration-200"
 									>
-										{isExecuting ? 'Moving Tasks...' : `Move ${previewCount} Task${previewCount !== 1 ? 's' : ''}`}
+										{isExecuting ? 'Moving States...' : `Move ${previewCount} State${previewCount !== 1 ? 's' : ''}`}
 									</button>
 								)}
 						</>

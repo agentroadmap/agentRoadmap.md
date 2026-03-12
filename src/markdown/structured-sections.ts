@@ -1,13 +1,14 @@
 import type { AcceptanceCriterion } from "../types/index.ts";
 import { getStructuredSectionTitles } from "./section-titles.ts";
 
-export type StructuredSectionKey = "description" | "implementationPlan" | "implementationNotes" | "finalSummary";
+export type StructuredSectionKey = "description" | "implementationPlan" | "implementationNotes" | "finalSummary" | "hype";
 
 export const STRUCTURED_SECTION_KEYS: Record<StructuredSectionKey, StructuredSectionKey> = {
 	description: "description",
 	implementationPlan: "implementationPlan",
 	implementationNotes: "implementationNotes",
 	finalSummary: "finalSummary",
+	hype: "hype",
 };
 
 interface SectionConfig {
@@ -20,6 +21,7 @@ const SECTION_CONFIG: Record<StructuredSectionKey, SectionConfig> = {
 	implementationPlan: { title: "Implementation Plan", markerId: "PLAN" },
 	implementationNotes: { title: "Implementation Notes", markerId: "NOTES" },
 	finalSummary: { title: "Final Summary", markerId: "FINAL_SUMMARY" },
+	hype: { title: "Hype", markerId: "HYPE" },
 };
 
 const SECTION_INSERTION_ORDER: StructuredSectionKey[] = [
@@ -27,6 +29,7 @@ const SECTION_INSERTION_ORDER: StructuredSectionKey[] = [
 	"implementationPlan",
 	"implementationNotes",
 	"finalSummary",
+	"hype",
 ];
 
 const ACCEPTANCE_CRITERIA_SECTION_HEADER = "## Acceptance Criteria";

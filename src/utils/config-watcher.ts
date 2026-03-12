@@ -1,9 +1,9 @@
 import { type FSWatcher, watch } from "node:fs";
-import type { Core } from "../core/backlog.ts";
-import type { BacklogConfig } from "../types/index.ts";
+import type { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 
 export interface ConfigWatcherCallbacks {
-	onConfigChanged?: (config: BacklogConfig | null) => void | Promise<void>;
+	onConfigChanged?: (config: RoadmapConfig | null) => void | Promise<void>;
 }
 
 export function watchConfig(core: Core, callbacks: ConfigWatcherCallbacks): { stop: () => void } {

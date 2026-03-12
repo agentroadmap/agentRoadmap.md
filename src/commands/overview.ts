@@ -1,5 +1,5 @@
-import type { Core } from "../core/backlog.ts";
-import { getTaskStatistics } from "../core/statistics.ts";
+import type { Core } from "../core/roadmap.ts";
+import { getStateStatistics } from "../core/statistics.ts";
 import { createLoadingScreen } from "../ui/loading.ts";
 import { renderOverviewTui } from "../ui/overview-tui.ts";
 
@@ -11,17 +11,17 @@ function formatTime(ms: number): string {
 export async function runOverviewCommand(core: Core): Promise<void> {
 	const startTime = performance.now();
 
-	// Load tasks with loading screen
+	// Load states with loading screen
 	const loadingScreen = await createLoadingScreen("Loading project statistics");
 
 	try {
-		// Use the shared task loading logic
+		// Use the shared state loading logic
 		const loadStart = performance.now();
 		const {
-			tasks: activeTasks,
+			states: activeStates,
 			drafts,
 			statuses,
-		} = await core.loadAllTasksForStatistics((msg) =>
+		} = await core.loadAllStatesForStatistics((msg) =>
 			loadingScreen?.update(`${msg} in ${formatTime(performance.now() - loadStart)}`),
 		);
 
@@ -29,7 +29,7 @@ export async function runOverviewCommand(core: Core): Promise<void> {
 
 		// Calculate statistics
 		const statsStart = performance.now();
-		const statistics = getTaskStatistics(activeTasks, drafts, statuses);
+		const statistics = getStateStatistics(activeStates, drafts, statuses);
 		const statsTime = Math.round(performance.now() - statsStart);
 
 		// Display the TUI

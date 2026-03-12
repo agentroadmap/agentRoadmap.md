@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import type { Task } from "../types/index.ts";
-import { createTaskPopup } from "../ui/task-viewer-with-search.ts";
+import type { State } from "../types/index.ts";
+import { createStatePopup } from "../ui/state-viewer-with-search.ts";
 import { createScreen } from "../ui/tui.ts";
 
 describe("TUI Final Summary display", () => {
@@ -15,9 +15,9 @@ describe("TUI Final Summary display", () => {
 				patchedTTY = true;
 			}
 
-			const task: Task = {
-				id: "TASK-1",
-				title: "Summarized task",
+			const state: State = {
+				id: "STATE-1",
+				title: "Summarized state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-01-01",
@@ -26,7 +26,7 @@ describe("TUI Final Summary display", () => {
 				finalSummary: "PR-style summary",
 			};
 
-			const popup = await createTaskPopup(screen, task);
+			const popup = await createStatePopup(screen, state);
 			expect(popup).not.toBeNull();
 
 			const contentArea = popup?.contentArea as
@@ -60,9 +60,9 @@ describe("TUI Final Summary display", () => {
 				patchedTTY = true;
 			}
 
-			const task: Task = {
-				id: "TASK-2",
-				title: "No summary task",
+			const state: State = {
+				id: "STATE-2",
+				title: "No summary state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-01-01",
@@ -70,7 +70,7 @@ describe("TUI Final Summary display", () => {
 				dependencies: [],
 			};
 
-			const popup = await createTaskPopup(screen, task);
+			const popup = await createStatePopup(screen, state);
 			expect(popup).not.toBeNull();
 
 			const contentArea = popup?.contentArea as

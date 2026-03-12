@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, readdir, rename, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { FileSystem } from "../file-system/operations.ts";
-import { serializeTask } from "../markdown/serializer.ts";
-import type { BacklogConfig, Decision, Document, Task } from "../types/index.ts";
+import { serializeState } from "../markdown/serializer.ts";
+import type { RoadmapConfig, Decision, Document, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -12,9 +12,9 @@ describe("FileSystem", () => {
 	let filesystem: FileSystem;
 
 	beforeEach(async () => {
-		TEST_DIR = createUniqueTestDir("test-backlog");
+		TEST_DIR = createUniqueTestDir("test-roadmap");
 		filesystem = new FileSystem(TEST_DIR);
-		await filesystem.ensureBacklogStructure();
+		await filesystem.ensureRoadmapStructure();
 	});
 
 	afterEach(async () => {
@@ -25,16 +25,16 @@ describe("FileSystem", () => {
 		}
 	});
 
-	describe("ensureBacklogStructure", () => {
+	describe("ensureRoadmapStructure", () => {
 		it("should create all required directories", async () => {
 			const expectedDirs = [
-				join(TEST_DIR, "backlog"),
-				join(TEST_DIR, "backlog", "tasks"),
-				join(TEST_DIR, "backlog", "drafts"),
-				join(TEST_DIR, "backlog", "archive", "tasks"),
-				join(TEST_DIR, "backlog", "archive", "drafts"),
-				join(TEST_DIR, "backlog", "docs"),
-				join(TEST_DIR, "backlog", "decisions"),
+				join(TEST_DIR, "roadmap"),
+				join(TEST_DIR, "roadmap", "nodes"),
+				join(TEST_DIR, "roadmap", "drafts"),
+				join(TEST_DIR, "roadmap", "archive", "nodes"),
+				join(TEST_DIR, "roadmap", "archive", "drafts"),
+				join(TEST_DIR, "roadmap", "docs"),
+				join(TEST_DIR, "roadmap", "decisions"),
 			];
 
 			for (const dir of expectedDirs) {
@@ -44,10 +44,10 @@ describe("FileSystem", () => {
 		});
 	});
 
-	describe("task operations", () => {
-		const sampleTask: Task = {
-			id: "task-1",
-			title: "Test Task",
+	describe("state operations", () => {
+		const sampleState: State = {
+			id: "state-1",
+			title: "Test State",
 			status: "To Do",
 			assignee: ["@developer"],
 			reporter: "@manager",
@@ -55,165 +55,165 @@ describe("FileSystem", () => {
 			labels: ["test"],
 			milestone: "v1.0",
 			dependencies: [],
-			description: "This is a test task",
+			description: "This is a test state",
 		};
 
-		it("should save and load a task", async () => {
-			await filesystem.saveTask(sampleTask);
+		it("should save and load a state", async () => {
+			await filesystem.saveState(sampleState);
 
-			const loadedTask = await filesystem.loadTask("task-1");
-			expect(loadedTask?.id).toBe("TASK-1"); // IDs are normalized to uppercase
-			expect(loadedTask?.title).toBe(sampleTask.title);
-			expect(loadedTask?.status).toBe(sampleTask.status);
-			expect(loadedTask?.description).toBe(sampleTask.description);
+			const loadedState = await filesystem.loadState("state-1");
+			expect(loadedState?.id).toBe("STATE-1"); // IDs are normalized to uppercase
+			expect(loadedState?.title).toBe(sampleState.title);
+			expect(loadedState?.status).toBe(sampleState.status);
+			expect(loadedState?.description).toBe(sampleState.description);
 		});
 
-		it("should return null for non-existent task", async () => {
-			const task = await filesystem.loadTask("non-existent");
-			expect(task).toBeNull();
+		it("should return null for non-existent state", async () => {
+			const state = await filesystem.loadState("non-existent");
+			expect(state).toBeNull();
 		});
 
-		it("should list all tasks", async () => {
-			await filesystem.saveTask(sampleTask);
-			await filesystem.saveTask({
-				...sampleTask,
-				id: "task-2",
-				title: "Second Task",
+		it("should list all states", async () => {
+			await filesystem.saveState(sampleState);
+			await filesystem.saveState({
+				...sampleState,
+				id: "state-2",
+				title: "Second State",
 			});
 
-			const tasks = await filesystem.listTasks();
-			expect(tasks).toHaveLength(2);
-			expect(tasks.map((t) => t.id)).toEqual(["TASK-1", "TASK-2"]); // IDs are normalized to uppercase
+			const states = await filesystem.listStates();
+			expect(states).toHaveLength(2);
+			expect(states.map((t) => t.id)).toEqual(["STATE-1", "STATE-2"]); // IDs are normalized to uppercase
 		});
 
-		it("should list tasks even when one file has invalid frontmatter", async () => {
-			await filesystem.saveTask(sampleTask);
-			await filesystem.saveTask({
-				...sampleTask,
-				id: "task-2",
-				title: "Second Task",
+		it("should list states even when one file has invalid frontmatter", async () => {
+			await filesystem.saveState(sampleState);
+			await filesystem.saveState({
+				...sampleState,
+				id: "state-2",
+				title: "Second State",
 			});
 
-			const invalidPath = join(filesystem.tasksDir, "task-99 - invalid.md");
+			const invalidPath = join(filesystem.statesDir, "state-99 - invalid.md");
 			await Bun.write(
 				invalidPath,
 				`---
-id: task-99
+id: state-99
 assignee: [@broken
 status: To Do
-title: Broken Task
+title: Broken State
 ---
 
 Invalid content`,
 			);
 
-			const tasks = await filesystem.listTasks();
-			expect(tasks.map((t) => t.id)).toEqual(["TASK-1", "TASK-2"]); // IDs normalized to uppercase
+			const states = await filesystem.listStates();
+			expect(states.map((t) => t.id)).toEqual(["STATE-1", "STATE-2"]); // IDs normalized to uppercase
 		});
 
-		it("should sort tasks numerically by ID", async () => {
-			// Create tasks with IDs that would sort incorrectly with string comparison
-			const taskIds = ["task-2", "task-10", "task-1", "task-20", "task-3"];
-			for (const id of taskIds) {
-				await filesystem.saveTask({
-					...sampleTask,
+		it("should sort states numerically by ID", async () => {
+			// Create states with IDs that would sort incorrectly with string comparison
+			const stateIds = ["state-2", "state-10", "state-1", "state-20", "state-3"];
+			for (const id of stateIds) {
+				await filesystem.saveState({
+					...sampleState,
 					id,
-					title: `Task ${id}`,
+					title: `State ${id}`,
 				});
 			}
 
-			const tasks = await filesystem.listTasks();
-			expect(tasks.map((t) => t.id)).toEqual(["TASK-1", "TASK-2", "TASK-3", "TASK-10", "TASK-20"]); // IDs normalized to uppercase
+			const states = await filesystem.listStates();
+			expect(states.map((t) => t.id)).toEqual(["STATE-1", "STATE-2", "STATE-3", "STATE-10", "STATE-20"]); // IDs normalized to uppercase
 		});
 
-		it("should sort tasks with decimal IDs correctly", async () => {
-			// Create tasks with decimal IDs
-			const taskIds = ["task-2.10", "task-2.2", "task-2", "task-1", "task-2.1"];
-			for (const id of taskIds) {
-				await filesystem.saveTask({
-					...sampleTask,
+		it("should sort states with decimal IDs correctly", async () => {
+			// Create states with decimal IDs
+			const stateIds = ["state-2.10", "state-2.2", "state-2", "state-1", "state-2.1"];
+			for (const id of stateIds) {
+				await filesystem.saveState({
+					...sampleState,
 					id,
-					title: `Task ${id}`,
+					title: `State ${id}`,
 				});
 			}
 
-			const tasks = await filesystem.listTasks();
-			expect(tasks.map((t) => t.id)).toEqual(["TASK-1", "TASK-2", "TASK-2.1", "TASK-2.2", "TASK-2.10"]); // IDs normalized to uppercase
+			const states = await filesystem.listStates();
+			expect(states.map((t) => t.id)).toEqual(["STATE-1", "STATE-2", "STATE-2.1", "STATE-2.2", "STATE-2.10"]); // IDs normalized to uppercase
 		});
 
-		it("should filter tasks by status and assignee", async () => {
-			await filesystem.saveTask({
-				...sampleTask,
-				id: "task-1",
+		it("should filter states by status and assignee", async () => {
+			await filesystem.saveState({
+				...sampleState,
+				id: "state-1",
 				status: "To Do",
 				assignee: ["alice"],
-				title: "Task 1",
+				title: "State 1",
 			});
-			await filesystem.saveTask({
-				...sampleTask,
-				id: "task-2",
+			await filesystem.saveState({
+				...sampleState,
+				id: "state-2",
 				status: "Done",
 				assignee: ["bob"],
-				title: "Task 2",
+				title: "State 2",
 			});
-			await filesystem.saveTask({
-				...sampleTask,
-				id: "task-3",
+			await filesystem.saveState({
+				...sampleState,
+				id: "state-3",
 				status: "To Do",
 				assignee: ["bob"],
-				title: "Task 3",
+				title: "State 3",
 			});
 
-			const statusFiltered = await filesystem.listTasks({ status: "to do" });
-			expect(statusFiltered.map((t) => t.id)).toEqual(["TASK-1", "TASK-3"]); // IDs normalized to uppercase
+			const statusFiltered = await filesystem.listStates({ status: "to do" });
+			expect(statusFiltered.map((t) => t.id)).toEqual(["STATE-1", "STATE-3"]); // IDs normalized to uppercase
 
-			const assigneeFiltered = await filesystem.listTasks({ assignee: "bob" });
-			expect(assigneeFiltered.map((t) => t.id)).toEqual(["TASK-2", "TASK-3"]); // IDs normalized to uppercase
+			const assigneeFiltered = await filesystem.listStates({ assignee: "bob" });
+			expect(assigneeFiltered.map((t) => t.id)).toEqual(["STATE-2", "STATE-3"]); // IDs normalized to uppercase
 
-			const combinedFiltered = await filesystem.listTasks({ status: "to do", assignee: "bob" });
-			expect(combinedFiltered.map((t) => t.id)).toEqual(["TASK-3"]); // IDs normalized to uppercase
+			const combinedFiltered = await filesystem.listStates({ status: "to do", assignee: "bob" });
+			expect(combinedFiltered.map((t) => t.id)).toEqual(["STATE-3"]); // IDs normalized to uppercase
 		});
 
-		it("should archive a task", async () => {
-			await filesystem.saveTask(sampleTask);
+		it("should archive a state", async () => {
+			await filesystem.saveState(sampleState);
 
-			const archived = await filesystem.archiveTask("task-1");
+			const archived = await filesystem.archiveState("state-1");
 			expect(archived).toBe(true);
 
-			const task = await filesystem.loadTask("task-1");
-			expect(task).toBeNull();
+			const state = await filesystem.loadState("state-1");
+			expect(state).toBeNull();
 
 			// Check that file exists in archive
-			const archiveFiles = await readdir(join(TEST_DIR, "backlog", "archive", "tasks"));
-			expect(archiveFiles.some((f) => f.startsWith("task-1"))).toBe(true);
+			const archiveFiles = await readdir(join(TEST_DIR, "roadmap", "archive", "nodes"));
+			expect(archiveFiles.some((f) => f.startsWith("state-1"))).toBe(true);
 		});
 
-		it("should demote a task to drafts with new draft- ID", async () => {
-			await filesystem.saveTask(sampleTask);
+		it("should demote a state to drafts with new draft- ID", async () => {
+			await filesystem.saveState(sampleState);
 
-			const demoted = await filesystem.demoteTask("task-1");
+			const demoted = await filesystem.demoteState("state-1");
 			expect(demoted).toBe(true);
 
-			// Task should be removed from tasks directory
-			const tasksFiles = await readdir(join(TEST_DIR, "backlog", "tasks"));
-			expect(tasksFiles.some((f) => f.startsWith("task-1"))).toBe(false);
+			// State should be removed from states directory
+			const statesFiles = await readdir(join(TEST_DIR, "roadmap", "nodes"));
+			expect(statesFiles.some((f) => f.startsWith("state-1"))).toBe(false);
 
 			// Draft should exist with new draft- ID
-			const draftsFiles = await readdir(join(TEST_DIR, "backlog", "drafts"));
+			const draftsFiles = await readdir(join(TEST_DIR, "roadmap", "drafts"));
 			expect(draftsFiles.some((f) => f.startsWith("draft-1"))).toBe(true);
 
 			// Verify the demoted draft can be loaded and has correct ID
 			const demotedDraft = await filesystem.loadDraft("draft-1");
 			expect(demotedDraft?.id).toBe("DRAFT-1");
-			expect(demotedDraft?.title).toBe(sampleTask.title);
+			expect(demotedDraft?.title).toBe(sampleState.title);
 		});
 	});
 
 	describe("draft operations", () => {
 		// Drafts now use DRAFT-X id format and draft-x filename prefix
-		const sampleDraft: Task = {
+		const sampleDraft: State = {
 			id: "draft-1",
-			title: "Draft Task",
+			title: "Draft State",
 			status: "Draft",
 			assignee: [],
 			createdDate: "2025-06-07",
@@ -238,36 +238,36 @@ Invalid content`,
 			expect(drafts.map((d) => d.id).sort()).toEqual(["DRAFT-1", "DRAFT-2"]);
 		});
 
-		it("should promote a draft to tasks with new task- ID", async () => {
+		it("should promote a draft to states with new state- ID", async () => {
 			await filesystem.saveDraft(sampleDraft);
 
 			const promoted = await filesystem.promoteDraft("draft-1");
 			expect(promoted).toBe(true);
 
 			// Draft should be removed from drafts directory
-			const draftsFiles = await readdir(join(TEST_DIR, "backlog", "drafts"));
+			const draftsFiles = await readdir(join(TEST_DIR, "roadmap", "drafts"));
 			expect(draftsFiles.some((f) => f.startsWith("draft-1"))).toBe(false);
 
-			// Task should exist with new task- ID
-			const tasksFiles = await readdir(join(TEST_DIR, "backlog", "tasks"));
-			expect(tasksFiles.some((f) => f.startsWith("task-1"))).toBe(true);
+			// State should exist with new state- ID
+			const statesFiles = await readdir(join(TEST_DIR, "roadmap", "nodes"));
+			expect(statesFiles.some((f) => f.startsWith("state-1"))).toBe(true);
 
-			// Verify the promoted task can be loaded and has correct ID
-			const promotedTask = await filesystem.loadTask("task-1");
-			expect(promotedTask?.id).toBe("TASK-1");
-			expect(promotedTask?.title).toBe(sampleDraft.title);
+			// Verify the promoted state can be loaded and has correct ID
+			const promotedState = await filesystem.loadState("state-1");
+			expect(promotedState?.id).toBe("STATE-1");
+			expect(promotedState?.title).toBe(sampleDraft.title);
 		});
 
-		it("should promote draft with custom task prefix", async () => {
-			// Configure custom task prefix
-			const customConfig: BacklogConfig = {
+		it("should promote draft with custom state prefix", async () => {
+			// Configure custom state prefix
+			const customConfig: RoadmapConfig = {
 				projectName: "Custom Prefix Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
 				milestones: [],
 				dateFormat: "yyyy-MM-dd",
 				prefixes: {
-					task: "JIRA",
+					state: "JIRA",
 				},
 			};
 			await filesystem.saveConfig(customConfig);
@@ -277,56 +277,56 @@ Invalid content`,
 			expect(promoted).toBe(true);
 
 			// Draft should be removed
-			const draftsFiles = await readdir(join(TEST_DIR, "backlog", "drafts"));
+			const draftsFiles = await readdir(join(TEST_DIR, "roadmap", "drafts"));
 			expect(draftsFiles.some((f) => f.startsWith("draft-1"))).toBe(false);
 
-			// Task should exist with custom JIRA- prefix
-			const tasksFiles = await readdir(join(TEST_DIR, "backlog", "tasks"));
-			expect(tasksFiles.some((f) => f.startsWith("jira-1"))).toBe(true);
+			// State should exist with custom JIRA- prefix
+			const statesFiles = await readdir(join(TEST_DIR, "roadmap", "nodes"));
+			expect(statesFiles.some((f) => f.startsWith("jira-1"))).toBe(true);
 
-			// Verify the promoted task can be loaded with the custom prefix
-			const promotedTask = await filesystem.loadTask("jira-1");
-			expect(promotedTask?.id).toBe("JIRA-1");
-			expect(promotedTask?.title).toBe(sampleDraft.title);
+			// Verify the promoted state can be loaded with the custom prefix
+			const promotedState = await filesystem.loadState("jira-1");
+			expect(promotedState?.id).toBe("JIRA-1");
+			expect(promotedState?.title).toBe(sampleDraft.title);
 		});
 
-		it("should not reuse completed task IDs when promoting draft", async () => {
-			// Create a completed task directly in the completed directory
-			// This simulates a task that was created and completed before the draft
-			const completedDir = join(TEST_DIR, "backlog", "completed");
+		it("should not reuse completed state IDs when promoting draft", async () => {
+			// Create a completed state directly in the completed directory
+			// This simulates a state that was created and completed before the draft
+			const completedDir = join(TEST_DIR, "roadmap", "completed");
 			await mkdir(completedDir, { recursive: true });
 
-			const completedTask: Task = {
-				id: "TASK-1",
-				title: "Completed Task",
+			const completedState: State = {
+				id: "STATE-1",
+				title: "Completed State",
 				status: "Done",
 				assignee: [],
 				createdDate: "2025-01-01",
 				labels: [],
 				dependencies: [],
 			};
-			const content = serializeTask(completedTask);
-			await Bun.write(join(completedDir, "task-1 - Completed Task.md"), content);
+			const content = serializeState(completedState);
+			await Bun.write(join(completedDir, "state-1 - Completed State.md"), content);
 
-			// Verify no active tasks exist
-			const activeTasks = await filesystem.listTasks();
-			expect(activeTasks.length).toBe(0);
+			// Verify no active states exist
+			const activeStates = await filesystem.listStates();
+			expect(activeStates.length).toBe(0);
 
-			// Verify completed task exists
-			const completedTasks = await filesystem.listCompletedTasks();
-			expect(completedTasks.length).toBe(1);
-			expect(completedTasks[0]?.id).toBe("TASK-1");
+			// Verify completed state exists
+			const completedStates = await filesystem.listCompletedStates();
+			expect(completedStates.length).toBe(1);
+			expect(completedStates[0]?.id).toBe("STATE-1");
 
 			// Create and promote a draft
 			await filesystem.saveDraft(sampleDraft);
 			const promoted = await filesystem.promoteDraft("draft-1");
 			expect(promoted).toBe(true);
 
-			// BUG: Currently returns TASK-1 because promoteDraft only checks active tasks
-			// Expected: Should return TASK-2 to avoid collision with completed task
-			const promotedTask = await filesystem.loadTask("task-2");
-			expect(promotedTask?.id).toBe("TASK-2");
-			expect(promotedTask?.title).toBe(sampleDraft.title);
+			// BUG: Currently returns STATE-1 because promoteDraft only checks active states
+			// Expected: Should return STATE-2 to avoid collision with completed state
+			const promotedState = await filesystem.loadState("state-2");
+			expect(promotedState?.id).toBe("STATE-2");
+			expect(promotedState?.title).toBe(sampleDraft.title);
 		});
 
 		it("should archive a draft", async () => {
@@ -338,13 +338,13 @@ Invalid content`,
 			const draft = await filesystem.loadDraft("draft-1");
 			expect(draft).toBeNull();
 
-			const files = await readdir(join(TEST_DIR, "backlog", "archive", "drafts"));
+			const files = await readdir(join(TEST_DIR, "roadmap", "archive", "drafts"));
 			expect(files.some((f) => f.startsWith("draft-1"))).toBe(true);
 		});
 	});
 
 	describe("config operations", () => {
-		const sampleConfig: BacklogConfig = {
+		const sampleConfig: RoadmapConfig = {
 			projectName: "Test Project",
 			defaultAssignee: "@admin",
 			defaultStatus: "To Do",
@@ -364,14 +364,14 @@ Invalid content`,
 		it("should return null for missing config", async () => {
 			// Create a fresh filesystem without any config
 			const freshFilesystem = new FileSystem(join(TEST_DIR, "fresh"));
-			await freshFilesystem.ensureBacklogStructure();
+			await freshFilesystem.ensureRoadmapStructure();
 
 			const config = await freshFilesystem.loadConfig();
 			expect(config).toBeNull();
 		});
 
 		it("should handle defaultReporter field", async () => {
-			const cfg: BacklogConfig = {
+			const cfg: RoadmapConfig = {
 				projectName: "Reporter",
 				defaultReporter: "@author",
 				statuses: ["To Do"],
@@ -400,10 +400,10 @@ Invalid content`,
 
 	describe("directory accessors", () => {
 		it("should provide correct directory paths", () => {
-			expect(filesystem.tasksDir).toBe(join(TEST_DIR, "backlog", "tasks"));
-			expect(filesystem.archiveTasksDir).toBe(join(TEST_DIR, "backlog", "archive", "tasks"));
-			expect(filesystem.decisionsDir).toBe(join(TEST_DIR, "backlog", "decisions"));
-			expect(filesystem.docsDir).toBe(join(TEST_DIR, "backlog", "docs"));
+			expect(filesystem.statesDir).toBe(join(TEST_DIR, "roadmap", "nodes"));
+			expect(filesystem.archiveStatesDir).toBe(join(TEST_DIR, "roadmap", "archive", "nodes"));
+			expect(filesystem.decisionsDir).toBe(join(TEST_DIR, "roadmap", "decisions"));
+			expect(filesystem.docsDir).toBe(join(TEST_DIR, "roadmap", "docs"));
 		});
 	});
 
@@ -603,27 +603,27 @@ Invalid content`,
 	});
 
 	describe("edge cases", () => {
-		it("should handle task with task- prefix in id", async () => {
-			const taskWithPrefix: Task = {
-				id: "task-prefixed",
+		it("should handle state with state- prefix in id", async () => {
+			const stateWithPrefix: State = {
+				id: "state-prefixed",
 				title: "Already Prefixed",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task with task- prefix",
+				description: "State with state- prefix",
 			};
 
-			await filesystem.saveTask(taskWithPrefix);
-			const loaded = await filesystem.loadTask("task-prefixed");
+			await filesystem.saveState(stateWithPrefix);
+			const loaded = await filesystem.loadState("state-prefixed");
 
-			expect(loaded?.id).toBe("TASK-PREFIXED"); // IDs are normalized to uppercase
+			expect(loaded?.id).toBe("STATE-PREFIXED"); // IDs are normalized to uppercase
 		});
 
-		it("should handle task without task- prefix in id", async () => {
+		it("should handle state without state- prefix in id", async () => {
 			// ID without any prefix pattern (no letters-dash)
-			const taskWithoutPrefix: Task = {
+			const stateWithoutPrefix: State = {
 				id: "123",
 				title: "No Prefix",
 				status: "To Do",
@@ -631,19 +631,19 @@ Invalid content`,
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task without prefix",
+				description: "State without prefix",
 			};
 
-			await filesystem.saveTask(taskWithoutPrefix);
-			const loaded = await filesystem.loadTask("task-123");
+			await filesystem.saveState(stateWithoutPrefix);
+			const loaded = await filesystem.loadState("state-123");
 
-			// IDs without prefix get the configured (or default) task prefix
-			expect(loaded?.id).toBe("TASK-123");
+			// IDs without prefix get the configured (or default) state prefix
+			expect(loaded?.id).toBe("STATE-123");
 		});
 
 		it("should preserve custom prefix in id", async () => {
 			// ID with a custom prefix pattern (letters-something)
-			const taskWithCustomPrefix: Task = {
+			const stateWithCustomPrefix: State = {
 				id: "JIRA-456",
 				title: "Custom Prefix",
 				status: "To Do",
@@ -651,28 +651,28 @@ Invalid content`,
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task with custom prefix",
+				description: "State with custom prefix",
 			};
 
-			await filesystem.saveTask(taskWithCustomPrefix);
-			const loaded = await filesystem.loadTask("jira-456");
+			await filesystem.saveState(stateWithCustomPrefix);
+			const loaded = await filesystem.loadState("jira-456");
 
 			// IDs with existing prefix are preserved (normalized to uppercase)
 			expect(loaded?.id).toBe("JIRA-456");
 		});
 
-		it("should return empty array when listing tasks in empty directory", async () => {
-			const tasks = await filesystem.listTasks();
-			expect(tasks).toEqual([]);
+		it("should return empty array when listing states in empty directory", async () => {
+			const states = await filesystem.listStates();
+			expect(states).toEqual([]);
 		});
 
-		it("should return false when archiving non-existent task", async () => {
-			const result = await filesystem.archiveTask("non-existent");
+		it("should return false when archiving non-existent state", async () => {
+			const result = await filesystem.archiveState("non-existent");
 			expect(result).toBe(false);
 		});
 
 		it("should handle config with all optional fields", async () => {
-			const fullConfig: BacklogConfig = {
+			const fullConfig: RoadmapConfig = {
 				projectName: "Full Project",
 				defaultAssignee: "@admin",
 				defaultStatus: "To Do",
@@ -689,7 +689,7 @@ Invalid content`,
 		});
 
 		it("should handle config with minimal fields", async () => {
-			const minimalConfig: BacklogConfig = {
+			const minimalConfig: RoadmapConfig = {
 				projectName: "Minimal Project",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -705,122 +705,122 @@ Invalid content`,
 		});
 
 		it("should sanitize filenames correctly", async () => {
-			const taskWithSpecialChars: Task = {
-				id: "task-special",
-				title: "Task/with\\special:chars?",
+			const stateWithSpecialChars: State = {
+				id: "state-special",
+				title: "State/with\\special:chars?",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task with special characters in title",
+				description: "State with special characters in title",
 			};
 
-			await filesystem.saveTask(taskWithSpecialChars);
-			const loaded = await filesystem.loadTask("task-special");
+			await filesystem.saveState(stateWithSpecialChars);
+			const loaded = await filesystem.loadState("state-special");
 
-			expect(loaded?.title).toBe("Task/with\\special:chars?");
+			expect(loaded?.title).toBe("State/with\\special:chars?");
 		});
 
 		it("should preserve case in filenames", async () => {
-			const taskWithMixedCase: Task = {
-				id: "task-mixed",
-				title: "Fix Task List Ordering",
+			const stateWithMixedCase: State = {
+				id: "state-mixed",
+				title: "Fix State List Ordering",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task with mixed case title",
+				description: "State with mixed case title",
 			};
 
-			await filesystem.saveTask(taskWithMixedCase);
+			await filesystem.saveState(stateWithMixedCase);
 
 			// Check that the file exists with preserved case
-			const files = await readdir(filesystem.tasksDir);
-			const taskFile = files.find((f) => f.startsWith("task-mixed -"));
-			expect(taskFile).toBe("task-mixed - Fix-Task-List-Ordering.md");
+			const files = await readdir(filesystem.statesDir);
+			const stateFile = files.find((f) => f.startsWith("state-mixed -"));
+			expect(stateFile).toBe("state-mixed - Fix-State-List-Ordering.md");
 
-			// Verify the task can be loaded
-			const loaded = await filesystem.loadTask("task-mixed");
-			expect(loaded?.title).toBe("Fix Task List Ordering");
+			// Verify the state can be loaded
+			const loaded = await filesystem.loadState("state-mixed");
+			expect(loaded?.title).toBe("Fix State List Ordering");
 		});
 
 		it("should strip punctuation from filenames", async () => {
-			const taskWithPunctuation: Task = {
-				id: "task-punct",
+			const stateWithPunctuation: State = {
+				id: "state-punct",
 				title: "Fix the user's login (OAuth)! #1",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Task with punctuation in the title",
+				description: "State with punctuation in the title",
 			};
 
-			await filesystem.saveTask(taskWithPunctuation);
+			await filesystem.saveState(stateWithPunctuation);
 
-			const files = await readdir(filesystem.tasksDir);
-			const filename = files.find((f) => f.startsWith("task-punct -"));
-			expect(filename).toBe("task-punct - Fix-the-users-login-OAuth-1.md");
+			const files = await readdir(filesystem.statesDir);
+			const filename = files.find((f) => f.startsWith("state-punct -"));
+			expect(filename).toBe("state-punct - Fix-the-users-login-OAuth-1.md");
 		});
 
-		it("should load tasks with legacy filenames containing punctuation", async () => {
-			const legacyTask: Task = {
-				id: "task-legacy",
+		it("should load states with legacy filenames containing punctuation", async () => {
+			const legacyState: State = {
+				id: "state-legacy",
 				title: "Legacy user's login (OAuth)",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
 				labels: [],
 				dependencies: [],
-				description: "Legacy punctuation task",
+				description: "Legacy punctuation state",
 			};
 
-			await filesystem.saveTask(legacyTask);
+			await filesystem.saveState(legacyState);
 
-			const files = await readdir(filesystem.tasksDir);
-			const originalFilename = files.find((f) => f.startsWith("task-legacy -"));
+			const files = await readdir(filesystem.statesDir);
+			const originalFilename = files.find((f) => f.startsWith("state-legacy -"));
 			expect(originalFilename).toBeDefined();
 
-			const legacyFilename = "task-legacy - Legacy-user's-login-(OAuth).md";
-			await rename(join(filesystem.tasksDir, originalFilename as string), join(filesystem.tasksDir, legacyFilename));
+			const legacyFilename = "state-legacy - Legacy-user's-login-(OAuth).md";
+			await rename(join(filesystem.statesDir, originalFilename as string), join(filesystem.statesDir, legacyFilename));
 
-			const loaded = await filesystem.loadTask("task-legacy");
+			const loaded = await filesystem.loadState("state-legacy");
 			expect(loaded?.title).toBe("Legacy user's login (OAuth)");
 		});
 
-		it("should sanitize a variety of problematic task titles", async () => {
+		it("should sanitize a variety of problematic state titles", async () => {
 			const cases: Array<{ id: string; title: string; expected: string }> = [
 				{
-					id: "task-bad-1",
+					id: "state-bad-1",
 					title: "Fix the user's login (OAuth)! #1",
 					expected: "Fix-the-users-login-OAuth-1",
 				},
 				{
-					id: "task-bad-2",
+					id: "state-bad-2",
 					title: "Crazy!@#$%^&*()Name",
 					expected: "Crazy-Name",
 				},
 				{
-					id: "task-bad-3",
+					id: "state-bad-3",
 					title: "File with <bad> |chars| and /slashes\\",
 					expected: "File-with-bad-chars-and-slashes",
 				},
 				{
-					id: "task-bad-4",
+					id: "state-bad-4",
 					title: "Tabs\tand\nnewlines",
 					expected: "Tabs-and-newlines",
 				},
 				{
-					id: "task-bad-5",
+					id: "state-bad-5",
 					title: "Edge -- dashes ???",
 					expected: "Edge-dashes",
 				},
 			];
 
 			for (const { id, title, expected } of cases) {
-				await filesystem.saveTask({
+				await filesystem.saveState({
 					id,
 					title,
 					status: "To Do",
@@ -831,15 +831,15 @@ Invalid content`,
 					description: "Sanitization test",
 				});
 
-				const files = await readdir(filesystem.tasksDir);
+				const files = await readdir(filesystem.statesDir);
 				expect(files).toContain(`${id} - ${expected}.md`);
 			}
 		});
 
 		it("should avoid double dashes in filenames", async () => {
-			const weirdTask: Task = {
-				id: "task-dashes",
-				title: "Task -- with  -- multiple   dashes",
+			const weirdState: State = {
+				id: "state-dashes",
+				title: "State -- with  -- multiple   dashes",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-07",
@@ -848,9 +848,9 @@ Invalid content`,
 				description: "Check double dashes",
 			};
 
-			await filesystem.saveTask(weirdTask);
-			const files = await readdir(filesystem.tasksDir);
-			const filename = files.find((f) => f.startsWith("task-dashes -"));
+			await filesystem.saveState(weirdState);
+			const files = await readdir(filesystem.statesDir);
+			const filename = files.find((f) => f.startsWith("state-dashes -"));
 			expect(filename).toBeDefined();
 			expect(filename?.includes("--")).toBe(false);
 		});

@@ -21,9 +21,9 @@ describe("CLI search command", () => {
 		const core = new Core(TEST_DIR);
 		await core.initializeProject("Search Command Project");
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "Central search integration",
 				status: "To Do",
 				assignee: ["@codex"],
@@ -36,9 +36,9 @@ describe("CLI search command", () => {
 			false,
 		);
 
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-2",
+				id: "state-2",
 				title: "High priority follow-up",
 				status: "In Progress",
 				assignee: ["@codex"],
@@ -76,41 +76,41 @@ describe("CLI search command", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("returns matching tasks, documents, and decisions in plain output", async () => {
+	it("returns matching states, documents, and decisions in plain output", async () => {
 		const result = await $`bun ${cliPath} search central --plain`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
 		const stdout = result.stdout.toString();
-		expect(stdout).toContain("Tasks:");
-		expect(stdout).toContain("TASK-1 - Central search integration");
+		expect(stdout).toContain("States:");
+		expect(stdout).toContain("STATE-1 - Central search integration");
 		expect(stdout).toContain("Documents:");
 		expect(stdout).toContain("doc-1 - Search Architecture Notes");
 		expect(stdout).toContain("Decisions:");
 		expect(stdout).toContain("decision-1 - Adopt centralized search");
 	});
 
-	it("honors status and priority filters for task results", async () => {
-		const statusResult = await $`bun ${cliPath} search follow-up --type task --status "In Progress" --plain`
+	it("honors status and priority filters for state results", async () => {
+		const statusResult = await $`bun ${cliPath} search follow-up --type state --status "In Progress" --plain`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(statusResult.exitCode).toBe(0);
 		const statusStdout = statusResult.stdout.toString();
-		expect(statusStdout).toContain("TASK-2 - High priority follow-up");
-		expect(statusStdout).not.toContain("TASK-1 - Central search integration");
+		expect(statusStdout).toContain("STATE-2 - High priority follow-up");
+		expect(statusStdout).not.toContain("STATE-1 - Central search integration");
 
-		const priorityResult = await $`bun ${cliPath} search follow-up --type task --priority high --plain`
+		const priorityResult = await $`bun ${cliPath} search follow-up --type state --priority high --plain`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(priorityResult.exitCode).toBe(0);
 		const priorityStdout = priorityResult.stdout.toString();
-		expect(priorityStdout).toContain("TASK-2 - High priority follow-up");
+		expect(priorityStdout).toContain("STATE-2 - High priority follow-up");
 	});
 
 	it("applies result limit", async () => {
 		const result = await $`bun ${cliPath} search search --plain --limit 1`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 		const stdout = result.stdout.toString();
-		const taskMatches = stdout.match(/TASK-\d+ -/g) || [];
-		expect(taskMatches.length).toBeLessThanOrEqual(1);
+		const stateMatches = stdout.match(/STATE-\d+ -/g) || [];
+		expect(stateMatches.length).toBeLessThanOrEqual(1);
 	});
 });

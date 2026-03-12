@@ -1,5 +1,5 @@
 import matter from "gray-matter";
-import type { AcceptanceCriterion, Decision, Document, Milestone, ParsedMarkdown, Task } from "../types/index.ts";
+import type { AcceptanceCriterion, Decision, Document, Milestone, ParsedMarkdown, State } from "../types/index.ts";
 import {
 	AcceptanceCriteriaManager,
 	DefinitionOfDoneManager,
@@ -143,7 +143,7 @@ export function parseMarkdown(content: string): ParsedMarkdown {
 	};
 }
 
-export function parseTask(content: string): Task {
+export function parseState(content: string): State {
 	const { frontmatter, content: rawContent } = parseMarkdown(content);
 
 	// Validate priority field
@@ -163,8 +163,8 @@ export function parseTask(content: string): Task {
 	const finalSummarySection = extractStructuredSection(rawContent, STRUCTURED_SECTION_KEYS.finalSummary) || undefined;
 
 	return {
-		id: String(frontmatter.id || ""),
-		title: String(frontmatter.title || ""),
+		id: String(frontmatter.id ?? ""),
+		title: String(frontmatter.title || "") || (rawContent.match(/^# (.*)/m)?.[1] || "").trim(),
 		status: String(frontmatter.status || ""),
 		assignee: Array.isArray(frontmatter.assignee)
 			? frontmatter.assignee.map(String)
@@ -186,8 +186,12 @@ export function parseTask(content: string): Task {
 		implementationPlan: planSection,
 		implementationNotes: notesSection,
 		finalSummary: finalSummarySection,
-		parentTaskId: frontmatter.parent_task_id ? String(frontmatter.parent_task_id) : undefined,
-		subtasks: Array.isArray(frontmatter.subtasks) ? frontmatter.subtasks.map(String) : undefined,
+		parentStateId: frontmatter.parent_state_id ? String(frontmatter.parent_state_id) : undefined,
+		substates: Array.isArray(frontmatter.substates) ? frontmatter.substates.map(String) : undefined,
+		type: frontmatter.type ? String(frontmatter.type).toLowerCase() : undefined,
+		hype: extractStructuredSection(rawContent, STRUCTURED_SECTION_KEYS.hype) || (frontmatter.hype ? String(frontmatter.hype) : undefined),
+		requires: Array.isArray(frontmatter.requires) ? frontmatter.requires.map(String) : [],
+		unlocks: Array.isArray(frontmatter.unlocks) ? frontmatter.unlocks.map(String) : [],
 		priority: validatedPriority,
 		ordinal: frontmatter.ordinal !== undefined ? Number(frontmatter.ordinal) : undefined,
 		onStatusChange: frontmatter.onStatusChange ? String(frontmatter.onStatusChange) : undefined,
@@ -198,8 +202,8 @@ export function parseDecision(content: string): Decision {
 	const { frontmatter, content: rawContent } = parseMarkdown(content);
 
 	return {
-		id: String(frontmatter.id || ""),
-		title: String(frontmatter.title || ""),
+		id: String(frontmatter.id ?? ""),
+		title: String(frontmatter.title || "") || (rawContent.match(/^# (.*)/m)?.[1] || "").trim(),
 		date: normalizeDate(frontmatter.date),
 		status: String(frontmatter.status || "proposed") as Decision["status"],
 		context: extractSection(rawContent, "Context") || "",
@@ -214,8 +218,8 @@ export function parseDocument(content: string): Document {
 	const { frontmatter, content: rawContent } = parseMarkdown(content);
 
 	return {
-		id: String(frontmatter.id || ""),
-		title: String(frontmatter.title || ""),
+		id: String(frontmatter.id ?? ""),
+		title: String(frontmatter.title || "") || (rawContent.match(/^# (.*)/m)?.[1] || "").trim(),
 		type: String(frontmatter.type || "other") as Document["type"],
 		createdDate: normalizeDate(frontmatter.created_date),
 		updatedDate: frontmatter.updated_date ? normalizeDate(frontmatter.updated_date) : undefined,
@@ -228,8 +232,8 @@ export function parseMilestone(content: string): Milestone {
 	const { frontmatter, content: rawContent } = parseMarkdown(content);
 
 	return {
-		id: String(frontmatter.id || ""),
-		title: String(frontmatter.title || ""),
+		id: String(frontmatter.id ?? ""),
+		title: String(frontmatter.title || "") || (rawContent.match(/^# (.*)/m)?.[1] || "").trim(),
 		description: extractSection(rawContent, "Description") || "",
 		rawContent,
 	};

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { initializeProject } from "../core/init.ts";
-import type { BacklogConfig } from "../types/index.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 describe("Enhanced init command", () => {
@@ -34,7 +34,7 @@ describe("Enhanced init command", () => {
 		// Modify some config values to test preservation
 		expect(initialConfig).toBeTruthy();
 		if (!initialConfig) throw new Error("Config not loaded");
-		const modifiedConfig: BacklogConfig = {
+		const modifiedConfig: RoadmapConfig = {
 			...initialConfig,
 			projectName: initialConfig?.projectName ?? "Test Project",
 			autoCommit: true,
@@ -51,8 +51,8 @@ describe("Enhanced init command", () => {
 		expect(existingConfig?.defaultEditor).toBe("vim");
 		expect(existingConfig?.defaultPort).toBe(8080);
 
-		// Verify backlog structure exists
-		const configExists = await Bun.file(join(tmpDir, "backlog", "config.yml")).exists();
+		// Verify roadmap structure exists
+		const configExists = await Bun.file(join(tmpDir, "roadmap", "config.yml")).exists();
 		expect(configExists).toBe(true);
 	});
 
@@ -86,13 +86,13 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			remoteOperations: true,
 			defaultEditor: "code --wait",
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(configWithEditor);
 
 		// Verify editor was saved
@@ -113,7 +113,7 @@ describe("Enhanced init command", () => {
 			dateFormat: "yyyy-mm-dd",
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(minimalConfig);
 
 		// Load config - should handle missing fields gracefully
@@ -129,23 +129,23 @@ describe("Enhanced init command", () => {
 		// Initialize with custom config
 		const customConfig = {
 			projectName: "Custom Project",
-			statuses: ["Backlog", "In Progress", "Review", "Done"],
+			statuses: ["Roadmap", "In Progress", "Review", "Done"],
 			labels: ["bug", "feature", "enhancement"],
 			milestones: ["v1.0", "v2.0"],
-			defaultStatus: "Backlog",
+			defaultStatus: "Roadmap",
 			dateFormat: "dd/mm/yyyy",
 			maxColumnWidth: 30,
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: true,
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(customConfig);
 
 		// Simulate re-initialization by loading existing config
 		const existingConfig = await core.filesystem.loadConfig();
 		expect(existingConfig).toBeTruthy();
-		expect(existingConfig?.statuses).toEqual(["Backlog", "In Progress", "Review", "Done"]);
+		expect(existingConfig?.statuses).toEqual(["Roadmap", "In Progress", "Review", "Done"]);
 		expect(existingConfig?.labels).toEqual(["bug", "feature", "enhancement"]);
 		expect(existingConfig?.dateFormat).toBe("dd/mm/yyyy");
 		expect(existingConfig?.maxColumnWidth).toBe(30);
@@ -154,7 +154,7 @@ describe("Enhanced init command", () => {
 	test("should preserve non-init-managed config fields during re-initialization", async () => {
 		const core = new Core(tmpDir);
 
-		const initialConfig: BacklogConfig = {
+		const initialConfig: RoadmapConfig = {
 			projectName: "Preserve Fields Project",
 			statuses: ["To Do", "In Progress", "Done"],
 			labels: ["bug"],
@@ -174,7 +174,7 @@ describe("Enhanced init command", () => {
 			},
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(initialConfig);
 
 		const existingConfig = await core.filesystem.loadConfig();
@@ -235,13 +235,13 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			remoteOperations: true,
 			zeroPaddedIds: 3,
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(configWithPadding);
 
 		// Verify zero-padding was saved
@@ -249,7 +249,7 @@ describe("Enhanced init command", () => {
 		expect(loadedConfig?.zeroPaddedIds).toBe(3);
 
 		// Test that zero-padding config is available for ID generation
-		// (ID generation happens in CLI, not in Core.createTask)
+		// (ID generation happens in CLI, not in Core.createState)
 		expect(loadedConfig?.zeroPaddedIds).toBe(3);
 	});
 
@@ -264,13 +264,13 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			remoteOperations: true,
 			zeroPaddedIds: 0,
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(configWithoutPadding);
 
 		// Verify zero-padding was saved as disabled
@@ -278,7 +278,7 @@ describe("Enhanced init command", () => {
 		expect(loadedConfig?.zeroPaddedIds).toBe(0);
 
 		// Test that zero-padding is properly disabled
-		// (ID generation happens in CLI, not in Core.createTask)
+		// (ID generation happens in CLI, not in Core.createState)
 		expect(loadedConfig?.zeroPaddedIds).toBe(0);
 	});
 
@@ -293,12 +293,12 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			zeroPaddedIds: 4,
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(initialConfig);
 
 		// Simulate re-initialization by loading existing config
@@ -307,23 +307,23 @@ describe("Enhanced init command", () => {
 		expect(existingConfig?.zeroPaddedIds).toBe(4);
 
 		// Verify the padding config is preserved
-		// (ID generation happens in CLI, not in Core.createTask)
+		// (ID generation happens in CLI, not in Core.createState)
 		expect(existingConfig?.zeroPaddedIds).toBe(4);
 	});
 
-	test("should create default task prefix when not specified", async () => {
+	test("should create default state prefix when not specified", async () => {
 		const core = new Core(tmpDir);
 
 		// Initialize project without custom prefix
 		await core.initializeProject("Default Prefix Project");
 
-		// Verify default prefix is "task"
+		// Verify default prefix is "state"
 		const config = await core.filesystem.loadConfig();
 		expect(config?.prefixes).toBeTruthy();
-		expect(config?.prefixes?.task).toBe("task");
+		expect(config?.prefixes?.state).toBe("state");
 	});
 
-	test("should handle custom task prefix in config", async () => {
+	test("should handle custom state prefix in config", async () => {
 		const core = new Core(tmpDir);
 
 		// Create config with custom prefix
@@ -334,20 +334,20 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			prefixes: {
-				task: "JIRA",
+				state: "JIRA",
 				draft: "draft",
 			},
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(customPrefixConfig);
 
 		// Verify custom prefix was saved
 		const loadedConfig = await core.filesystem.loadConfig();
-		expect(loadedConfig?.prefixes?.task).toBe("JIRA");
+		expect(loadedConfig?.prefixes?.state).toBe("JIRA");
 	});
 
 	test("should preserve existing prefix during re-initialization", async () => {
@@ -361,27 +361,27 @@ describe("Enhanced init command", () => {
 			milestones: [],
 			defaultStatus: "To Do",
 			dateFormat: "yyyy-mm-dd",
-			backlogDirectory: "backlog",
+			roadmapDirectory: "roadmap",
 			autoCommit: false,
 			prefixes: {
-				task: "BUG",
+				state: "BUG",
 				draft: "draft",
 			},
 		};
 
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(initialConfig);
 
 		// Simulate re-initialization by loading existing config
 		const existingConfig = await core.filesystem.loadConfig();
 		expect(existingConfig).toBeTruthy();
-		expect(existingConfig?.prefixes?.task).toBe("BUG");
+		expect(existingConfig?.prefixes?.state).toBe("BUG");
 
 		// Verify the prefix is preserved (cannot be changed after init)
-		expect(existingConfig?.prefixes?.task).toBe("BUG");
+		expect(existingConfig?.prefixes?.state).toBe("BUG");
 	});
 
-	test("initializeProject should use custom taskPrefix from advancedConfig", async () => {
+	test("initializeProject should use custom statePrefix from advancedConfig", async () => {
 		const core = new Core(tmpDir);
 
 		// Initialize project with custom prefix via initializeProject function
@@ -389,16 +389,16 @@ describe("Enhanced init command", () => {
 			projectName: "JIRA Init Test",
 			integrationMode: "none",
 			advancedConfig: {
-				taskPrefix: "JIRA",
+				statePrefix: "JIRA",
 			},
 		});
 
 		expect(result.success).toBe(true);
-		expect(result.config.prefixes?.task).toBe("JIRA");
+		expect(result.config.prefixes?.state).toBe("JIRA");
 
 		// Verify it was saved
 		const loadedConfig = await core.filesystem.loadConfig();
-		expect(loadedConfig?.prefixes?.task).toBe("JIRA");
+		expect(loadedConfig?.prefixes?.state).toBe("JIRA");
 	});
 
 	test("initializeProject should preserve existing prefix on re-init", async () => {
@@ -409,26 +409,26 @@ describe("Enhanced init command", () => {
 			projectName: "Re-Init Test",
 			integrationMode: "none",
 			advancedConfig: {
-				taskPrefix: "ISSUE",
+				statePrefix: "ISSUE",
 			},
 		});
 
 		// Verify initial prefix
 		const initialConfig = await core.filesystem.loadConfig();
-		expect(initialConfig?.prefixes?.task).toBe("ISSUE");
+		expect(initialConfig?.prefixes?.state).toBe("ISSUE");
 
-		// Re-initialize (simulating re-init with different taskPrefix - should be ignored)
+		// Re-initialize (simulating re-init with different statePrefix - should be ignored)
 		const result = await initializeProject(core, {
 			projectName: "Re-Init Test Updated",
 			integrationMode: "none",
 			existingConfig: initialConfig,
 			advancedConfig: {
-				taskPrefix: "CHANGED", // This should be ignored since existingConfig has prefixes
+				statePrefix: "CHANGED", // This should be ignored since existingConfig has prefixes
 			},
 		});
 
 		// Verify prefix was preserved from existingConfig
-		expect(result.config.prefixes?.task).toBe("ISSUE");
+		expect(result.config.prefixes?.state).toBe("ISSUE");
 	});
 
 	test("initializeProject should use default prefix when not specified", async () => {
@@ -441,7 +441,7 @@ describe("Enhanced init command", () => {
 		});
 
 		expect(result.success).toBe(true);
-		expect(result.config.prefixes?.task).toBe("task");
+		expect(result.config.prefixes?.state).toBe("state");
 	});
 
 	test("prefixes should persist to disk and reload correctly with new Core instance", async () => {
@@ -452,7 +452,7 @@ describe("Enhanced init command", () => {
 			projectName: "Disk Persistence Test",
 			integrationMode: "none",
 			advancedConfig: {
-				taskPrefix: "PERSIST",
+				statePrefix: "PERSIST",
 			},
 		});
 
@@ -462,6 +462,6 @@ describe("Enhanced init command", () => {
 		const loadedConfig = await core2.filesystem.loadConfig();
 
 		// This test would fail if prefixes aren't properly serialized/parsed from disk
-		expect(loadedConfig?.prefixes?.task).toBe("PERSIST");
+		expect(loadedConfig?.prefixes?.state).toBe("PERSIST");
 	});
 });

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
-import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
+import { registerStateTools } from "../mcp/tools/states/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
@@ -15,16 +15,16 @@ let mcpServer: McpServer;
 async function loadConfig(server: McpServer) {
 	const config = await server.filesystem.loadConfig();
 	if (!config) {
-		throw new Error("Failed to load backlog configuration for tests");
+		throw new Error("Failed to load roadmap configuration for tests");
 	}
 	return config;
 }
 
-describe("MCP task references and documentation", () => {
+describe("MCP state references and documentation", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("mcp-refs-docs");
 		mcpServer = new McpServer(TEST_DIR, "Test instructions");
-		await mcpServer.filesystem.ensureBacklogStructure();
+		await mcpServer.filesystem.ensureRoadmapStructure();
 
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
@@ -33,7 +33,7 @@ describe("MCP task references and documentation", () => {
 		await mcpServer.initializeProject("Test Project");
 
 		const config = await loadConfig(mcpServer);
-		registerTaskTools(mcpServer, config);
+		registerStateTools(mcpServer, config);
 	});
 
 	afterEach(async () => {
@@ -45,11 +45,11 @@ describe("MCP task references and documentation", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	describe("task_create with references", () => {
-		it("creates task with references", async () => {
+	describe("state_create with references", () => {
+		it("creates state with references", async () => {
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
 						title: "Feature with refs",
 						references: ["https://github.com/issue/123", "src/api.ts"],
@@ -58,14 +58,14 @@ describe("MCP task references and documentation", () => {
 			});
 
 			const text = getText(result.content);
-			expect(text).toContain("Task TASK-1 - Feature with refs");
+			expect(text).toContain("State STATE-1 - Feature with refs");
 			expect(text).toContain("References: https://github.com/issue/123, src/api.ts");
 		});
 
-		it("creates task without references", async () => {
+		it("creates state without references", async () => {
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
 						title: "Feature without refs",
 					},
@@ -73,16 +73,16 @@ describe("MCP task references and documentation", () => {
 			});
 
 			const text = getText(result.content);
-			expect(text).toContain("Task TASK-1 - Feature without refs");
+			expect(text).toContain("State STATE-1 - Feature without refs");
 			expect(text).not.toContain("References:");
 		});
 	});
 
-	describe("task_create with documentation", () => {
-		it("creates task with documentation", async () => {
+	describe("state_create with documentation", () => {
+		it("creates state with documentation", async () => {
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
 						title: "Feature with docs",
 						documentation: ["https://design-docs.example.com", "docs/spec.md"],
@@ -91,14 +91,14 @@ describe("MCP task references and documentation", () => {
 			});
 
 			const text = getText(result.content);
-			expect(text).toContain("Task TASK-1 - Feature with docs");
+			expect(text).toContain("State STATE-1 - Feature with docs");
 			expect(text).toContain("Documentation: https://design-docs.example.com, docs/spec.md");
 		});
 
-		it("creates task without documentation", async () => {
+		it("creates state without documentation", async () => {
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
 						title: "Feature without docs",
 					},
@@ -106,16 +106,16 @@ describe("MCP task references and documentation", () => {
 			});
 
 			const text = getText(result.content);
-			expect(text).toContain("Task TASK-1 - Feature without docs");
+			expect(text).toContain("State STATE-1 - Feature without docs");
 			expect(text).not.toContain("Documentation:");
 		});
 	});
 
-	describe("task_create with both references and documentation", () => {
-		it("creates task with both fields", async () => {
+	describe("state_create with both references and documentation", () => {
+		it("creates state with both fields", async () => {
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
 						title: "Feature with both",
 						references: ["https://github.com/issue/123"],
@@ -125,26 +125,26 @@ describe("MCP task references and documentation", () => {
 			});
 
 			const text = getText(result.content);
-			expect(text).toContain("Task TASK-1 - Feature with both");
+			expect(text).toContain("State STATE-1 - Feature with both");
 			expect(text).toContain("References: https://github.com/issue/123");
 			expect(text).toContain("Documentation: https://design-docs.example.com");
 		});
 	});
 
-	describe("task_edit with references", () => {
-		it("sets references on existing task", async () => {
+	describe("state_edit with references", () => {
+		it("sets references on existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
-					arguments: { title: "Task to edit" },
+					name: "state_create",
+					arguments: { title: "State to edit" },
 				},
 			});
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						references: ["https://example.com", "file.ts"],
 					},
 				},
@@ -154,12 +154,12 @@ describe("MCP task references and documentation", () => {
 			expect(text).toContain("References: https://example.com, file.ts");
 		});
 
-		it("adds references to existing task", async () => {
+		it("adds references to existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
-						title: "Task with refs",
+						title: "State with refs",
 						references: ["file1.ts"],
 					},
 				},
@@ -167,9 +167,9 @@ describe("MCP task references and documentation", () => {
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						addReferences: ["file2.ts", "file3.ts"],
 					},
 				},
@@ -179,12 +179,12 @@ describe("MCP task references and documentation", () => {
 			expect(text).toContain("References: file1.ts, file2.ts, file3.ts");
 		});
 
-		it("removes references from existing task", async () => {
+		it("removes references from existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
-						title: "Task with refs",
+						title: "State with refs",
 						references: ["file1.ts", "file2.ts", "file3.ts"],
 					},
 				},
@@ -192,9 +192,9 @@ describe("MCP task references and documentation", () => {
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						removeReferences: ["file2.ts"],
 					},
 				},
@@ -206,20 +206,20 @@ describe("MCP task references and documentation", () => {
 		});
 	});
 
-	describe("task_edit with documentation", () => {
-		it("sets documentation on existing task", async () => {
+	describe("state_edit with documentation", () => {
+		it("sets documentation on existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
-					arguments: { title: "Task to edit" },
+					name: "state_create",
+					arguments: { title: "State to edit" },
 				},
 			});
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						documentation: ["https://docs.example.com", "README.md"],
 					},
 				},
@@ -229,12 +229,12 @@ describe("MCP task references and documentation", () => {
 			expect(text).toContain("Documentation: https://docs.example.com, README.md");
 		});
 
-		it("adds documentation to existing task", async () => {
+		it("adds documentation to existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
-						title: "Task with docs",
+						title: "State with docs",
 						documentation: ["doc1.md"],
 					},
 				},
@@ -242,9 +242,9 @@ describe("MCP task references and documentation", () => {
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						addDocumentation: ["doc2.md", "doc3.md"],
 					},
 				},
@@ -254,12 +254,12 @@ describe("MCP task references and documentation", () => {
 			expect(text).toContain("Documentation: doc1.md, doc2.md, doc3.md");
 		});
 
-		it("removes documentation from existing task", async () => {
+		it("removes documentation from existing state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
-						title: "Task with docs",
+						title: "State with docs",
 						documentation: ["doc1.md", "doc2.md", "doc3.md"],
 					},
 				},
@@ -267,9 +267,9 @@ describe("MCP task references and documentation", () => {
 
 			const result = await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_edit",
+					name: "state_edit",
 					arguments: {
-						id: "task-1",
+						id: "state-1",
 						removeDocumentation: ["doc2.md"],
 					},
 				},
@@ -282,22 +282,22 @@ describe("MCP task references and documentation", () => {
 	});
 
 	describe("persistence verification", () => {
-		it("persists references and documentation in task", async () => {
+		it("persists references and documentation in state", async () => {
 			await mcpServer.testInterface.callTool({
 				params: {
-					name: "task_create",
+					name: "state_create",
 					arguments: {
-						title: "Persistent task",
+						title: "Persistent state",
 						references: ["ref1.ts", "ref2.ts"],
 						documentation: ["doc1.md", "doc2.md"],
 					},
 				},
 			});
 
-			// Reload task to verify persistence
-			const task = await mcpServer.getTask("task-1");
-			expect(task?.references).toEqual(["ref1.ts", "ref2.ts"]);
-			expect(task?.documentation).toEqual(["doc1.md", "doc2.md"]);
+			// Reload state to verify persistence
+			const state = await mcpServer.getState("state-1");
+			expect(state?.references).toEqual(["ref1.ts", "ref2.ts"]);
+			expect(state?.documentation).toEqual(["doc1.md", "doc2.md"]);
 		});
 	});
 });

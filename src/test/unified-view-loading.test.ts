@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { Core } from "../core/backlog.ts";
-import { loadTasksForUnifiedView } from "../ui/unified-view.ts";
+import { Core } from "../core/roadmap.ts";
+import { loadStatesForUnifiedView } from "../ui/unified-view.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
-describe("loadTasksForUnifiedView", () => {
+describe("loadStatesForUnifiedView", () => {
 	let testDir: string;
 	let core: Core;
 
@@ -24,10 +24,10 @@ describe("loadTasksForUnifiedView", () => {
 		const updates: string[] = [];
 		let closed = false;
 
-		const result = await loadTasksForUnifiedView(core, {
-			tasksLoader: async (updateProgress) => {
+		const result = await loadStatesForUnifiedView(core, {
+			statesLoader: async (updateProgress) => {
 				updateProgress("step one");
-				return { tasks: [], statuses: ["To Do", "In Progress"] };
+				return { states: [], statuses: ["To Do", "In Progress"] };
 			},
 			loadingScreenFactory: async () => ({
 				update: (msg: string) => {

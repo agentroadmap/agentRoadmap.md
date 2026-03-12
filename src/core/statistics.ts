@@ -1,27 +1,27 @@
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 
-export interface TaskStatistics {
+export interface StateStatistics {
 	statusCounts: Map<string, number>;
 	priorityCounts: Map<string, number>;
-	totalTasks: number;
-	completedTasks: number;
+	totalStates: number;
+	completedStates: number;
 	completionPercentage: number;
 	draftCount: number;
 	recentActivity: {
-		created: Task[];
-		updated: Task[];
+		created: State[];
+		updated: State[];
 	};
 	projectHealth: {
-		averageTaskAge: number;
-		staleTasks: Task[];
-		blockedTasks: Task[];
+		averageStateAge: number;
+		staleStates: State[];
+		blockedStates: State[];
 	};
 }
 
 /**
- * Calculate comprehensive task statistics for the overview
+ * Calculate comprehensive state statistics for the overview
  */
-export function getTaskStatistics(tasks: Task[], drafts: Task[], statuses: string[]): TaskStatistics {
+export function getStateStatistics(states: State[], drafts: State[], statuses: string[]): StateStatistics {
 	const statusCounts = new Map<string, number>();
 	const priorityCounts = new Map<string, number>();
 
@@ -36,88 +36,88 @@ export function getTaskStatistics(tasks: Task[], drafts: Task[], statuses: strin
 	priorityCounts.set("low", 0);
 	priorityCounts.set("none", 0);
 
-	let completedTasks = 0;
+	let completedStates = 0;
 	const now = new Date();
 	const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 	const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-	const recentlyCreated: Task[] = [];
-	const recentlyUpdated: Task[] = [];
-	const staleTasks: Task[] = [];
-	const blockedTasks: Task[] = [];
+	const recentlyCreated: State[] = [];
+	const recentlyUpdated: State[] = [];
+	const staleStates: State[] = [];
+	const blockedStates: State[] = [];
 	let totalAge = 0;
-	let taskCount = 0;
+	let stateCount = 0;
 
-	// Process each task
-	for (const task of tasks) {
-		// Skip tasks with empty or undefined status
-		if (!task.status || task.status === "") {
+	// Process each state
+	for (const state of states) {
+		// Skip states with empty or undefined status
+		if (!state.status || state.status === "") {
 			continue;
 		}
 
 		// Count by status
-		const currentCount = statusCounts.get(task.status) || 0;
-		statusCounts.set(task.status, currentCount + 1);
+		const currentCount = statusCounts.get(state.status) || 0;
+		statusCounts.set(state.status, currentCount + 1);
 
-		// Count completed tasks
-		if (task.status === "Done") {
-			completedTasks++;
+		// Count completed states
+		if (state.status === "Done") {
+			completedStates++;
 		}
 
 		// Count by priority
-		const priority = task.priority || "none";
+		const priority = state.priority || "none";
 		const priorityCount = priorityCounts.get(priority) || 0;
 		priorityCounts.set(priority, priorityCount + 1);
 
 		// Track recent activity
-		if (task.createdDate) {
-			const createdDate = new Date(task.createdDate);
+		if (state.createdDate) {
+			const createdDate = new Date(state.createdDate);
 			if (createdDate >= oneWeekAgo) {
-				recentlyCreated.push(task);
+				recentlyCreated.push(state);
 			}
 
-			// Calculate task age
-			// For completed tasks, use the time from creation to completion
-			// For active tasks, use the time from creation to now
+			// Calculate state age
+			// For completed states, use the time from creation to completion
+			// For active states, use the time from creation to now
 			let ageInDays: number;
-			if (task.status === "Done" && task.updatedDate) {
-				const updatedDate = new Date(task.updatedDate);
+			if (state.status === "Done" && state.updatedDate) {
+				const updatedDate = new Date(state.updatedDate);
 				ageInDays = Math.floor((updatedDate.getTime() - createdDate.getTime()) / (24 * 60 * 60 * 1000));
 			} else {
 				ageInDays = Math.floor((now.getTime() - createdDate.getTime()) / (24 * 60 * 60 * 1000));
 			}
 			totalAge += ageInDays;
-			taskCount++;
+			stateCount++;
 		}
 
-		if (task.updatedDate) {
-			const updatedDate = new Date(task.updatedDate);
+		if (state.updatedDate) {
+			const updatedDate = new Date(state.updatedDate);
 			if (updatedDate >= oneWeekAgo) {
-				recentlyUpdated.push(task);
+				recentlyUpdated.push(state);
 			}
 		}
 
-		// Identify stale tasks (not updated in 30 days and not done)
-		if (task.status !== "Done") {
-			const lastDate = task.updatedDate || task.createdDate;
+		// Identify stale states (not updated in 30 days and not done)
+		if (state.status !== "Done") {
+			const lastDate = state.updatedDate || state.createdDate;
 			if (lastDate) {
 				const date = new Date(lastDate);
 				if (date < oneMonthAgo) {
-					staleTasks.push(task);
+					staleStates.push(state);
 				}
 			}
 		}
 
-		// Identify blocked tasks (has dependencies that are not done)
-		if (task.dependencies && task.dependencies.length > 0 && task.status !== "Done") {
+		// Identify blocked states (has dependencies that are not done)
+		if (state.dependencies && state.dependencies.length > 0 && state.status !== "Done") {
 			// Check if any dependency is not done
-			const hasBlockingDependency = task.dependencies.some((depId) => {
-				const dep = tasks.find((t) => t.id === depId);
+			const hasBlockingDependency = state.dependencies.some((depId) => {
+				const dep = states.find((t) => t.id === depId);
 				return dep && dep.status !== "Done";
 			});
 
 			if (hasBlockingDependency) {
-				blockedTasks.push(task);
+				blockedStates.push(state);
 			}
 		}
 	}
@@ -135,18 +135,18 @@ export function getTaskStatistics(tasks: Task[], drafts: Task[], statuses: strin
 		return dateB.getTime() - dateA.getTime();
 	});
 
-	// Calculate average task age
-	const averageTaskAge = taskCount > 0 ? Math.round(totalAge / taskCount) : 0;
+	// Calculate average state age
+	const averageStateAge = stateCount > 0 ? Math.round(totalAge / stateCount) : 0;
 
-	// Calculate completion percentage (only count tasks with valid status)
-	const totalTasks = Array.from(statusCounts.values()).reduce((sum, count) => sum + count, 0);
-	const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+	// Calculate completion percentage (only count states with valid status)
+	const totalStates = Array.from(statusCounts.values()).reduce((sum, count) => sum + count, 0);
+	const completionPercentage = totalStates > 0 ? Math.round((completedStates / totalStates) * 100) : 0;
 
 	return {
 		statusCounts,
 		priorityCounts,
-		totalTasks,
-		completedTasks,
+		totalStates,
+		completedStates,
 		completionPercentage,
 		draftCount: drafts.length,
 		recentActivity: {
@@ -154,9 +154,9 @@ export function getTaskStatistics(tasks: Task[], drafts: Task[], statuses: strin
 			updated: recentlyUpdated.slice(0, 5), // Top 5 most recent
 		},
 		projectHealth: {
-			averageTaskAge,
-			staleTasks: staleTasks.slice(0, 5), // Top 5 stale tasks
-			blockedTasks: blockedTasks.slice(0, 5), // Top 5 blocked tasks
+			averageStateAge,
+			staleStates: staleStates.slice(0, 5), // Top 5 stale states
+			blockedStates: blockedStates.slice(0, 5), // Top 5 blocked states
 		},
 	};
 }

@@ -6,7 +6,7 @@ import { Core } from "../index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
-let SUBTASKS: Array<{ id: string; title: string }> = [];
+let SUBSTATES: Array<{ id: string; title: string }> = [];
 
 describe("CLI plain output for AI agents", () => {
 	const cliPath = join(process.cwd(), "src", "cli.ts");
@@ -25,15 +25,15 @@ describe("CLI plain output for AI agents", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
 
-		// Initialize backlog project using Core (same pattern as other tests)
+		// Initialize roadmap project using Core (same pattern as other tests)
 		const core = new Core(TEST_DIR);
 		await core.initializeProject("Plain Output Test Project");
 
-		// Create a test task
-		await core.createTask(
+		// Create a test state
+		await core.createState(
 			{
-				id: "task-1",
-				title: "Test task for plain output",
+				id: "state-1",
+				title: "Test state for plain output",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-18",
@@ -44,30 +44,30 @@ describe("CLI plain output for AI agents", () => {
 			false,
 		);
 
-		const { task: subtask1 } = await core.createTaskFromInput(
+		const { state: substate1 } = await core.createStateFromInput(
 			{
-				title: "Child task A",
-				parentTaskId: "task-1",
+				title: "Child state A",
+				parentStateId: "state-1",
 			},
 			false,
 		);
 
-		const { task: subtask2 } = await core.createTaskFromInput(
+		const { state: substate2 } = await core.createStateFromInput(
 			{
-				title: "Child task B",
-				parentTaskId: "task-1",
+				title: "Child state B",
+				parentStateId: "state-1",
 			},
 			false,
 		);
 
 		// Preserve order for assertions
-		SUBTASKS = [subtask1, subtask2];
+		SUBSTATES = [substate1, substate2];
 
-		// Create a second task without subtasks
-		await core.createTask(
+		// Create a second state without substates
+		await core.createState(
 			{
-				id: "task-2",
-				title: "Standalone task for plain output",
+				id: "state-2",
+				title: "Standalone state for plain output",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-19",
@@ -102,8 +102,8 @@ describe("CLI plain output for AI agents", () => {
 		}
 	});
 
-	it("should output plain text with task view --plain", async () => {
-		const result = await $`bun ${cliPath} task view 1 --plain`.cwd(TEST_DIR).quiet();
+	it("should output plain text with state view --plain", async () => {
+		const result = await $`bun ${cliPath} state view 1 --plain`.cwd(TEST_DIR).quiet();
 
 		if (result.exitCode !== 0) {
 			console.error("STDOUT:", result.stdout.toString());
@@ -113,18 +113,18 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.exitCode).toBe(0);
 		// Should contain the file path as first line
 		expect(result.stdout.toString()).toContain("File: ");
-		expect(result.stdout.toString()).toContain("task-1 - Test-task-for-plain-output.md");
-		// Should contain the formatted task output
-		expect(result.stdout.toString()).toContain("Task TASK-1 - Test task for plain output");
+		expect(result.stdout.toString()).toContain("state-1 - Test-state-for-plain-output.md");
+		// Should contain the formatted state output
+		expect(result.stdout.toString()).toContain("State STATE-1 - Test state for plain output");
 		expect(result.stdout.toString()).toContain("Status: ○ To Do");
 		expect(result.stdout.toString()).toContain("Created: 2025-06-18");
-		expect(result.stdout.toString()).toContain("Subtasks (2):");
-		const [subtask1, subtask2] = SUBTASKS;
-		if (subtask1 && subtask2) {
+		expect(result.stdout.toString()).toContain("Substates (2):");
+		const [substate1, substate2] = SUBSTATES;
+		if (substate1 && substate2) {
 			const output = result.stdout.toString();
-			expect(output).toContain(`- ${subtask1.id} - ${subtask1.title}`);
-			expect(output).toContain(`- ${subtask2.id} - ${subtask2.title}`);
-			expect(output.indexOf(subtask1.id)).toBeLessThan(output.indexOf(subtask2.id));
+			expect(output).toContain(`- ${substate1.id} - ${substate1.title}`);
+			expect(output).toContain(`- ${substate2.id} - ${substate2.title}`);
+			expect(output.indexOf(substate1.id)).toBeLessThan(output.indexOf(substate2.id));
 		}
 		expect(result.stdout.toString()).toContain("Description:");
 		expect(result.stdout.toString()).toContain("Test description");
@@ -135,14 +135,14 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.stdout.toString()).not.toContain("\x1b");
 	});
 
-	it("should output plain text with task <id> --plain shortcut", async () => {
-		// Verify task exists before running CLI command
+	it("should output plain text with state <id> --plain shortcut", async () => {
+		// Verify state exists before running CLI command
 		const core = new Core(TEST_DIR);
-		const task = await core.filesystem.loadTask("task-1");
-		expect(task).not.toBeNull();
-		expect(task?.id).toBe("TASK-1");
+		const state = await core.filesystem.loadState("state-1");
+		expect(state).not.toBeNull();
+		expect(state?.id).toBe("STATE-1");
 
-		const result = await $`bun ${cliPath} task 1 --plain`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${cliPath} state 1 --plain`.cwd(TEST_DIR).quiet();
 
 		if (result.exitCode !== 0) {
 			console.error("STDOUT:", result.stdout.toString());
@@ -152,9 +152,9 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.exitCode).toBe(0);
 		// Should contain the file path as first line
 		expect(result.stdout.toString()).toContain("File: ");
-		expect(result.stdout.toString()).toContain("task-1 - Test-task-for-plain-output.md");
-		// Should contain the formatted task output
-		expect(result.stdout.toString()).toContain("Task TASK-1 - Test task for plain output");
+		expect(result.stdout.toString()).toContain("state-1 - Test-state-for-plain-output.md");
+		// Should contain the formatted state output
+		expect(result.stdout.toString()).toContain("State STATE-1 - Test state for plain output");
 		expect(result.stdout.toString()).toContain("Status: ○ To Do");
 		expect(result.stdout.toString()).toContain("Created: 2025-06-18");
 		expect(result.stdout.toString()).toContain("Description:");
@@ -165,8 +165,8 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.stdout.toString()).not.toContain("\x1b");
 	});
 
-	it("should not include a subtask list when none exist", async () => {
-		const result = await $`bun ${cliPath} task view 2 --plain`.cwd(TEST_DIR).quiet();
+	it("should not include a substate list when none exist", async () => {
+		const result = await $`bun ${cliPath} state view 2 --plain`.cwd(TEST_DIR).quiet();
 
 		if (result.exitCode !== 0) {
 			console.error("STDOUT:", result.stdout.toString());
@@ -174,9 +174,9 @@ describe("CLI plain output for AI agents", () => {
 		}
 
 		expect(result.exitCode).toBe(0);
-		expect(result.stdout.toString()).toContain("Task TASK-2 - Standalone task for plain output");
-		expect(result.stdout.toString()).not.toContain("Subtasks (");
-		expect(result.stdout.toString()).not.toContain("Subtasks:");
+		expect(result.stdout.toString()).toContain("State STATE-2 - Standalone state for plain output");
+		expect(result.stdout.toString()).not.toContain("Substates (");
+		expect(result.stdout.toString()).not.toContain("Substates:");
 	});
 
 	it("should output plain text with draft view --plain", async () => {
@@ -192,7 +192,7 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.stdout.toString()).toContain("File: ");
 		expect(result.stdout.toString()).toContain("draft-1 - Test-draft-for-plain-output.md");
 		// Should contain the formatted draft output
-		expect(result.stdout.toString()).toContain("Task DRAFT-1 - Test draft for plain output");
+		expect(result.stdout.toString()).toContain("State DRAFT-1 - Test draft for plain output");
 		expect(result.stdout.toString()).toContain("Status: ○ Draft");
 		expect(result.stdout.toString()).toContain("Created: 2025-06-18");
 		expect(result.stdout.toString()).toContain("Description:");
@@ -222,7 +222,7 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.stdout.toString()).toContain("File: ");
 		expect(result.stdout.toString()).toContain("draft-1 - Test-draft-for-plain-output.md");
 		// Should contain the formatted draft output
-		expect(result.stdout.toString()).toContain("Task DRAFT-1 - Test draft for plain output");
+		expect(result.stdout.toString()).toContain("State DRAFT-1 - Test draft for plain output");
 		expect(result.stdout.toString()).toContain("Status: ○ Draft");
 		expect(result.stdout.toString()).toContain("Created: 2025-06-18");
 		expect(result.stdout.toString()).toContain("Description:");
@@ -233,5 +233,5 @@ describe("CLI plain output for AI agents", () => {
 		expect(result.stdout.toString()).not.toContain("\x1b");
 	});
 
-	// Task list already has --plain support and works correctly
+	// State list already has --plain support and works correctly
 });

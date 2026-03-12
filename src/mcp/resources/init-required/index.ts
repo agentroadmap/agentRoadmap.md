@@ -4,14 +4,14 @@ import type { McpResourceHandler } from "../../types.ts";
 
 function createInitRequiredResource(): McpResourceHandler {
 	return {
-		uri: "backlog://init-required",
-		name: "Backlog.md Not Initialized",
-		description: "Instructions for initializing Backlog.md in this project",
+		uri: "roadmap://init-required",
+		name: "Roadmap.md Not Initialized",
+		description: "Instructions for initializing Roadmap.md in this project",
 		mimeType: "text/markdown",
 		handler: async () => ({
 			contents: [
 				{
-					uri: "backlog://init-required",
+					uri: "roadmap://init-required",
 					mimeType: "text/markdown",
 					text: MCP_INIT_REQUIRED_GUIDE,
 				},

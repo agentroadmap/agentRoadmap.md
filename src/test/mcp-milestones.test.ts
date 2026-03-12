@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
 import { registerMilestoneTools } from "../mcp/tools/milestones/index.ts";
-import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
+import { registerStateTools } from "../mcp/tools/states/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
@@ -50,7 +50,7 @@ describe("MCP milestone tools", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("mcp-milestones");
 		server = new McpServer(TEST_DIR, "Test instructions");
-		await server.filesystem.ensureBacklogStructure();
+		await server.filesystem.ensureRoadmapStructure();
 
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
@@ -59,7 +59,7 @@ describe("MCP milestone tools", () => {
 		await server.initializeProject("Test Project");
 
 		const config = await loadConfigOrThrow(server);
-		registerTaskTools(server, config);
+		registerStateTools(server, config);
 		registerMilestoneTools(server);
 	});
 
@@ -72,7 +72,7 @@ describe("MCP milestone tools", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("supports setting and clearing milestone via task_create/task_edit", async () => {
+	it("supports setting and clearing milestone via state_create/state_edit", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release 1.0" } },
 		});
@@ -82,78 +82,78 @@ describe("MCP milestone tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Milestone task",
+					title: "Milestone state",
 					milestone: "Release 1.0",
 				},
 			},
 		});
 
-		const created = await server.getTask("task-1");
+		const created = await server.getState("state-1");
 		expect(created?.milestone).toBe("m-0");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_edit",
+				name: "state_edit",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 					milestone: "Release 2.0",
 				},
 			},
 		});
 
-		const updated = await server.getTask("task-1");
+		const updated = await server.getState("state-1");
 		expect(updated?.milestone).toBe("m-1");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_edit",
+				name: "state_edit",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 					milestone: "m-0",
 				},
 			},
 		});
 
-		const updatedById = await server.getTask("task-1");
+		const updatedById = await server.getState("state-1");
 		expect(updatedById?.milestone).toBe("m-0");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_edit",
+				name: "state_edit",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 					milestone: null,
 				},
 			},
 		});
 
-		const cleared = await server.getTask("task-1");
+		const cleared = await server.getState("state-1");
 		expect(cleared?.milestone).toBeUndefined();
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Milestone task by id",
+					title: "Milestone state by id",
 					milestone: "m-1",
 				},
 			},
 		});
-		const createdById = await server.getTask("task-2");
+		const createdById = await server.getState("state-2");
 		expect(createdById?.milestone).toBe("m-1");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Unconfigured milestone task",
+					title: "Unconfigured milestone state",
 					milestone: "Planned Later",
 				},
 			},
 		});
-		const createdWithUnconfiguredMilestone = await server.getTask("task-3");
+		const createdWithUnconfiguredMilestone = await server.getState("state-3");
 		expect(createdWithUnconfiguredMilestone?.milestone).toBe("Planned Later");
 	});
 
@@ -167,26 +167,26 @@ describe("MCP milestone tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
 					title: "Numeric alias create",
 					milestone: "1",
 				},
 			},
 		});
-		const created = await server.getTask("task-1");
+		const created = await server.getState("state-1");
 		expect(created?.milestone).toBe("m-1");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_edit",
+				name: "state_edit",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 					milestone: "0",
 				},
 			},
 		});
-		const edited = await server.getTask("task-1");
+		const edited = await server.getState("state-1");
 		expect(edited?.milestone).toBe("m-0");
 
 		const rename = await server.testInterface.callTool({
@@ -206,26 +206,26 @@ describe("MCP milestone tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Legacy alias task",
+					title: "Legacy alias state",
 					milestone: "1",
 				},
 			},
 		});
-		const created = await server.getTask("task-1");
+		const created = await server.getState("state-1");
 		expect(created?.milestone).toBe("m-01");
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_edit",
+				name: "state_edit",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 					milestone: "m-1",
 				},
 			},
 		});
-		const updated = await server.getTask("task-1");
+		const updated = await server.getState("state-1");
 		expect(updated?.milestone).toBe("m-01");
 
 		const renamed = await server.testInterface.callTool({
@@ -233,14 +233,14 @@ describe("MCP milestone tools", () => {
 		});
 		expect(getText(renamed.content)).toContain("(m-01)");
 		expect(getText(renamed.content)).toContain('"Legacy Release Prime"');
-		expect(getText(renamed.content)).toContain("Updated 1 local task");
+		expect(getText(renamed.content)).toContain("Updated 1 local state");
 
 		const removed = await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "m-1" } },
 		});
 		expect(getText(removed.content)).toContain("(m-01)");
-		expect(getText(removed.content)).toContain("Cleared milestone for 1 local task");
-		const cleared = await server.getTask("task-1");
+		expect(getText(removed.content)).toContain("Cleared milestone for 1 local state");
+		const cleared = await server.getState("state-1");
 		expect(cleared?.milestone).toBeUndefined();
 	});
 
@@ -271,15 +271,15 @@ describe("MCP milestone tools", () => {
 		expect(getText(duplicate.content)).toContain("Milestone alias conflict");
 	});
 
-	it("lists file-based and task-only milestones", async () => {
+	it("lists file-based and state-only milestones", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release 1.0" } },
 		});
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
-				arguments: { title: "Unconfigured milestone task", milestone: "Unconfigured" },
+				name: "state_create",
+				arguments: { title: "Unconfigured milestone state", milestone: "Unconfigured" },
 			},
 		});
 
@@ -289,7 +289,7 @@ describe("MCP milestone tools", () => {
 		const text = getText(list.content);
 		expect(text).toContain("Milestones (1):");
 		expect(text).toContain("m-0: Release 1.0");
-		expect(text).toContain("Milestones found on tasks without files (1):");
+		expect(text).toContain("Milestones found on states without files (1):");
 		expect(text).toContain("- Unconfigured");
 	});
 
@@ -299,8 +299,8 @@ describe("MCP milestone tools", () => {
 		});
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
-				arguments: { title: "Archived milestone task", milestone: "Release 1.0" },
+				name: "state_create",
+				arguments: { title: "Archived milestone state", milestone: "Release 1.0" },
 			},
 		});
 
@@ -310,9 +310,9 @@ describe("MCP milestone tools", () => {
 		expect(getText(archived.content)).toContain('Archived milestone "Release 1.0"');
 
 		await server.testInterface.callTool({
-			params: { name: "task_edit", arguments: { id: "task-1", milestone: "Release 1.0" } },
+			params: { name: "state_edit", arguments: { id: "state-1", milestone: "Release 1.0" } },
 		});
-		const archivedTitleResolved = await server.getTask("task-1");
+		const archivedTitleResolved = await server.getState("state-1");
 		expect(archivedTitleResolved?.milestone).toBe("m-0");
 
 		const active = await server.filesystem.listMilestones();
@@ -325,8 +325,8 @@ describe("MCP milestone tools", () => {
 		});
 		const text = getText(list.content);
 		expect(text).toContain("Milestones (0):");
-		expect(text).toContain("Milestones found on tasks without files (0):");
-		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("Milestones found on states without files (0):");
+		expect(text).toContain("Archived milestone values still on states (1):");
 		expect(text).toContain("- m-0");
 		expect(text).not.toContain("Release 1.0");
 	});
@@ -350,15 +350,15 @@ describe("MCP milestone tools", () => {
 		expect(archivedMilestones[0]?.id).toBe("m-0");
 	});
 
-	it("renames milestones and updates local tasks by default", async () => {
+	it("renames milestones and updates local states by default", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release 1.0" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "A", milestone: "Release 1.0" } },
+			params: { name: "state_create", arguments: { title: "A", milestone: "Release 1.0" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "B", milestone: "Release 1.0" } },
+			params: { name: "state_create", arguments: { title: "B", milestone: "Release 1.0" } },
 		});
 
 		const rename = await server.testInterface.callTool({
@@ -368,13 +368,13 @@ describe("MCP milestone tools", () => {
 			},
 		});
 		expect(getText(rename.content)).toContain('Renamed milestone "Release 1.0" (m-0) → "Release 2.0" (m-0).');
-		expect(getText(rename.content)).toContain("Updated 2 local tasks");
+		expect(getText(rename.content)).toContain("Updated 2 local states");
 		expect(getText(rename.content)).toContain("Renamed milestone file:");
 
-		const task1 = await server.getTask("task-1");
-		const task2 = await server.getTask("task-2");
-		expect(task1?.milestone).toBe("m-0");
-		expect(task2?.milestone).toBe("m-0");
+		const state1 = await server.getState("state-1");
+		const state2 = await server.getState("state-2");
+		expect(state1?.milestone).toBe("m-0");
+		expect(state2?.milestone).toBe("m-0");
 
 		const milestones = await server.filesystem.listMilestones();
 		expect(milestones[0]?.title).toBe("Release 2.0");
@@ -401,7 +401,7 @@ describe("MCP milestone tools", () => {
 		const rename = await server.testInterface.callTool({
 			params: {
 				name: "milestone_rename",
-				arguments: { from: "Release 1.0", to: "Release 2.0", updateTasks: false },
+				arguments: { from: "Release 1.0", to: "Release 2.0", updateStates: false },
 			},
 		});
 		expect(getText(rename.content)).toContain('Renamed milestone "Release 1.0" (m-0) → "Release 2.0" (m-0).');
@@ -409,7 +409,7 @@ describe("MCP milestone tools", () => {
 		const status = await server.git.getStatus();
 		expect(status.trim()).toBe("");
 		const lastCommit = await server.git.getLastCommitMessage();
-		expect(lastCommit).toContain("backlog: Rename milestone m-0");
+		expect(lastCommit).toContain("roadmap: Rename milestone m-0");
 	});
 
 	it("only rewrites the default description section when renaming milestones", async () => {
@@ -429,7 +429,7 @@ describe("MCP milestone tools", () => {
 		const rename = await server.testInterface.callTool({
 			params: {
 				name: "milestone_rename",
-				arguments: { from: "Release 1.0", to: "Release 2.0", updateTasks: false },
+				arguments: { from: "Release 1.0", to: "Release 2.0", updateStates: false },
 			},
 		});
 		expect(getText(rename.content)).toContain('Renamed milestone "Release 1.0" (m-0) → "Release 2.0" (m-0).');
@@ -456,7 +456,7 @@ describe("MCP milestone tools", () => {
 		const rename = await server.testInterface.callTool({
 			params: {
 				name: "milestone_rename",
-				arguments: { from: "Release 1.0", to: "Release 1.0", updateTasks: false },
+				arguments: { from: "Release 1.0", to: "Release 1.0", updateStates: false },
 			},
 		});
 		expect(getText(rename.content)).toContain("No changes made");
@@ -485,13 +485,13 @@ describe("MCP milestone tools", () => {
 		const rename = await server.testInterface.callTool({
 			params: {
 				name: "milestone_rename",
-				arguments: { from: "Release 1.0", to: "Release 2.0", updateTasks: false },
+				arguments: { from: "Release 1.0", to: "Release 2.0", updateStates: false },
 			},
 		});
 		expect(getText(rename.content)).toContain('Renamed milestone "Release 1.0" (m-0) → "Release 2.0" (m-0).');
 
 		const lastCommit = await server.git.getLastCommitMessage();
-		expect(lastCommit).toContain("backlog: Rename milestone m-0");
+		expect(lastCommit).toContain("roadmap: Rename milestone m-0");
 
 		const { stdout: committedFiles } = await $`git show --name-only --pretty=format:`.cwd(TEST_DIR).quiet();
 		expect(committedFiles).not.toContain("UNRELATED.txt");
@@ -520,7 +520,7 @@ describe("MCP milestone tools", () => {
 		expect(getText(archived.content)).toContain('Archived milestone "Release 1.0"');
 
 		const lastCommit = await server.git.getLastCommitMessage();
-		expect(lastCommit).toContain("backlog: Archive milestone m-0");
+		expect(lastCommit).toContain("roadmap: Archive milestone m-0");
 
 		const { stdout: committedFiles } = await $`git show --name-only --pretty=format:`.cwd(TEST_DIR).quiet();
 		expect(committedFiles).not.toContain("UNRELATED.txt");
@@ -538,37 +538,37 @@ describe("MCP milestone tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Collision task",
+					title: "Collision state",
 					milestone: "m-1",
 				},
 			},
 		});
 
-		const task = await server.getTask("task-1");
-		expect(task?.milestone).toBe("m-1");
+		const state = await server.getState("state-1");
+		expect(state?.milestone).toBe("m-1");
 	});
 
-	it("supports renaming milestone files without task rewrites when updateTasks=false", async () => {
+	it("supports renaming milestone files without state rewrites when updateStates=false", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release 1.0" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Legacy task", milestone: "Release 1.0" } },
+			params: { name: "state_create", arguments: { title: "Legacy state", milestone: "Release 1.0" } },
 		});
-		await server.editTask("task-1", { milestone: "Release 1.0" });
+		await server.editState("state-1", { milestone: "Release 1.0" });
 
 		const rename = await server.testInterface.callTool({
 			params: {
 				name: "milestone_rename",
-				arguments: { from: "Release 1.0", to: "Release 2.0", updateTasks: false },
+				arguments: { from: "Release 1.0", to: "Release 2.0", updateStates: false },
 			},
 		});
-		expect(getText(rename.content)).toContain("Skipped updating tasks (updateTasks=false).");
+		expect(getText(rename.content)).toContain("Skipped updating states (updateStates=false).");
 
-		const task = await server.getTask("task-1");
-		expect(task?.milestone).toBe("Release 1.0");
+		const state = await server.getState("state-1");
+		expect(state?.milestone).toBe("Release 1.0");
 
 		const milestones = await server.filesystem.listMilestones();
 		expect(milestones[0]?.title).toBe("Release 2.0");
@@ -616,28 +616,28 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "Release B" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task A", milestone: "Release A" } },
+			params: { name: "state_create", arguments: { title: "State A", milestone: "Release A" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task B", milestone: "Release B" } },
+			params: { name: "state_create", arguments: { title: "State B", milestone: "Release B" } },
 		});
 
 		const renamed = await server.testInterface.callTool({
 			params: { name: "milestone_rename", arguments: { from: "m-0", to: "Release A Prime" } },
 		});
 		expect(getText(renamed.content)).toContain('Renamed milestone "Release A" (m-0) → "Release A Prime" (m-0).');
-		expect(getText(renamed.content)).toContain("Updated 1 local task");
+		expect(getText(renamed.content)).toContain("Updated 1 local state");
 
-		const afterRename = await server.getTask("task-1");
+		const afterRename = await server.getState("state-1");
 		expect(afterRename?.milestone).toBe("m-0");
 
 		const removed = await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "m-1" } },
 		});
 		expect(getText(removed.content)).toContain('Removed milestone "Release B" (m-1).');
-		expect(getText(removed.content)).toContain("Cleared milestone for 1 local task");
+		expect(getText(removed.content)).toContain("Cleared milestone for 1 local state");
 
-		const afterRemove = await server.getTask("task-2");
+		const afterRemove = await server.getState("state-2");
 		expect(afterRemove?.milestone).toBeUndefined();
 
 		const activeMilestones = await server.filesystem.listMilestones();
@@ -646,38 +646,38 @@ describe("MCP milestone tools", () => {
 		expect(archivedMilestones.map((milestone) => milestone.id)).toContain("m-1");
 	});
 
-	it("updates title-based task milestone values when renaming by milestone ID", async () => {
+	it("updates title-based state milestone values when renaming by milestone ID", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release A" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task A", milestone: "Release A" } },
+			params: { name: "state_create", arguments: { title: "State A", milestone: "Release A" } },
 		});
-		await server.editTask("task-1", { milestone: "Release A" });
+		await server.editState("state-1", { milestone: "Release A" });
 
 		await server.testInterface.callTool({
 			params: { name: "milestone_rename", arguments: { from: "m-0", to: "Release A Prime" } },
 		});
 
-		const updatedTask = await server.getTask("task-1");
-		expect(updatedTask?.milestone).toBe("m-0");
+		const updatedState = await server.getState("state-1");
+		expect(updatedState?.milestone).toBe("m-0");
 	});
 
-	it("updates numeric alias task milestone values when renaming by title", async () => {
+	it("updates numeric alias state milestone values when renaming by title", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release A" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task A", milestone: "Release A" } },
+			params: { name: "state_create", arguments: { title: "State A", milestone: "Release A" } },
 		});
-		await server.editTask("task-1", { milestone: "0" });
+		await server.editState("state-1", { milestone: "0" });
 
 		await server.testInterface.callTool({
 			params: { name: "milestone_rename", arguments: { from: "Release A", to: "Release A Prime" } },
 		});
 
-		const updatedTask = await server.getTask("task-1");
-		expect(updatedTask?.milestone).toBe("m-0");
+		const updatedState = await server.getState("state-1");
+		expect(updatedState?.milestone).toBe("m-0");
 	});
 
 	it("does not cross-match reused titles when removing by milestone ID", async () => {
@@ -688,9 +688,9 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "Keep ID occupied" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Old task", milestone: "Shared" } },
+			params: { name: "state_create", arguments: { title: "Old state", milestone: "Shared" } },
 		});
-		await server.editTask("task-1", { milestone: "Shared" });
+		await server.editState("state-1", { milestone: "Shared" });
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Shared" } },
 		});
@@ -698,19 +698,19 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "Shared" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "New task", milestone: "Shared" } },
+			params: { name: "state_create", arguments: { title: "New state", milestone: "Shared" } },
 		});
 
 		const removeById = await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "m-2" } },
 		});
 		expect(getText(removeById.content)).toContain('Removed milestone "Shared" (m-2).');
-		expect(getText(removeById.content)).toContain("Cleared milestone for 1 local task");
+		expect(getText(removeById.content)).toContain("Cleared milestone for 1 local state");
 
-		const oldTask = await server.getTask("task-1");
-		const newTask = await server.getTask("task-2");
-		expect(oldTask?.milestone).toBe("Shared");
-		expect(newTask?.milestone).toBeUndefined();
+		const oldState = await server.getState("state-1");
+		const newState = await server.getState("state-2");
+		expect(oldState?.milestone).toBe("Shared");
+		expect(newState?.milestone).toBeUndefined();
 	});
 
 	it("does not cross-match archived milestone IDs when removing a title that looks like an ID", async () => {
@@ -718,7 +718,7 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "Archived source" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Archived task", milestone: "Archived source" } },
+			params: { name: "state_create", arguments: { title: "Archived state", milestone: "Archived source" } },
 		});
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Archived source" } },
@@ -730,19 +730,19 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "m-0" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Active title task", milestone: "m-2" } },
+			params: { name: "state_create", arguments: { title: "Active title state", milestone: "m-2" } },
 		});
-		await server.editTask("task-1", { milestone: "0" });
+		await server.editState("state-1", { milestone: "0" });
 
 		const removeByTitle = await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "m-0" } },
 		});
-		expect(getText(removeByTitle.content)).toContain("Cleared milestone for 1 local task");
+		expect(getText(removeByTitle.content)).toContain("Cleared milestone for 1 local state");
 
-		const archivedTask = await server.getTask("task-1");
-		const activeTask = await server.getTask("task-2");
-		expect(archivedTask?.milestone).toBe("0");
-		expect(activeTask?.milestone).toBeUndefined();
+		const archivedState = await server.getState("state-1");
+		const activeState = await server.getState("state-2");
+		expect(archivedState?.milestone).toBe("0");
+		expect(activeState?.milestone).toBeUndefined();
 	});
 
 	it("does not cross-match archived milestone IDs when renaming a title that looks like an ID", async () => {
@@ -750,7 +750,7 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "Archived source" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Archived task", milestone: "Archived source" } },
+			params: { name: "state_create", arguments: { title: "Archived state", milestone: "Archived source" } },
 		});
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Archived source" } },
@@ -762,19 +762,19 @@ describe("MCP milestone tools", () => {
 			params: { name: "milestone_add", arguments: { name: "m-0" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Active title task", milestone: "m-2" } },
+			params: { name: "state_create", arguments: { title: "Active title state", milestone: "m-2" } },
 		});
-		await server.editTask("task-1", { milestone: "0" });
+		await server.editState("state-1", { milestone: "0" });
 
 		const renameByTitle = await server.testInterface.callTool({
 			params: { name: "milestone_rename", arguments: { from: "m-0", to: "ID-like title renamed" } },
 		});
-		expect(getText(renameByTitle.content)).toContain("Updated 1 local task");
+		expect(getText(renameByTitle.content)).toContain("Updated 1 local state");
 
-		const archivedTask = await server.getTask("task-1");
-		const activeTask = await server.getTask("task-2");
-		expect(archivedTask?.milestone).toBe("0");
-		expect(activeTask?.milestone).toBe("m-2");
+		const archivedState = await server.getState("state-1");
+		const activeState = await server.getState("state-2");
+		expect(archivedState?.milestone).toBe("0");
+		expect(activeState?.milestone).toBe("m-2");
 	});
 
 	it("prefers canonical IDs when zero-padded and canonical ID files both exist", async () => {
@@ -783,14 +783,14 @@ describe("MCP milestone tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Alias tie-break task",
+					title: "Alias tie-break state",
 					milestone: "1",
 				},
 			},
 		});
-		const created = await server.getTask("task-1");
+		const created = await server.getState("state-1");
 		expect(created?.milestone).toBe("m-1");
 
 		const renamed = await server.testInterface.callTool({
@@ -799,12 +799,12 @@ describe("MCP milestone tools", () => {
 		expect(getText(renamed.content)).toContain("(m-1)");
 	});
 
-	it("prefers archived milestone IDs over active title matches for ID-like task edits", async () => {
+	it("prefers archived milestone IDs over active title matches for ID-like state edits", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Archived source" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task", milestone: "Archived source" } },
+			params: { name: "state_create", arguments: { title: "State", milestone: "Archived source" } },
 		});
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Archived source" } },
@@ -817,18 +817,18 @@ describe("MCP milestone tools", () => {
 		});
 
 		await server.testInterface.callTool({
-			params: { name: "task_edit", arguments: { id: "task-1", milestone: "m-0" } },
+			params: { name: "state_edit", arguments: { id: "state-1", milestone: "m-0" } },
 		});
-		const updated = await server.getTask("task-1");
+		const updated = await server.getState("state-1");
 		expect(updated?.milestone).toBe("m-0");
 	});
 
-	it("reports archived milestone task values when active titles look like archived IDs", async () => {
+	it("reports archived milestone state values when active titles look like archived IDs", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Archived source" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task", milestone: "Archived source" } },
+			params: { name: "state_create", arguments: { title: "State", milestone: "Archived source" } },
 		});
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Archived source" } },
@@ -839,13 +839,13 @@ describe("MCP milestone tools", () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "m-0" } },
 		});
-		await server.editTask("task-1", { milestone: "m-0" });
+		await server.editState("state-1", { milestone: "m-0" });
 
 		const listed = await server.testInterface.callTool({
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(listed.content);
-		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("Archived milestone values still on states (1):");
 		expect(text).toContain("- m-0");
 	});
 
@@ -853,14 +853,14 @@ describe("MCP milestone tools", () => {
 		await writeLegacyMilestoneFile(server, "m-0", "Shared");
 		await writeLegacyMilestoneFile(server, "m-1", "Shared");
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Ambiguous title task", milestone: "Shared" } },
+			params: { name: "state_create", arguments: { title: "Ambiguous title state", milestone: "Shared" } },
 		});
 
 		const listed = await server.testInterface.callTool({
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(listed.content);
-		expect(text).toContain("Milestones found on tasks without files (1):");
+		expect(text).toContain("Milestones found on states without files (1):");
 		expect(text).toContain("- Shared");
 	});
 
@@ -892,7 +892,7 @@ Milestone: Legacy frontmatter ID
 			params: { name: "milestone_add", arguments: { name: "Keep ID occupied" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Archived task", milestone: "Shared" } },
+			params: { name: "state_create", arguments: { title: "Archived state", milestone: "Shared" } },
 		});
 		await server.testInterface.callTool({
 			params: { name: "milestone_archive", arguments: { name: "Shared" } },
@@ -902,22 +902,22 @@ Milestone: Legacy frontmatter ID
 		});
 
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Active task", milestone: "Shared" } },
+			params: { name: "state_create", arguments: { title: "Active state", milestone: "Shared" } },
 		});
-		const activeTaskBeforeRemove = await server.getTask("task-2");
-		expect(activeTaskBeforeRemove?.milestone).toBe("m-2");
+		const activeStateBeforeRemove = await server.getState("state-2");
+		expect(activeStateBeforeRemove?.milestone).toBe("m-2");
 
 		await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "Shared" } },
 		});
 
-		const archivedTask = await server.getTask("task-1");
-		const activeTask = await server.getTask("task-2");
-		expect(archivedTask?.milestone).toBe("m-0");
-		expect(activeTask?.milestone).toBeUndefined();
+		const archivedState = await server.getState("state-1");
+		const activeState = await server.getState("state-2");
+		expect(archivedState?.milestone).toBe("m-0");
+		expect(activeState?.milestone).toBeUndefined();
 	});
 
-	it("removes milestones and clears or reassigns local tasks", async () => {
+	it("removes milestones and clears or reassigns local states", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Release A" } },
 		});
@@ -925,52 +925,52 @@ Milestone: Legacy frontmatter ID
 			params: { name: "milestone_add", arguments: { name: "Release B" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "A", milestone: "Release A" } },
+			params: { name: "state_create", arguments: { title: "A", milestone: "Release A" } },
 		});
 
 		const reassign = await server.testInterface.callTool({
 			params: {
 				name: "milestone_remove",
-				arguments: { name: "Release A", taskHandling: "reassign", reassignTo: "Release B" },
+				arguments: { name: "Release A", stateHandling: "reassign", reassignTo: "Release B" },
 			},
 		});
 		expect(getText(reassign.content)).toContain('Removed milestone "Release A" (m-0).');
-		expect(getText(reassign.content)).toContain("Reassigned 1 local task");
+		expect(getText(reassign.content)).toContain("Reassigned 1 local state");
 
-		const task1 = await server.getTask("task-1");
-		expect(task1?.milestone).toBe("m-1");
+		const state1 = await server.getState("state-1");
+		expect(state1?.milestone).toBe("m-1");
 
 		// Now test clear behavior
 		await server.testInterface.callTool({
-			params: { name: "task_edit", arguments: { id: "task-1", milestone: "Release B" } },
+			params: { name: "state_edit", arguments: { id: "state-1", milestone: "Release B" } },
 		});
 
 		const clear = await server.testInterface.callTool({
 			params: { name: "milestone_remove", arguments: { name: "Release B" } },
 		});
 		expect(getText(clear.content)).toContain('Removed milestone "Release B" (m-1).');
-		expect(getText(clear.content)).toContain("Cleared milestone for 1 local task");
+		expect(getText(clear.content)).toContain("Cleared milestone for 1 local state");
 
-		const cleared = await server.getTask("task-1");
+		const cleared = await server.getState("state-1");
 		expect(cleared?.milestone).toBeUndefined();
 	});
 
-	it("can remove a milestone file while keeping task milestone values", async () => {
+	it("can remove a milestone file while keeping state milestone values", async () => {
 		await server.testInterface.callTool({
 			params: { name: "milestone_add", arguments: { name: "Keep Value" } },
 		});
 		await server.testInterface.callTool({
-			params: { name: "task_create", arguments: { title: "Task", milestone: "Keep Value" } },
+			params: { name: "state_create", arguments: { title: "State", milestone: "Keep Value" } },
 		});
 
 		const removeKeep = await server.testInterface.callTool({
-			params: { name: "milestone_remove", arguments: { name: "Keep Value", taskHandling: "keep" } },
+			params: { name: "milestone_remove", arguments: { name: "Keep Value", stateHandling: "keep" } },
 		});
 		expect(getText(removeKeep.content)).toContain('Removed milestone "Keep Value" (m-0).');
-		expect(getText(removeKeep.content)).toContain("Kept task milestone values unchanged (taskHandling=keep).");
+		expect(getText(removeKeep.content)).toContain("Kept state milestone values unchanged (stateHandling=keep).");
 
-		const task = await server.getTask("task-1");
-		expect(task?.milestone).toBe("m-0");
+		const state = await server.getState("state-1");
+		expect(state?.milestone).toBe("m-0");
 
 		const activeMilestones = await server.filesystem.listMilestones();
 		const archivedMilestones = await server.filesystem.listArchivedMilestones();
@@ -981,8 +981,8 @@ Milestone: Legacy frontmatter ID
 			params: { name: "milestone_list", arguments: {} },
 		});
 		const text = getText(list.content);
-		expect(text).toContain("Milestones found on tasks without files (0):");
-		expect(text).toContain("Archived milestone values still on tasks (1):");
+		expect(text).toContain("Milestones found on states without files (0):");
+		expect(text).toContain("Archived milestone values still on states (1):");
 		expect(text).toContain("- m-0");
 	});
 });

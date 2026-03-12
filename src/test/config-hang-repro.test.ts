@@ -1,25 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { FileSystem } from "../file-system/operations.ts";
-import type { BacklogConfig } from "../types/index.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 
 describe("Config Loading & Migration", () => {
 	const testRoot = "/tmp/test-config-migration";
-	const backlogDir = join(testRoot, "backlog");
-	const configPath = join(backlogDir, "config.yml");
+	const roadmapDir = join(testRoot, "roadmap");
+	const configPath = join(roadmapDir, "config.yml");
 
 	beforeEach(async () => {
 		await rm(testRoot, { recursive: true, force: true });
-		await mkdir(backlogDir, { recursive: true });
+		await mkdir(roadmapDir, { recursive: true });
 	});
 
 	afterEach(async () => {
 		await rm(testRoot, { recursive: true, force: true });
 	});
 
-	it("should load config from standard backlog directory", async () => {
+	it("should load config from standard roadmap directory", async () => {
 		const config = `project_name: "Test Project"
 statuses: ["To Do", "In Progress", "Done"]
 labels: []
@@ -38,19 +38,19 @@ auto_commit: false`;
 			setTimeout(() => reject(new Error("Config loading timed out - infinite loop detected!")), 5000);
 		});
 
-		const loadedConfig = (await Promise.race([fs.loadConfig(), timeoutPromise])) as BacklogConfig | null;
+		const loadedConfig = (await Promise.race([fs.loadConfig(), timeoutPromise])) as RoadmapConfig | null;
 
 		expect(loadedConfig).toBeTruthy();
 		expect(loadedConfig?.projectName).toBe("Test Project");
 	});
 
-	it("should migrate legacy .backlog directory to backlog", async () => {
-		// Create a legacy .backlog directory instead of backlog
-		const legacyBacklogDir = join(testRoot, ".backlog");
-		const legacyConfigPath = join(legacyBacklogDir, "config.yml");
+	it("should migrate legacy .roadmap directory to roadmap", async () => {
+		// Create a legacy .roadmap directory instead of roadmap
+		const legacyRoadmapDir = join(testRoot, ".roadmap");
+		const legacyConfigPath = join(legacyRoadmapDir, "config.yml");
 
-		await rm(backlogDir, { recursive: true, force: true });
-		await mkdir(legacyBacklogDir, { recursive: true });
+		await rm(roadmapDir, { recursive: true, force: true });
+		await mkdir(legacyRoadmapDir, { recursive: true });
 
 		const legacyConfig = `project_name: "Legacy Project"
 statuses: ["To Do", "In Progress", "Done"]
@@ -71,11 +71,11 @@ auto_commit: false`;
 		expect(config?.projectName).toBe("Legacy Project");
 
 		// Check that the directory was renamed
-		const newBacklogExists = await Bun.file(join(testRoot, "backlog", "config.yml")).exists();
-		const oldBacklogExists = await Bun.file(join(testRoot, ".backlog", "config.yml")).exists();
+		const newRoadmapExists = await Bun.file(join(testRoot, "roadmap", "config.yml")).exists();
+		const oldRoadmapExists = await Bun.file(join(testRoot, ".roadmap", "config.yml")).exists();
 
-		expect(newBacklogExists).toBe(true);
-		expect(oldBacklogExists).toBe(false);
+		expect(newRoadmapExists).toBe(true);
+		expect(oldRoadmapExists).toBe(false);
 	});
 
 	it("migrates legacy config milestones into milestone files and removes config milestones key", async () => {

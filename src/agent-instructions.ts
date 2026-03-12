@@ -38,7 +38,7 @@ type GuidelineMarkerKind = "default" | "mcp";
  * Gets the appropriate markers for a given file type
  */
 function getMarkers(fileName: string, kind: GuidelineMarkerKind = "default"): { start: string; end: string } {
-	const label = kind === "mcp" ? "BACKLOG.MD MCP GUIDELINES" : "BACKLOG.MD GUIDELINES";
+	const label = kind === "mcp" ? "ROADMAP.MD MCP GUIDELINES" : "ROADMAP.MD GUIDELINES";
 	if (fileName === ".cursorrules") {
 		// .cursorrules doesn't support HTML comments, use markdown-style comments
 		return {
@@ -54,15 +54,15 @@ function getMarkers(fileName: string, kind: GuidelineMarkerKind = "default"): { 
 }
 
 /**
- * Checks if the Backlog.md guidelines are already present in the content
+ * Checks if the Roadmap.md guidelines are already present in the content
  */
-function hasBacklogGuidelines(content: string, fileName: string): boolean {
+function hasRoadmapGuidelines(content: string, fileName: string): boolean {
 	const { start } = getMarkers(fileName);
 	return content.includes(start);
 }
 
 /**
- * Wraps the Backlog.md guidelines with appropriate markers
+ * Wraps the Roadmap.md guidelines with appropriate markers
  */
 function wrapWithMarkers(content: string, fileName: string, kind: GuidelineMarkerKind = "default"): string {
 	const { start, end } = getMarkers(fileName, kind);
@@ -157,13 +157,13 @@ export async function addAgentInstructions(
 					existing = mcpStripped.content;
 				}
 
-				// Check if Backlog.md guidelines are already present
-				if (hasBacklogGuidelines(existing, name)) {
+				// Check if Roadmap.md guidelines are already present
+				if (hasRoadmapGuidelines(existing, name)) {
 					// Guidelines already exist, skip this file
 					continue;
 				}
 
-				// Append Backlog.md guidelines with markers
+				// Append Roadmap.md guidelines with markers
 				if (!existing.endsWith("\n")) existing += "\n";
 				finalContent = existing + wrapWithMarkers(content, name);
 			} catch (error) {
@@ -263,11 +263,11 @@ export async function ensureMcpGuidelines(
 }
 
 /**
- * Installs the Claude Code backlog agent to the project's .claude/agents directory
+ * Installs the Claude Code roadmap agent to the project's .claude/agents directory
  */
 export async function installClaudeAgent(projectRoot: string): Promise<void> {
 	const agentDir = join(projectRoot, ".claude", "agents");
-	const agentPath = join(agentDir, "project-manager-backlog.md");
+	const agentPath = join(agentDir, "project-manager-roadmap.md");
 
 	// Create the directory if it doesn't exist
 	await mkdir(agentDir, { recursive: true });

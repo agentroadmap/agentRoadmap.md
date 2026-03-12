@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { BacklogConfig, Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -12,7 +12,7 @@ describe("Board Loading with checkActiveBranches", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-board-loading");
 		core = new Core(TEST_DIR);
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 
 		// Initialize git repository for testing
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
@@ -31,43 +31,43 @@ describe("Board Loading with checkActiveBranches", () => {
 		}
 	});
 
-	describe("Core.loadTasks()", () => {
-		const createTestTask = (id: string, status = "To Do"): Task => ({
+	describe("Core.loadStates()", () => {
+		const createTestState = (id: string, status = "To Do"): State => ({
 			id,
-			title: `Test Task ${id}`,
+			title: `Test State ${id}`,
 			status,
 			assignee: [],
 			createdDate: "2025-01-08",
 			labels: ["test"],
 			dependencies: [],
-			description: `This is test task ${id}`,
+			description: `This is test state ${id}`,
 		});
 
 		beforeEach(async () => {
-			// Create some test tasks
-			await core.createTask(createTestTask("task-1", "To Do"), false);
-			await core.createTask(createTestTask("task-2", "In Progress"), false);
-			await core.createTask(createTestTask("task-3", "Done"), false);
+			// Create some test states
+			await core.createState(createTestState("state-1", "To Do"), false);
+			await core.createState(createTestState("state-2", "In Progress"), false);
+			await core.createState(createTestState("state-3", "Done"), false);
 
 			// Commit them to have a clean state
 			await $`git add .`.cwd(TEST_DIR).quiet();
-			await $`git commit -m "Add test tasks"`.cwd(TEST_DIR).quiet();
+			await $`git commit -m "Add test states"`.cwd(TEST_DIR).quiet();
 		});
 
-		it("should load tasks with default configuration", async () => {
-			const tasks = await core.loadTasks();
+		it("should load states with default configuration", async () => {
+			const states = await core.loadStates();
 
-			expect(tasks).toHaveLength(3);
-			expect(tasks.find((t) => t.id === "TASK-1")).toBeDefined();
-			expect(tasks.find((t) => t.id === "TASK-2")).toBeDefined();
-			expect(tasks.find((t) => t.id === "TASK-3")).toBeDefined();
+			expect(states).toHaveLength(3);
+			expect(states.find((t) => t.id === "STATE-1")).toBeDefined();
+			expect(states.find((t) => t.id === "STATE-2")).toBeDefined();
+			expect(states.find((t) => t.id === "STATE-3")).toBeDefined();
 		});
 
 		it("should skip cross-branch checking when checkActiveBranches is false", async () => {
 			// Update config to disable cross-branch checking
 			const config = await core.filesystem.loadConfig();
 			if (!config) throw new Error("Config not loaded");
-			const updatedConfig: BacklogConfig = {
+			const updatedConfig: RoadmapConfig = {
 				...config,
 				checkActiveBranches: false,
 			};
@@ -75,16 +75,16 @@ describe("Board Loading with checkActiveBranches", () => {
 
 			// Track progress messages
 			const progressMessages: string[] = [];
-			const tasks = await core.loadTasks((msg) => {
+			const states = await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
-			// Verify we got tasks
-			expect(tasks).toHaveLength(3);
+			// Verify we got states
+			expect(states).toHaveLength(3);
 
 			// Verify we didn't apply cross-branch state snapshots
 			const applySnapshotsMessage = progressMessages.find((msg) =>
-				msg.includes("Applying latest task states from branch scans..."),
+				msg.includes("Applying latest state states from branch scans..."),
 			);
 			expect(applySnapshotsMessage).toBeUndefined();
 		});
@@ -93,7 +93,7 @@ describe("Board Loading with checkActiveBranches", () => {
 			// Update config to enable cross-branch checking (default)
 			const config = await core.filesystem.loadConfig();
 			if (!config) throw new Error("Config not loaded");
-			const updatedConfig: BacklogConfig = {
+			const updatedConfig: RoadmapConfig = {
 				...config,
 				checkActiveBranches: true,
 				activeBranchDays: 7,
@@ -102,16 +102,16 @@ describe("Board Loading with checkActiveBranches", () => {
 
 			// Track progress messages
 			const progressMessages: string[] = [];
-			const tasks = await core.loadTasks((msg) => {
+			const states = await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
-			// Verify we got tasks
-			expect(tasks).toHaveLength(3);
+			// Verify we got states
+			expect(states).toHaveLength(3);
 
 			// Verify we applied cross-branch state snapshots
 			const applySnapshotsMessage = progressMessages.find((msg) =>
-				msg.includes("Applying latest task states from branch scans..."),
+				msg.includes("Applying latest state states from branch scans..."),
 			);
 			expect(applySnapshotsMessage).toBeDefined();
 		});
@@ -119,14 +119,14 @@ describe("Board Loading with checkActiveBranches", () => {
 		it("should respect activeBranchDays configuration", async () => {
 			// Create a new branch with an old commit date
 			await $`git checkout -b old-branch`.cwd(TEST_DIR).quiet();
-			await core.createTask(createTestTask("task-4", "To Do"), false);
+			await core.createState(createTestState("state-4", "To Do"), false);
 			await $`git add .`.cwd(TEST_DIR).quiet();
 
 			// Commit with an old date (40 days ago)
 			const oldDate = new Date();
 			oldDate.setDate(oldDate.getDate() - 40);
 			const dateStr = oldDate.toISOString();
-			await $`GIT_AUTHOR_DATE="${dateStr}" GIT_COMMITTER_DATE="${dateStr}" git commit -m "Old task"`
+			await $`GIT_AUTHOR_DATE="${dateStr}" GIT_COMMITTER_DATE="${dateStr}" git commit -m "Old state"`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -135,7 +135,7 @@ describe("Board Loading with checkActiveBranches", () => {
 			// Set activeBranchDays to 30 (should exclude the old branch)
 			const config = await core.filesystem.loadConfig();
 			if (!config) throw new Error("Config not loaded");
-			const updatedConfig: BacklogConfig = {
+			const updatedConfig: RoadmapConfig = {
 				...config,
 				checkActiveBranches: true,
 				activeBranchDays: 30,
@@ -144,14 +144,14 @@ describe("Board Loading with checkActiveBranches", () => {
 
 			// Track progress messages
 			const progressMessages: string[] = [];
-			const tasks = await core.loadTasks((msg) => {
+			const states = await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
-			// The task-4 from old branch should not be included if branch checking is working
-			// However, since we're in main branch, we should only see the 3 main tasks
-			expect(tasks).toHaveLength(3);
-			expect(tasks.find((t) => t.id === "TASK-4")).toBeUndefined();
+			// The state-4 from old branch should not be included if branch checking is working
+			// However, since we're in main branch, we should only see the 3 main states
+			expect(states).toHaveLength(3);
+			expect(states.find((t) => t.id === "STATE-4")).toBeUndefined();
 
 			// Check that branch checking happened with the right days
 			const _branchCheckMessage = progressMessages.find(
@@ -169,15 +169,15 @@ describe("Board Loading with checkActiveBranches", () => {
 			controller.abort();
 
 			// Should throw an error
-			await expect(core.loadTasks(undefined, controller.signal)).rejects.toThrow("Loading cancelled");
+			await expect(core.loadStates(undefined, controller.signal)).rejects.toThrow("Loading cancelled");
 		});
 
-		it("should handle empty task list gracefully", async () => {
-			// Remove all tasks
-			await $`rm -rf backlog/tasks/*`.cwd(TEST_DIR).quiet();
+		it("should handle empty state list gracefully", async () => {
+			// Remove all states
+			await $`rm -rf roadmap/nodes/*`.cwd(TEST_DIR).quiet();
 
-			const tasks = await core.loadTasks();
-			expect(tasks).toEqual([]);
+			const states = await core.loadStates();
+			expect(states).toEqual([]);
 		});
 
 		it("should pass progress callbacks correctly", async () => {
@@ -186,7 +186,7 @@ describe("Board Loading with checkActiveBranches", () => {
 				progressMessages.push(msg);
 			});
 
-			await core.loadTasks(progressCallback);
+			await core.loadStates(progressCallback);
 
 			// Verify callback was called
 			expect(progressCallback).toHaveBeenCalled();
@@ -203,7 +203,7 @@ describe("Board Loading with checkActiveBranches", () => {
 	describe("Config integration", () => {
 		it("should use default values when config properties are undefined", async () => {
 			// Save a minimal config without the branch-related settings
-			const minimalConfig: BacklogConfig = {
+			const minimalConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				defaultStatus: "To Do",
@@ -213,11 +213,11 @@ describe("Board Loading with checkActiveBranches", () => {
 			};
 			await core.filesystem.saveConfig(minimalConfig);
 
-			// Create a task to ensure we have something to load
-			await core.createTask(
+			// Create a state to ensure we have something to load
+			await core.createState(
 				{
-					id: "task-1",
-					title: "Test Task",
+					id: "state-1",
+					title: "Test State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-01-08",
@@ -229,17 +229,17 @@ describe("Board Loading with checkActiveBranches", () => {
 			);
 
 			const progressMessages: string[] = [];
-			const tasks = await core.loadTasks((msg) => {
+			const states = await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
 			// Should still work with defaults
-			expect(tasks).toBeDefined();
-			expect(tasks.length).toBeGreaterThanOrEqual(0);
+			expect(states).toBeDefined();
+			expect(states.length).toBeGreaterThanOrEqual(0);
 
 			// When checkActiveBranches is undefined, it defaults to true, so should perform checking
 			const applySnapshotsMessage = progressMessages.find((msg) =>
-				msg.includes("Applying latest task states from branch scans..."),
+				msg.includes("Applying latest state states from branch scans..."),
 			);
 			expect(applySnapshotsMessage).toBeDefined();
 		});
@@ -253,13 +253,13 @@ describe("Board Loading with checkActiveBranches", () => {
 			});
 
 			const progressMessages: string[] = [];
-			await core.loadTasks((msg) => {
+			await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
 			// Should not apply cross-branch state snapshots
 			const applySnapshotsMessage = progressMessages.find((msg) =>
-				msg.includes("Applying latest task states from branch scans..."),
+				msg.includes("Applying latest state states from branch scans..."),
 			);
 			expect(applySnapshotsMessage).toBeUndefined();
 		});

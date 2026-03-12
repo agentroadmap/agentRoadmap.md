@@ -1,7 +1,7 @@
 import { realpath, stat } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { $ } from "bun";
-import type { BacklogConfig } from "../types/index.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 
 type GitPathContext = {
 	repoRoot: string;
@@ -10,14 +10,14 @@ type GitPathContext = {
 
 export class GitOperations {
 	private projectRoot: string;
-	private config: BacklogConfig | null = null;
+	private config: RoadmapConfig | null = null;
 
-	constructor(projectRoot: string, config: BacklogConfig | null = null) {
+	constructor(projectRoot: string, config: RoadmapConfig | null = null) {
 		this.projectRoot = projectRoot;
 		this.config = config;
 	}
 
-	setConfig(config: BacklogConfig | null): void {
+	setConfig(config: RoadmapConfig | null): void {
 		this.config = config;
 	}
 
@@ -39,8 +39,8 @@ export class GitOperations {
 		await this.execGit(["add", ...relativePaths]);
 	}
 
-	async commitTaskChange(taskId: string, message: string, filePath?: string): Promise<void> {
-		const commitMessage = `${taskId} - ${message}`;
+	async commitStateChange(stateId: string, message: string, filePath?: string): Promise<void> {
+		const commitMessage = `${stateId} - ${message}`;
 		const args = ["commit", "-m", commitMessage];
 		if (this.config?.bypassGitHooks) {
 			args.push("--no-verify");
@@ -247,11 +247,11 @@ export class GitOperations {
 		const lowerMessage = message.toLowerCase();
 		return networkErrorPatterns.some((pattern) => lowerMessage.includes(pattern));
 	}
-	async addAndCommitTaskFile(taskId: string, filePath: string, action: "create" | "update" | "archive"): Promise<void> {
+	async addAndCommitStateFile(stateId: string, filePath: string, action: "create" | "update" | "archive"): Promise<void> {
 		const actionMessages = {
-			create: `Create task ${taskId}`,
-			update: `Update task ${taskId}`,
-			archive: `Archive task ${taskId}`,
+			create: `Create state ${stateId}`,
+			update: `Update state ${stateId}`,
+			archive: `Archive state ${stateId}`,
 		};
 
 		const context = await this.getPathContext(filePath);
@@ -263,23 +263,23 @@ export class GitOperations {
 			// Reset index to ensure only the specific file is staged
 			await this.resetIndex(repoRoot);
 
-			// Stage only the specific task file
+			// Stage only the specific state file
 			await this.execGit(["add", pathForAdd], { cwd: repoRoot });
 
 			// Commit only the staged file
 			await this.commitStagedChanges(actionMessages[action], repoRoot);
-		}, `commit task file ${filePath}`);
+		}, `commit state file ${filePath}`);
 	}
 
-	async stageBacklogDirectory(backlogDir = "backlog"): Promise<string | null> {
-		const context = await this.getPathContext(backlogDir);
+	async stageRoadmapDirectory(roadmapDir = "roadmap"): Promise<string | null> {
+		const context = await this.getPathContext(roadmapDir);
 		if (context) {
 			const pathForAdd = context.relativePath === "." ? "." : context.relativePath;
 			await this.execGit(["add", pathForAdd], { cwd: context.repoRoot });
 			return context.repoRoot;
 		}
 
-		await this.execGit(["add", `${backlogDir}/`]);
+		await this.execGit(["add", `${roadmapDir}/`]);
 		return null;
 	}
 	async stageFileMove(fromPath: string, toPath: string): Promise<string | null> {

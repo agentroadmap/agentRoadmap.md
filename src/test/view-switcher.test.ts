@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { type ViewState, ViewSwitcher } from "../ui/view-switcher.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
@@ -39,10 +39,10 @@ describe("View Switcher", () => {
 	});
 
 	describe("ViewSwitcher initialization", () => {
-		it("should initialize with task-list view", () => {
+		it("should initialize with state-list view", () => {
 			const initialState: ViewState = {
-				type: "task-list",
-				tasks: [],
+				type: "state-list",
+				states: [],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -51,26 +51,26 @@ describe("View Switcher", () => {
 			});
 
 			const state = switcher.getState();
-			expect(state.type).toBe("task-list");
-			expect(state.tasks).toEqual([]);
+			expect(state.type).toBe("state-list");
+			expect(state.states).toEqual([]);
 		});
 
-		it("should initialize with task-detail view", () => {
-			const selectedTask = {
-				id: "task-1",
-				title: "Test Task",
+		it("should initialize with state-detail view", () => {
+			const selectedState = {
+				id: "state-1",
+				title: "Test State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-07-05",
 				labels: [],
 				dependencies: [],
-				rawContent: "Test task body",
+				rawContent: "Test state body",
 			};
 
 			const initialState: ViewState = {
-				type: "task-detail",
-				selectedTask,
-				tasks: [selectedTask],
+				type: "state-detail",
+				selectedState,
+				states: [selectedState],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -79,15 +79,15 @@ describe("View Switcher", () => {
 			});
 
 			const state = switcher.getState();
-			expect(state.type).toBe("task-detail");
-			expect(state.selectedTask).toEqual(selectedTask);
+			expect(state.type).toBe("state-detail");
+			expect(state.selectedState).toEqual(selectedState);
 		});
 
 		it("should initialize with kanban view", () => {
 			const initialState: ViewState = {
 				type: "kanban",
 				kanbanData: {
-					tasks: [],
+					states: [],
 					statuses: [],
 					isLoading: true,
 				},
@@ -107,8 +107,8 @@ describe("View Switcher", () => {
 	describe("State updates", () => {
 		it("should update state correctly", () => {
 			const initialState: ViewState = {
-				type: "task-list",
-				tasks: [],
+				type: "state-list",
+				states: [],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -116,32 +116,32 @@ describe("View Switcher", () => {
 				initialState,
 			});
 
-			const newTask = {
-				id: "task-1",
-				title: "Updated Task",
+			const newState = {
+				id: "state-1",
+				title: "Updated State",
 				status: "In Progress",
 				assignee: [],
 				createdDate: "2025-07-05",
 				labels: [],
 				dependencies: [],
-				rawContent: "Updated task body",
+				rawContent: "Updated state body",
 			};
 
 			const updatedState = switcher.updateState({
-				selectedTask: newTask,
-				type: "task-detail",
+				selectedState: newState,
+				type: "state-detail",
 			});
 
-			expect(updatedState.type).toBe("task-detail");
-			expect(updatedState.selectedTask).toEqual(newTask);
+			expect(updatedState.type).toBe("state-detail");
+			expect(updatedState.selectedState).toEqual(newState);
 		});
 	});
 
 	describe("Background loading", () => {
 		it("should indicate when kanban data is ready", () => {
 			const initialState: ViewState = {
-				type: "task-list",
-				tasks: [],
+				type: "state-list",
+				states: [],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -155,8 +155,8 @@ describe("View Switcher", () => {
 
 		it("should start preloading kanban data", () => {
 			const initialState: ViewState = {
-				type: "task-list",
-				tasks: [],
+				type: "state-list",
+				states: [],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -177,8 +177,8 @@ describe("View Switcher", () => {
 			let callbackState: ViewState | null = null;
 
 			const initialState: ViewState = {
-				type: "task-list",
-				tasks: [],
+				type: "state-list",
+				states: [],
 			};
 
 			const switcher = new ViewSwitcher({
@@ -189,20 +189,20 @@ describe("View Switcher", () => {
 				},
 			});
 
-			const newTask = {
-				id: "task-1",
-				title: "Test Task",
+			const newState = {
+				id: "state-1",
+				title: "Test State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-07-05",
 				labels: [],
 				dependencies: [],
-				rawContent: "Test task body",
+				rawContent: "Test state body",
 			};
 
 			switcher.updateState({
-				selectedTask: newTask,
-				type: "task-detail",
+				selectedState: newState,
+				type: "state-detail",
 			});
 
 			expect(callbackState).toBeTruthy();
@@ -210,8 +210,8 @@ describe("View Switcher", () => {
 				throw new Error("callbackState should not be null");
 			}
 			const state = callbackState as unknown as ViewState;
-			expect(state.type).toBe("task-detail");
-			expect(state.selectedTask).toEqual(newTask);
+			expect(state.type).toBe("state-detail");
+			expect(state.selectedState).toEqual(newState);
 		});
 	});
 });

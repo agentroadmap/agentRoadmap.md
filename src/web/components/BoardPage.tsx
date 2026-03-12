@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Board from './Board';
-import { type Milestone, type Task } from '../../types';
+import { type Milestone, type State } from '../../types';
 import { type LaneMode } from '../lib/lanes';
 
 interface BoardPageProps {
-	onEditTask: (task: Task) => void;
-	onNewTask: () => void;
-	tasks: Task[];
+	onEditState: (state: State) => void;
+	onNewState: () => void;
+	states: State[];
 	onRefreshData?: () => Promise<void>;
 	statuses: string[];
 	milestones: string[];
@@ -17,9 +17,9 @@ interface BoardPageProps {
 }
 
 export default function BoardPage({
-	onEditTask,
-	onNewTask,
-	tasks,
+	onEditState,
+	onNewState,
+	states,
 	onRefreshData,
 	statuses,
 	milestones,
@@ -28,10 +28,10 @@ export default function BoardPage({
 	isLoading,
 }: BoardPageProps) {
 	const [searchParams, setSearchParams] = useSearchParams();
-	const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null);
+	const [highlightStateId, setHighlightStateId] = useState<string | null>(null);
 	const [laneMode, setLaneMode] = useState<LaneMode>('none');
 	const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
-	const laneStorageKey = 'backlog.board.lane';
+	const laneStorageKey = 'roadmap.board.lane';
 
 	useEffect(() => {
 		const storedLane = typeof window !== 'undefined' ? window.localStorage.getItem(laneStorageKey) : null;
@@ -53,7 +53,7 @@ export default function BoardPage({
 	useEffect(() => {
 		const highlight = searchParams.get('highlight');
 		if (highlight) {
-			setHighlightTaskId(highlight);
+			setHighlightStateId(highlight);
 			// Clear the highlight parameter after setting it
 			setSearchParams(params => {
 				params.delete('highlight');
@@ -63,9 +63,9 @@ export default function BoardPage({
 	}, [searchParams, setSearchParams]);
 
 	// Clear highlight after it's been used
-	const handleEditTask = (task: Task) => {
-		setHighlightTaskId(null); // Clear highlight so popup doesn't reopen
-		onEditTask(task);
+	const handleEditState = (state: State) => {
+		setHighlightStateId(null); // Clear highlight so popup doesn't reopen
+		onEditState(state);
 	};
 
 	const handleLaneChange = (mode: LaneMode) => {
@@ -88,10 +88,10 @@ export default function BoardPage({
 	return (
 		<div className="container mx-auto px-4 py-8 transition-colors duration-200">
 			<Board
-				onEditTask={handleEditTask}
-				onNewTask={onNewTask}
-				highlightTaskId={highlightTaskId}
-				tasks={tasks}
+				onEditState={handleEditState}
+				onNewState={onNewState}
+				highlightStateId={highlightStateId}
+				states={states}
 				onRefreshData={onRefreshData}
 				statuses={statuses}
 				milestones={milestones}

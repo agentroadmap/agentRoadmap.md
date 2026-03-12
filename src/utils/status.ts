@@ -1,4 +1,4 @@
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 
 /**
  * Load valid statuses from project configuration.

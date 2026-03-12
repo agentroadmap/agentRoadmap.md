@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { Task } from "../types/index.ts";
-import { compareTaskIds } from "../utils/task-sorting.ts";
+import type { State } from "../types/index.ts";
+import { compareStateIds } from "../utils/state-sorting.ts";
 
-describe("board UI task selection", () => {
-	it("compareTaskIds sorts tasks numerically by ID", () => {
-		const tasks: Task[] = [
+describe("board UI state selection", () => {
+	it("compareStateIds sorts states numerically by ID", () => {
+		const states: State[] = [
 			{
-				id: "task-10",
-				title: "Task 10",
+				id: "state-10",
+				title: "State 10",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -16,8 +16,8 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-2",
-				title: "Task 2",
+				id: "state-2",
+				title: "State 2",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -26,8 +26,8 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-1",
-				title: "Task 1",
+				id: "state-1",
+				title: "State 1",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -36,8 +36,8 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-20",
-				title: "Task 20",
+				id: "state-20",
+				title: "State 20",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -47,18 +47,18 @@ describe("board UI task selection", () => {
 			},
 		];
 
-		const sorted = [...tasks].sort((a, b) => compareTaskIds(a.id, b.id));
-		expect(sorted[0]?.id).toBe("task-1");
-		expect(sorted[1]?.id).toBe("task-2");
-		expect(sorted[2]?.id).toBe("task-10");
-		expect(sorted[3]?.id).toBe("task-20");
+		const sorted = [...states].sort((a, b) => compareStateIds(a.id, b.id));
+		expect(sorted[0]?.id).toBe("state-1");
+		expect(sorted[1]?.id).toBe("state-2");
+		expect(sorted[2]?.id).toBe("state-10");
+		expect(sorted[3]?.id).toBe("state-20");
 	});
 
-	it("compareTaskIds handles decimal task IDs correctly", () => {
-		const tasks: Task[] = [
+	it("compareStateIds handles decimal state IDs correctly", () => {
+		const states: State[] = [
 			{
-				id: "task-1.10",
-				title: "Task 1.10",
+				id: "state-1.10",
+				title: "State 1.10",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -67,8 +67,8 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-1.2",
-				title: "Task 1.2",
+				id: "state-1.2",
+				title: "State 1.2",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -77,8 +77,8 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-1.1",
-				title: "Task 1.1",
+				id: "state-1.1",
+				title: "State 1.1",
 				status: "To Do",
 				assignee: [],
 				createdDate: "",
@@ -88,18 +88,18 @@ describe("board UI task selection", () => {
 			},
 		];
 
-		const sorted = [...tasks].sort((a, b) => compareTaskIds(a.id, b.id));
-		expect(sorted[0]?.id).toBe("task-1.1");
-		expect(sorted[1]?.id).toBe("task-1.2");
-		expect(sorted[2]?.id).toBe("task-1.10");
+		const sorted = [...states].sort((a, b) => compareStateIds(a.id, b.id));
+		expect(sorted[0]?.id).toBe("state-1.1");
+		expect(sorted[1]?.id).toBe("state-1.2");
+		expect(sorted[2]?.id).toBe("state-1.10");
 	});
 
-	it("simulates board view task selection with sorted tasks", () => {
-		// This test simulates the bug scenario where tasks are displayed in sorted order
+	it("simulates board view state selection with sorted states", () => {
+		// This test simulates the bug scenario where states are displayed in sorted order
 		// but selection uses unsorted array
-		const unsortedTasks: Task[] = [
+		const unsortedStates: State[] = [
 			{
-				id: "task-10",
+				id: "state-10",
 				title: "Should be third when sorted",
 				status: "To Do",
 				assignee: [],
@@ -109,7 +109,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-2",
+				id: "state-2",
 				title: "Should be second when sorted",
 				status: "To Do",
 				assignee: [],
@@ -119,7 +119,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "Should be first when sorted",
 				status: "To Do",
 				assignee: [],
@@ -131,25 +131,25 @@ describe("board UI task selection", () => {
 		];
 
 		// Simulate the display order (sorted)
-		const sortedTasks = [...unsortedTasks].sort((a, b) => compareTaskIds(a.id, b.id));
-		const _displayItems = sortedTasks.map((t) => `${t.id} - ${t.title}`);
+		const sortedStates = [...unsortedStates].sort((a, b) => compareStateIds(a.id, b.id));
+		const _displayItems = sortedStates.map((t) => `${t.id} - ${t.title}`);
 
-		// User clicks on index 0 (expects task-1)
+		// User clicks on index 0 (expects state-1)
 		const selectedIndex = 0;
 
 		// Bug: using unsorted array with sorted display index
-		const wrongTask = unsortedTasks[selectedIndex];
-		expect(wrongTask?.id).toBe("task-10"); // Wrong!
+		const wrongState = unsortedStates[selectedIndex];
+		expect(wrongState?.id).toBe("state-10"); // Wrong!
 
 		// Fix: using sorted array with sorted display index
-		const correctTask = sortedTasks[selectedIndex];
-		expect(correctTask?.id).toBe("task-1"); // Correct!
+		const correctState = sortedStates[selectedIndex];
+		expect(correctState?.id).toBe("state-1"); // Correct!
 	});
 
 	it("ensures consistent ordering between display and selection", () => {
-		const tasks: Task[] = [
+		const states: State[] = [
 			{
-				id: "task-5",
+				id: "state-5",
 				title: "E",
 				status: "To Do",
 				assignee: [],
@@ -159,7 +159,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-3",
+				id: "state-3",
 				title: "C",
 				status: "To Do",
 				assignee: [],
@@ -169,7 +169,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "A",
 				status: "To Do",
 				assignee: [],
@@ -179,7 +179,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-4",
+				id: "state-4",
 				title: "D",
 				status: "To Do",
 				assignee: [],
@@ -189,7 +189,7 @@ describe("board UI task selection", () => {
 				description: "",
 			},
 			{
-				id: "task-2",
+				id: "state-2",
 				title: "B",
 				status: "To Do",
 				assignee: [],
@@ -201,20 +201,20 @@ describe("board UI task selection", () => {
 		];
 
 		// Both display and selection should use the same sorted array
-		const sortedTasks = [...tasks].sort((a, b) => compareTaskIds(a.id, b.id));
+		const sortedStates = [...states].sort((a, b) => compareStateIds(a.id, b.id));
 
-		// Verify each index maps to the correct task
-		for (let i = 0; i < sortedTasks.length; i++) {
-			const displayedTask = sortedTasks[i];
-			const selectedTask = sortedTasks[i]; // Should be the same!
-			expect(selectedTask?.id).toBe(displayedTask?.id ?? "");
+		// Verify each index maps to the correct state
+		for (let i = 0; i < sortedStates.length; i++) {
+			const displayedState = sortedStates[i];
+			const selectedState = sortedStates[i]; // Should be the same!
+			expect(selectedState?.id).toBe(displayedState?.id ?? "");
 		}
 
 		// Verify specific selections
-		expect(sortedTasks[0]?.id).toBe("task-1");
-		expect(sortedTasks[1]?.id).toBe("task-2");
-		expect(sortedTasks[2]?.id).toBe("task-3");
-		expect(sortedTasks[3]?.id).toBe("task-4");
-		expect(sortedTasks[4]?.id).toBe("task-5");
+		expect(sortedStates[0]?.id).toBe("state-1");
+		expect(sortedStates[1]?.id).toBe("state-2");
+		expect(sortedStates[2]?.id).toBe("state-3");
+		expect(sortedStates[3]?.id).toBe("state-4");
+		expect(sortedStates[4]?.id).toBe("state-5");
 	});
 });

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
-import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
+import { registerStateTools } from "../mcp/tools/states/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
@@ -15,7 +15,7 @@ let mcpServer: McpServer;
 async function loadConfig(server: McpServer) {
 	const config = await server.filesystem.loadConfig();
 	if (!config) {
-		throw new Error("Failed to load backlog configuration for tests");
+		throw new Error("Failed to load roadmap configuration for tests");
 	}
 	return config;
 }
@@ -24,7 +24,7 @@ describe("MCP final summary", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("mcp-final-summary");
 		mcpServer = new McpServer(TEST_DIR, "Test instructions");
-		await mcpServer.filesystem.ensureBacklogStructure();
+		await mcpServer.filesystem.ensureRoadmapStructure();
 
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
@@ -33,7 +33,7 @@ describe("MCP final summary", () => {
 		await mcpServer.initializeProject("MCP Final Summary Project");
 
 		const config = await loadConfig(mcpServer);
-		registerTaskTools(mcpServer, config);
+		registerStateTools(mcpServer, config);
 	});
 
 	afterEach(async () => {
@@ -45,29 +45,29 @@ describe("MCP final summary", () => {
 		await safeCleanup(TEST_DIR);
 	});
 
-	it("supports finalSummary on task_create and task_view output", async () => {
+	it("supports finalSummary on state_create and state_view output", async () => {
 		const createResult = await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Summarized task",
+					title: "Summarized state",
 					finalSummary: "PR-style summary",
 				},
 			},
 		});
 
 		const createText = getText(createResult.content);
-		expect(createText).toContain("Task TASK-1 - Summarized task");
+		expect(createText).toContain("State STATE-1 - Summarized state");
 		expect(createText).toContain("Final Summary:");
 		expect(createText).toContain("PR-style summary");
 
-		const createdTask = await mcpServer.getTask("task-1");
-		expect(createdTask?.finalSummary).toBe("PR-style summary");
+		const createdState = await mcpServer.getState("state-1");
+		expect(createdState?.finalSummary).toBe("PR-style summary");
 
 		const viewResult = await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_view",
-				arguments: { id: "task-1" },
+				name: "state_view",
+				arguments: { id: "state-1" },
 			},
 		});
 		const viewText = getText(viewResult.content);
@@ -75,42 +75,42 @@ describe("MCP final summary", () => {
 		expect(viewText).toContain("PR-style summary");
 	});
 
-	it("supports finalSummary set/append/clear on task_edit", async () => {
+	it("supports finalSummary set/append/clear on state_edit", async () => {
 		await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: { title: "Editable" },
 			},
 		});
 
 		await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_edit",
-				arguments: { id: "task-1", finalSummary: "Initial" },
+				name: "state_edit",
+				arguments: { id: "state-1", finalSummary: "Initial" },
 			},
 		});
 
-		let task = await mcpServer.getTask("task-1");
-		expect(task?.finalSummary).toBe("Initial");
+		let state = await mcpServer.getState("state-1");
+		expect(state?.finalSummary).toBe("Initial");
 
 		await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_edit",
-				arguments: { id: "task-1", finalSummaryAppend: ["Second", "Third"] },
+				name: "state_edit",
+				arguments: { id: "state-1", finalSummaryAppend: ["Second", "Third"] },
 			},
 		});
 
-		task = await mcpServer.getTask("task-1");
-		expect(task?.finalSummary).toBe("Initial\n\nSecond\n\nThird");
+		state = await mcpServer.getState("state-1");
+		expect(state?.finalSummary).toBe("Initial\n\nSecond\n\nThird");
 
 		await mcpServer.testInterface.callTool({
 			params: {
-				name: "task_edit",
-				arguments: { id: "task-1", finalSummaryClear: true },
+				name: "state_edit",
+				arguments: { id: "state-1", finalSummaryClear: true },
 			},
 		});
 
-		task = await mcpServer.getTask("task-1");
-		expect(task?.finalSummary).toBeUndefined();
+		state = await mcpServer.getState("state-1");
+		expect(state?.finalSummary).toBeUndefined();
 	});
 });

@@ -1,89 +1,32 @@
-<!-- BACKLOG.MD MCP GUIDELINES START -->
+# agentRoadmap.md: Agent Context
 
-<CRITICAL_INSTRUCTION>
+## Project DNA
+This project is an **Agent-First** roadmap system. It uses a Directed Acyclic Graph (DAG) of **States** to guide autonomous execution and project evolution.
 
-## BACKLOG WORKFLOW INSTRUCTIONS
+## Core Mandates
+- **Scout -> Map -> Reach:** Always follow the contribution loop defined in `roadmap/ROADMAP_CONTRIBUTING.md`.
+- **Proof of Arrival:** Never mark a state as `reached` without providing terminal output or technical validation in the node file.
+- **Hype is Required:** Every reached state must have a concise promotional "Hype" statement.
+- **GLOSSARY Compliance:** Use terms (State, Terminal State, Obstacle, etc.) strictly as defined in `roadmap/GLOSSARY.md`.
 
-This project uses Backlog.md MCP for all task and project management.
+## Role Personas
+- **Manager:** Focus on `Scout` and `Map`. Analyze `DNA.md` to identify dependencies and create new nodes in `roadmap/nodes/`.
+- **Executor:** Focus on `Reach`. Implement technical changes and provide **Proof of Arrival**.
+- **Promoter:** Monitor `roadmap/MAP.md` for new `reached` states and prepare hype-driven updates.
 
-**CRITICAL RESOURCE**: Read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+## Operational Standards
+- Always update `roadmap/MAP.md` when adding or transitioning nodes.
+- If a path is blocked, immediately create an `obstacle` node and link it.
+- Use `DNA.md` as the ultimate North Star for all strategic decisions.
 
-- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
-- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
-- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
-
-The overview resource contains:
-- Decision framework for when to create tasks
-- Search-first workflow to avoid duplicates
-- Links to detailed guides for task creation, execution, and completion
-- MCP tools reference
-
-You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
-
-</CRITICAL_INSTRUCTION>
-
-<!-- BACKLOG.MD MCP GUIDELINES END -->
-
-When you're working on a task, you should assign it yourself: -a @codex
-
-In addition to the rules above, please consider the following:
-At the end of every task implementation, try to take a moment to see if you can simplify it.
-When you are done implementing, you know much more about a task than when you started.
-At this point you can better judge retrospectively what can be the simplest architecture to solve the problem.
-If you can simplify the code, do it.
-
-## Simplicity-first implementation rules
-
-- Prefer a single implementation for similar concerns. Reuse or refactor to a shared helper instead of duplicating.
-- Keep APIs minimal. Favor load + upsert over load/save/update, and do not add unused methods.
-- Avoid extra layers (services, normalizers, versioning) unless there is an immediate, proven need.
-- Keep behavior consistent across similar stores (defaults, parse errors, locking). Divergence requires a clear reason.
-- Don't add new exported helpers just to compute a path; derive from existing paths or add one shared helper only when reused.
-
-## Commands
-
-### Development
-
-- `bun i` - Install dependencies
-- `bun test` - Run tests
-- `bun run format` - Format code with Biome
-- `bun run lint` - Lint and auto-fix with Biome
-- `bun run check` - Run all Biome checks (format + lint)
+## Development Commands (Underlying CLI)
+- `bun i` - Install dependencies (only when necessary for development)
+- `bun run cli` - Run the roadmap CLI tool directly from source
 - `bun run build` - Build the CLI tool
-- `bun run cli` - Uses the CLI tool directly
+- `bun run check` - Run formatting and linting (Biome)
+- `bun test` - Run the test suite
 
-### Testing
-
-- `bun test` - Run all tests
-- `bun test <filename>` - Run specific test file
-
-### Configuration Management
-
-- `bun run cli config list` - View all configuration values
-- `bun run cli config get <key>` - Get a specific config value (e.g. defaultEditor)
-- `bun run cli config set <key> <value>` - Set a config value with validation
-
-## Core Structure
-
-- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g backlog.md`)
-- **Source Code**: Located in `/src` directory with modular TypeScript structure
-- **Task Management**: Uses markdown files in `backlog/` directory structure
-- **Workflow**: Git-integrated with task IDs referenced in commits and PRs
-
-## Code Standards
-
-- **Runtime**: Bun with TypeScript 5
-- **Formatting**: Biome with tab indentation and double quotes
-- **Linting**: Biome recommended rules
-- **Testing**: Bun's built-in test runner
-- **Pre-commit**: Husky + lint-staged automatically runs Biome checks before commits
-
-The pre-commit hook automatically runs `biome check --write` on staged files to ensure code quality. If linting errors
-are found, the commit will be blocked until fixed.
-
-## Git Workflow
-
-- **Branching**: Use feature branches when working on tasks (e.g. `tasks/back-123-feature-name`)
-- **Committing**: Use the following format: `BACK-123 - Title of the task`
-- **PR titles**: Use `{taskId} - {taskTitle}` (e.g. `BACK-123 - Title of the task`)
-- **Github CLI**: Use `gh` whenever possible for PRs and issues
+## Simplicity Rules
+- Favor minimal APIs and single implementations for similar concerns.
+- Retrospectively simplify code after completing a task.
+- Avoid unnecessary abstraction layers (services, normalizers) unless immediately required.

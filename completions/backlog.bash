@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Bash completion script for backlog CLI
+# Bash completion script for roadmap CLI
 #
-# NOTE: This script is embedded in the backlog binary and installed automatically
-# via 'backlog completion install'. This file serves as reference documentation.
+# NOTE: This script is embedded in the roadmap binary and installed automatically
+# via 'roadmap completion install'. This file serves as reference documentation.
 #
 # Installation:
-#   - Recommended: backlog completion install --shell bash
-#   - Manual: Copy to /etc/bash_completion.d/backlog
-#   - Or source directly in ~/.bashrc: source /path/to/backlog.bash
+#   - Recommended: roadmap completion install --shell bash
+#   - Manual: Copy to /etc/bash_completion.d/roadmap
+#   - Or source directly in ~/.bashrc: source /path/to/roadmap.bash
 #
 # Requirements:
 #   - Bash 4.x or 5.x
 #   - bash-completion package (optional but recommended)
 
-# Main completion function for backlog CLI
-_backlog() {
+# Main completion function for roadmap CLI
+_roadmap() {
 	# Initialize completion variables using bash-completion helper if available
 	# Falls back to manual initialization if bash-completion is not installed
 	local cur prev words cword
@@ -37,7 +37,7 @@ _backlog() {
 	# This delegates all completion logic to the TypeScript implementation
 	# Output format: one completion per line
 	local completions
-	completions=$(backlog completion __complete "$line" "$point" 2>/dev/null)
+	completions=$(roadmap completion __complete "$line" "$point" 2>/dev/null)
 
 	# Check if the completion command failed
 	if [[ $? -ne 0 ]]; then
@@ -55,8 +55,8 @@ _backlog() {
 	return 0
 }
 
-# Register the completion function for the 'backlog' command
+# Register the completion function for the 'roadmap' command
 # -F: use function for completion
-# _backlog: name of the completion function
-# backlog: command to complete
-complete -F _backlog backlog
+# _roadmap: name of the completion function
+# roadmap: command to complete
+complete -F _roadmap roadmap

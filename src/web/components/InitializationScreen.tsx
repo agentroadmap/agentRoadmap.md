@@ -13,7 +13,7 @@ interface AdvancedConfig {
 	bypassGitHooks: boolean;
 	autoCommit: boolean;
 	zeroPaddedIds: number | null;
-	taskPrefix: string;
+	statePrefix: string;
 	defaultEditor: string;
 	defaultPort: number;
 	autoOpenBrowser: boolean;
@@ -43,7 +43,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 		bypassGitHooks: DEFAULT_INIT_CONFIG.bypassGitHooks,
 		autoCommit: DEFAULT_INIT_CONFIG.autoCommit,
 		zeroPaddedIds: DEFAULT_INIT_CONFIG.zeroPaddedIds ?? null,
-		taskPrefix: "",
+		statePrefix: "",
 		defaultEditor: DEFAULT_INIT_CONFIG.defaultEditor ?? "",
 		defaultPort: DEFAULT_INIT_CONFIG.defaultPort,
 		autoOpenBrowser: DEFAULT_INIT_CONFIG.autoOpenBrowser,
@@ -132,7 +132,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					? {
 							...advancedConfig,
 							zeroPaddedIds: advancedConfig.zeroPaddedIds || undefined,
-							taskPrefix: advancedConfig.taskPrefix || undefined,
+							statePrefix: advancedConfig.statePrefix || undefined,
 							defaultEditor: advancedConfig.defaultEditor || undefined,
 						}
 					: undefined,
@@ -217,7 +217,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 		<div>
 			<h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">AI Integration Mode</h2>
 			<p className="text-gray-600 dark:text-gray-400 mb-6">
-				How would you like your AI tools to connect to Backlog.md?
+				How would you like your AI tools to connect to Roadmap.md?
 			</p>
 			<div className="space-y-3">
 				<label
@@ -240,7 +240,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							MCP Connector (Recommended)
 						</div>
 						<div className="text-sm text-gray-500 dark:text-gray-400">
-							For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the Backlog.md workflow through
+							For Claude Code, Codex, Gemini CLI, Kiro, Cursor, etc. Agents learn the Roadmap.md workflow through
 							MCP tools, resources, and prompts.
 						</div>
 					</div>
@@ -266,7 +266,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							CLI Commands (Broader Compatibility)
 						</div>
 						<div className="text-sm text-gray-500 dark:text-gray-400">
-							Agents will use Backlog.md by invoking CLI commands directly. Creates instruction files for
+							Agents will use Roadmap.md by invoking CLI commands directly. Creates instruction files for
 							various AI tools.
 						</div>
 					</div>
@@ -397,7 +397,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 					/>
 					<div>
 						<div className="font-medium text-gray-900 dark:text-gray-100">
-							Install Claude Code Backlog.md Agent
+							Install Claude Code Roadmap.md Agent
 						</div>
 						<div className="text-sm text-gray-500 dark:text-gray-400">
 							Adds configuration under .claude/agents/ for enhanced Claude Code integration
@@ -442,9 +442,9 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 									className="mr-3"
 								/>
 								<div>
-									<span className="text-gray-900 dark:text-gray-100">Check task states across branches</span>
+									<span className="text-gray-900 dark:text-gray-100">Check state states across branches</span>
 									<p className="text-xs text-gray-500 dark:text-gray-400">
-										Ensures accurate task tracking across branches
+										Ensures accurate state tracking across branches
 									</p>
 								</div>
 							</label>
@@ -463,7 +463,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 										<div>
 											<span className="text-gray-900 dark:text-gray-100">Include remote branches</span>
 											<p className="text-xs text-gray-500 dark:text-gray-400">
-												Required for accessing tasks from remote repos
+												Required for accessing states from remote repos
 											</p>
 										</div>
 									</label>
@@ -549,7 +549,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							<div>
 								<span className="text-gray-900 dark:text-gray-100">Zero-padded IDs</span>
 								<p className="text-xs text-gray-500 dark:text-gray-400">
-									Example: task-001 instead of task-1
+									Example: state-001 instead of state-1
 								</p>
 							</div>
 						</label>
@@ -574,21 +574,21 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							</div>
 						)}
 
-						{/* Task Prefix */}
+						{/* State Prefix */}
 						<div className="mt-4">
 							<label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
-								Task prefix
+								State prefix
 							</label>
 							<input
 								type="text"
-								value={advancedConfig.taskPrefix}
+								value={advancedConfig.statePrefix}
 								onChange={(e) =>
 									setAdvancedConfig((prev) => ({
 										...prev,
-										taskPrefix: e.target.value.replace(/[^a-zA-Z]/g, ""),
+										statePrefix: e.target.value.replace(/[^a-zA-Z]/g, ""),
 									}))
 								}
-								placeholder="task"
+								placeholder="state"
 								className="w-32 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700"
 							/>
 							<p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -703,11 +703,11 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 						{showAdvancedConfig ? "Customized" : "Defaults"}
 					</span>
 				</div>
-				{showAdvancedConfig && advancedConfig.taskPrefix && (
+				{showAdvancedConfig && advancedConfig.statePrefix && (
 					<div className="flex justify-between">
-						<span className="text-gray-600 dark:text-gray-400">Task Prefix:</span>
+						<span className="text-gray-600 dark:text-gray-400">State Prefix:</span>
 						<span className="font-medium text-gray-900 dark:text-gray-100">
-							{advancedConfig.taskPrefix.toUpperCase()}
+							{advancedConfig.statePrefix.toUpperCase()}
 						</span>
 					</div>
 				)}
@@ -780,7 +780,7 @@ const InitializationScreen: React.FC<InitializationScreenProps> = ({ onInitializ
 							/>
 						</svg>
 					</div>
-					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Initialize Backlog.md</h1>
+					<h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Initialize Roadmap.md</h1>
 				</div>
 
 				{/* Step Indicator */}

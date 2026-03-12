@@ -1,4 +1,4 @@
-import type { Milestone, Task } from "../../types";
+import type { Milestone, State } from "../../types";
 import { getMilestoneLabel, milestoneKey, normalizeMilestoneName } from "../utils/milestones";
 
 export type LaneMode = "none" | "milestone";
@@ -151,7 +151,7 @@ function canonicalizeMilestone(value: string | null | undefined, aliasMap: Map<s
 
 export function buildLanes(
 	mode: LaneMode,
-	tasks: Task[],
+	states: State[],
 	configMilestones: string[],
 	milestoneEntities: Milestone[] = [],
 	options?: { archivedMilestoneIds?: string[]; archivedMilestones?: Milestone[] },
@@ -160,7 +160,7 @@ export function buildLanes(
 		return [
 			{
 				key: DEFAULT_LANE_KEY,
-				label: "All tasks",
+				label: "All states",
 				isNoMilestone: true,
 			},
 		];
@@ -180,8 +180,8 @@ export function buildLanes(
 	};
 
 	configMilestones.forEach(addMilestone);
-	tasks.forEach((task) => {
-		addMilestone(task.milestone ?? "");
+	states.forEach((state) => {
+		addMilestone(state.milestone ?? "");
 	});
 
 	const laneMilestones = Array.from(milestonesByKey.values());
@@ -202,11 +202,11 @@ export function buildLanes(
 	];
 }
 
-export function sortTasksForStatus(tasks: Task[], status: string): Task[] {
+export function sortStatesForStatus(states: State[], status: string): State[] {
 	const isDoneStatus = status.toLowerCase().includes("done") || status.toLowerCase().includes("complete");
 
-	return tasks.slice().sort((a, b) => {
-		// Tasks with ordinal come before tasks without
+	return states.slice().sort((a, b) => {
+		// States with ordinal come before states without
 		if (a.ordinal !== undefined && b.ordinal === undefined) {
 			return -1;
 		}
@@ -235,53 +235,53 @@ function normalizeMilestoneValue(value: string | null): string | undefined {
 	return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function buildGlobalOrderedTaskIdsForMilestoneLaneReorder(params: {
-	tasks: Task[];
-	taskId: string;
+export function buildGlobalOrderedStateIdsForMilestoneLaneReorder(params: {
+	states: State[];
+	stateId: string;
 	targetStatus: string;
 	targetMilestone: string | null;
-	laneOrderedTaskIds: string[];
+	laneOrderedStateIds: string[];
 }): string[] {
 	const targetMilestoneValue = normalizeMilestoneValue(params.targetMilestone);
-	const taskId = String(params.taskId || "").trim();
+	const stateId = String(params.stateId || "").trim();
 	const targetStatus = String(params.targetStatus || "").trim();
 
-	if (!taskId || !targetStatus) {
-		return params.laneOrderedTaskIds;
+	if (!stateId || !targetStatus) {
+		return params.laneOrderedStateIds;
 	}
 
-	const nextTasks = params.tasks.map((task) => {
-		if (task.id !== taskId) return task;
+	const nextStates = params.states.map((state) => {
+		if (state.id !== stateId) return state;
 		return {
-			...task,
+			...state,
 			status: targetStatus,
 			milestone: targetMilestoneValue,
 		};
 	});
 
-	const statusTasks = nextTasks.filter((task) => (task.status ?? "") === targetStatus);
-	const templateIds = sortTasksForStatus(statusTasks, targetStatus).map((task) => task.id);
+	const statusStates = nextStates.filter((state) => (state.status ?? "") === targetStatus);
+	const templateIds = sortStatesForStatus(statusStates, targetStatus).map((state) => state.id);
 
 	if (templateIds.length === 0) {
-		return params.laneOrderedTaskIds;
+		return params.laneOrderedStateIds;
 	}
 
 	const targetMilestoneKey = milestoneKey(targetMilestoneValue);
-	const laneTaskIds = new Set(
-		statusTasks.filter((task) => milestoneKey(task.milestone) === targetMilestoneKey).map((task) => task.id),
+	const laneStateIds = new Set(
+		statusStates.filter((state) => milestoneKey(state.milestone) === targetMilestoneKey).map((state) => state.id),
 	);
 
 	const laneOrder: string[] = [];
 	const laneSeen = new Set<string>();
-	for (const id of params.laneOrderedTaskIds) {
-		if (!laneTaskIds.has(id)) continue;
+	for (const id of params.laneOrderedStateIds) {
+		if (!laneStateIds.has(id)) continue;
 		if (laneSeen.has(id)) continue;
 		laneSeen.add(id);
 		laneOrder.push(id);
 	}
 
 	for (const id of templateIds) {
-		if (!laneTaskIds.has(id)) continue;
+		if (!laneStateIds.has(id)) continue;
 		if (laneSeen.has(id)) continue;
 		laneSeen.add(id);
 		laneOrder.push(id);
@@ -290,7 +290,7 @@ export function buildGlobalOrderedTaskIdsForMilestoneLaneReorder(params: {
 	const merged: string[] = [];
 	let laneIndex = 0;
 	for (const id of templateIds) {
-		if (laneTaskIds.has(id)) {
+		if (laneStateIds.has(id)) {
 			const nextLaneId = laneOrder[laneIndex];
 			if (nextLaneId) {
 				merged.push(nextLaneId);
@@ -303,7 +303,7 @@ export function buildGlobalOrderedTaskIdsForMilestoneLaneReorder(params: {
 		merged.push(id);
 	}
 
-	if (!laneTaskIds.has(taskId) || !merged.includes(taskId)) {
+	if (!laneStateIds.has(stateId) || !merged.includes(stateId)) {
 		return templateIds;
 	}
 
@@ -325,35 +325,35 @@ export function buildGlobalOrderedTaskIdsForMilestoneLaneReorder(params: {
 	return merged;
 }
 
-export function groupTasksByLaneAndStatus(
+export function groupStatesByLaneAndStatus(
 	mode: LaneMode,
 	lanes: LaneDefinition[],
 	statuses: string[],
-	tasks: Task[],
+	states: State[],
 	options?: { archivedMilestoneIds?: string[]; milestoneEntities?: Milestone[]; archivedMilestones?: Milestone[] },
-): Map<string, Map<string, Task[]>> {
-	const result = new Map<string, Map<string, Task[]>>();
+): Map<string, Map<string, State[]>> {
+	const result = new Map<string, Map<string, State[]>>();
 	const archivedKeys = new Set((options?.archivedMilestoneIds ?? []).map((id) => milestoneKey(id)));
 	const aliasMap = buildMilestoneAliasMap(options?.milestoneEntities ?? [], options?.archivedMilestones ?? []);
-	const normalizedTasks = tasks.map((task) => {
-		const canonicalMilestone = canonicalizeMilestone(task.milestone, aliasMap);
+	const normalizedStates = states.map((state) => {
+		const canonicalMilestone = canonicalizeMilestone(state.milestone, aliasMap);
 		const key = milestoneKey(canonicalMilestone);
 		if (!key || (archivedKeys.size > 0 && archivedKeys.has(key))) {
-			if (task.milestone === undefined) {
-				return task;
+			if (state.milestone === undefined) {
+				return state;
 			}
-			return { ...task, milestone: undefined };
+			return { ...state, milestone: undefined };
 		}
-		if (task.milestone === canonicalMilestone) {
-			return task;
+		if (state.milestone === canonicalMilestone) {
+			return state;
 		}
-		return { ...task, milestone: canonicalMilestone };
+		return { ...state, milestone: canonicalMilestone };
 	});
 
-	const ensureStatusMap = (laneKey: string): Map<string, Task[]> => {
+	const ensureStatusMap = (laneKey: string): Map<string, State[]> => {
 		const existing = result.get(laneKey);
 		if (existing) return existing;
-		const statusMap = new Map<string, Task[]>();
+		const statusMap = new Map<string, State[]>();
 		for (const status of statuses) {
 			statusMap.set(status, []);
 		}
@@ -365,9 +365,9 @@ export function groupTasksByLaneAndStatus(
 		ensureStatusMap(lane.key);
 	}
 
-	for (const task of normalizedTasks) {
-		const statusKey = task.status ?? "";
-		const laneKey = mode === "milestone" ? laneKeyFromMilestone(task.milestone) : DEFAULT_LANE_KEY;
+	for (const state of normalizedStates) {
+		const statusKey = state.status ?? "";
+		const laneKey = mode === "milestone" ? laneKeyFromMilestone(state.milestone) : DEFAULT_LANE_KEY;
 		const statusMap = ensureStatusMap(laneKey);
 
 		let bucket = statusMap.get(statusKey);
@@ -375,12 +375,12 @@ export function groupTasksByLaneAndStatus(
 			bucket = [];
 			statusMap.set(statusKey, bucket);
 		}
-		bucket.push(task);
+		bucket.push(state);
 	}
 
 	for (const [, statusMap] of result) {
 		for (const [status, list] of statusMap) {
-			statusMap.set(status, sortTasksForStatus(list, status));
+			statusMap.set(status, sortStatesForStatus(list, status));
 		}
 	}
 

@@ -10,12 +10,12 @@ import { runAdvancedConfigWizard } from "./commands/advanced-config-wizard.ts";
 import { type CompletionInstallResult, installCompletion, registerCompletionCommand } from "./commands/completion.ts";
 import { configureAdvancedSettings } from "./commands/configure-advanced-settings.ts";
 import { registerMcpCommand } from "./commands/mcp.ts";
-import { pickTaskForEditWizard, runTaskCreateWizard, runTaskEditWizard } from "./commands/task-wizard.ts";
+import { pickStateForEditWizard, runStateCreateWizard, runStateEditWizard } from "./commands/state-wizard.ts";
 import { DEFAULT_DIRECTORIES } from "./constants/index.ts";
 import { initializeProject } from "./core/init.ts";
 import { buildMilestoneBuckets, collectArchivedMilestoneKeys, milestoneKey } from "./core/milestones.ts";
 import { computeSequences } from "./core/sequences.ts";
-import { formatTaskPlainText } from "./formatters/task-plain-text.ts";
+import { formatStatePlainText } from "./formatters/state-plain-text.ts";
 import {
 	type AgentInstructionFile,
 	addAgentInstructions,
@@ -29,28 +29,28 @@ import {
 	updateReadmeWithBoard,
 } from "./index.ts";
 import {
-	type BacklogConfig,
+	type RoadmapConfig,
 	type Decision,
 	type DecisionSearchResult,
 	type Document as DocType,
 	type DocumentSearchResult,
 	EntityType,
-	isLocalEditableTask,
+	isLocalEditableState,
 	type Milestone,
 	type SearchPriorityFilter,
 	type SearchResult,
 	type SearchResultType,
-	type Task,
-	type TaskListFilter,
-	type TaskSearchResult,
+	type State,
+	type StateListFilter,
+	type StateSearchResult,
 } from "./types/index.ts";
-import type { TaskEditArgs } from "./types/task-edit-args.ts";
+import type { StateEditArgs } from "./types/state-edit-args.ts";
 import { genericSelectList } from "./ui/components/generic-list.ts";
 import { createLoadingScreen } from "./ui/loading.ts";
-import { viewTaskEnhanced } from "./ui/task-viewer-with-search.ts";
+import { viewStateEnhanced } from "./ui/state-viewer-with-search.ts";
 import { scrollableViewer } from "./ui/tui.ts";
 import { type AgentSelectionValue, processAgentSelection } from "./utils/agent-selection.ts";
-import { findBacklogRoot } from "./utils/find-backlog-root.ts";
+import { findRoadmapRoot } from "./utils/find-roadmap-root.ts";
 import { createMilestoneFilterValueResolver, resolveClosestMilestoneFilterValue } from "./utils/milestone-filter.ts";
 import { hasAnyPrefix } from "./utils/prefix-config.ts";
 import { type RuntimeCwdResolution, resolveRuntimeCwd } from "./utils/runtime-cwd.ts";
@@ -61,10 +61,10 @@ import {
 	parsePositiveIndexList,
 	processAcceptanceCriteriaOptions,
 	toStringArray,
-} from "./utils/task-builders.ts";
-import { buildTaskUpdateInput } from "./utils/task-edit-builder.ts";
-import { normalizeTaskId, taskIdsEqual } from "./utils/task-path.ts";
-import { sortTasks } from "./utils/task-sorting.ts";
+} from "./utils/state-builders.ts";
+import { buildStateUpdateInput } from "./utils/state-edit-builder.ts";
+import { normalizeStateId, stateIdsEqual } from "./utils/state-path.ts";
+import { sortStates } from "./utils/state-sorting.ts";
 import { getVersion } from "./utils/version.ts";
 
 type IntegrationMode = "mcp" | "cli" | "none";
@@ -104,8 +104,8 @@ function normalizeIntegrationOption(value: string): IntegrationMode | null {
 	return null;
 }
 
-// Always use "backlog" as the global MCP server name so fallback mode works when the project isn't initialized.
-const MCP_SERVER_NAME = "backlog";
+// Always use "roadmap" as the global MCP server name so fallback mode works when the project isn't initialized.
+const MCP_SERVER_NAME = "roadmap";
 
 const MCP_CLIENT_INSTRUCTION_MAP: Record<string, AgentInstructionFile> = {
 	claude: "CLAUDE.md",
@@ -141,7 +141,7 @@ async function runMcpClientCommand(label: string, command: string, args: string[
 			stderr: "inherit",
 		});
 		await child.exited;
-		console.log(`    ✓ Added Backlog MCP server to ${label}`);
+		console.log(`    ✓ Added Roadmap MCP server to ${label}`);
 		return label;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
@@ -229,7 +229,7 @@ function hasEditFieldFlags(options: Record<string, unknown>): boolean {
  * Processes --ac and --acceptance-criteria options to extract acceptance criteria
  * Handles both single values and arrays from multi-value accumulators
  */
-function getDefaultAdvancedConfig(existingConfig?: BacklogConfig | null): Partial<BacklogConfig> {
+function getDefaultAdvancedConfig(existingConfig?: RoadmapConfig | null): Partial<RoadmapConfig> {
 	return {
 		checkActiveBranches: existingConfig?.checkActiveBranches ?? true,
 		remoteOperations: existingConfig?.remoteOperations ?? true,
@@ -245,9 +245,9 @@ function getDefaultAdvancedConfig(existingConfig?: BacklogConfig | null): Partia
 }
 
 /**
- * Resolves the Backlog.md project root from the current working directory.
- * Walks up the directory tree to find backlog/ or backlog.json, with git root fallback.
- * Exits with error message if no Backlog.md project is found.
+ * Resolves the Roadmap.md project root from the current working directory.
+ * Walks up the directory tree to find roadmap/ or roadmap.json, with git root fallback.
+ * Exits with error message if no Roadmap.md project is found.
  */
 async function requireProjectRoot(): Promise<string> {
 	let runtimeCwd: RuntimeCwdResolution;
@@ -259,9 +259,9 @@ async function requireProjectRoot(): Promise<string> {
 		process.exit(1);
 	}
 
-	const root = await findBacklogRoot(runtimeCwd.cwd);
+	const root = await findRoadmapRoot(runtimeCwd.cwd);
 	if (!root) {
-		console.error("No Backlog.md project found. Run `backlog init` to initialize.");
+		console.error("No Roadmap.md project found. Run `roadmap init` to initialize.");
 		process.exit(1);
 	}
 	return root;
@@ -305,7 +305,7 @@ try {
 		const first = rawArgs[0];
 		if (
 			typeof first === "string" &&
-			/node_modules[\\/]+backlog\.md-(darwin|linux|windows)-[^\\/]+[\\/]+backlog(\.exe)?$/.test(first)
+			/node_modules[\\/]+roadmap\.md-(darwin|linux|windows)-[^\\/]+[\\/]+roadmap(\.exe)?$/.test(first)
 		) {
 			rawArgs = rawArgs.slice(1);
 		}
@@ -323,7 +323,7 @@ try {
 		let initialized = false;
 		try {
 			const runtimeCwd = await resolveRuntimeCwd();
-			const projectRoot = await findBacklogRoot(runtimeCwd.cwd);
+			const projectRoot = await findRoadmapRoot(runtimeCwd.cwd);
 			if (projectRoot) {
 				const core = new Core(projectRoot);
 				const cfg = await core.filesystem.loadConfig();
@@ -376,7 +376,7 @@ function getMcpStartCwdOverrideFromArgv(argv = process.argv): string | undefined
 }
 
 // Global config migration - run before any command processing
-// Only run if we're in a backlog project (skip for init, help, version)
+// Only run if we're in a roadmap project (skip for init, help, version)
 const shouldRunMigration =
 	!process.argv.includes("init") &&
 	!process.argv.includes("--help") &&
@@ -388,7 +388,7 @@ const shouldRunMigration =
 if (shouldRunMigration) {
 	try {
 		const runtimeCwd = await resolveRuntimeCwd({ cwd: getMcpStartCwdOverrideFromArgv() });
-		const projectRoot = await findBacklogRoot(runtimeCwd.cwd);
+		const projectRoot = await findRoadmapRoot(runtimeCwd.cwd);
 		if (projectRoot) {
 			const core = new Core(projectRoot);
 
@@ -405,18 +405,18 @@ if (shouldRunMigration) {
 
 const program = new Command();
 program
-	.name("backlog")
-	.description("Backlog.md - Project management CLI")
+	.name("roadmap")
+	.description("Roadmap.md - Project management CLI")
 	.version(version, "-v, --version", "display version number");
 
 program
 	.command("init [projectName]")
-	.description("initialize backlog project in the current repository")
+	.description("initialize roadmap project in the current repository")
 	.option(
 		"--agent-instructions <instructions>",
 		"comma-separated agent instructions to create. Valid: claude, agents, gemini, copilot, cursor (alias of agents), none. Use 'none' to skip; when combined with others, 'none' is ignored.",
 	)
-	.option("--check-branches <boolean>", "check task states across active branches (default: true)")
+	.option("--check-branches <boolean>", "check state states across active branches (default: true)")
 	.option("--include-remote <boolean>", "include remote branches when checking (default: true)")
 	.option("--branch-days <number>", "days to consider branch active (default: 30)")
 	.option("--bypass-git-hooks <boolean>", "bypass git hooks when committing (default: false)")
@@ -425,8 +425,8 @@ program
 	.option("--web-port <number>", "default web UI port (default: 6420)")
 	.option("--auto-open-browser <boolean>", "auto-open browser for web UI (default: true)")
 	.option("--install-claude-agent <boolean>", "install Claude Code agent (default: false)")
-	.option("--integration-mode <mode>", "choose how AI tools connect to Backlog.md (mcp, cli, or none)")
-	.option("--task-prefix <prefix>", "custom task prefix, letters only (default: task)")
+	.option("--integration-mode <mode>", "choose how AI tools connect to Roadmap.md (mcp, cli, or none)")
+	.option("--state-prefix <prefix>", "custom state prefix, letters only (default: state)")
 	.option("--defaults", "use default values for all prompts")
 	.action(
 		async (
@@ -443,7 +443,7 @@ program
 				autoOpenBrowser?: string;
 				installClaudeAgent?: string;
 				integrationMode?: string;
-				taskPrefix?: string;
+				statePrefix?: string;
 				defaults?: boolean;
 			},
 		) => {
@@ -478,7 +478,7 @@ program
 
 				if (isReInitialization) {
 					console.log(
-						"Existing backlog project detected. Current configuration will be preserved where not specified.",
+						"Existing roadmap project detected. Current configuration will be preserved where not specified.",
 					);
 				}
 
@@ -516,7 +516,7 @@ program
 					options.autoOpenBrowser ||
 					options.installClaudeAgent ||
 					options.integrationMode ||
-					options.taskPrefix
+					options.statePrefix
 				);
 
 				// Get project name
@@ -551,18 +551,18 @@ program
 					}
 				}
 
-				// Get task prefix (first-time init only, preserved on re-init)
-				let taskPrefix = options.taskPrefix;
-				if (!taskPrefix && !isNonInteractive && !isReInitialization) {
+				// Get state prefix (first-time init only, preserved on re-init)
+				let statePrefix = options.statePrefix;
+				if (!statePrefix && !isNonInteractive && !isReInitialization) {
 					const enteredPrefix = await clack.text({
-						message: "Task prefix (default: task):",
+						message: "State prefix (default: state):",
 						validate: (value) => {
 							const normalized = String(value ?? "").trim();
 							if (!normalized) {
 								return undefined;
 							}
 							if (!/^[a-zA-Z]+$/.test(normalized)) {
-								return "Task prefix must contain only letters (a-z, A-Z).";
+								return "State prefix must contain only letters (a-z, A-Z).";
 							}
 							return undefined;
 						},
@@ -571,17 +571,17 @@ program
 						abortInitialization();
 						return;
 					}
-					taskPrefix = String(enteredPrefix ?? "").trim();
+					statePrefix = String(enteredPrefix ?? "").trim();
 				}
-				// Validate task prefix if provided
-				if (taskPrefix && !/^[a-zA-Z]+$/.test(taskPrefix)) {
-					console.error("Task prefix must contain only letters (a-z, A-Z).");
+				// Validate state prefix if provided
+				if (statePrefix && !/^[a-zA-Z]+$/.test(statePrefix)) {
+					console.error("State prefix must contain only letters (a-z, A-Z).");
 					process.exit(1);
 				}
 
 				const defaultAdvancedConfig = getDefaultAdvancedConfig(existingConfig);
 				const applyAdvancedOptionOverrides = () => {
-					const result: Partial<BacklogConfig> = { ...defaultAdvancedConfig };
+					const result: Partial<RoadmapConfig> = { ...defaultAdvancedConfig };
 					result.checkActiveBranches = parseBoolean(options.checkBranches, result.checkActiveBranches ?? true);
 					if (result.checkActiveBranches) {
 						result.remoteOperations = parseBoolean(options.includeRemote, result.remoteOperations ?? true);
@@ -617,7 +617,7 @@ program
 				let agentFiles: AgentInstructionFile[] = [];
 				let agentInstructionsSkipped = false;
 				let mcpClientSetupSummary: string | undefined;
-				const mcpGuideUrl = "https://github.com/MrLesk/Backlog.md#-mcp-integration-model-context-protocol";
+				const mcpGuideUrl = "https://github.com/MrLesk/Roadmap.md#-mcp-integration-model-context-protocol";
 
 				if (
 					!integrationOption &&
@@ -649,7 +649,7 @@ program
 							integrationTipShown = true;
 						}
 						const integrationPrompt = await clack.select({
-							message: "How would you like your AI tools to connect to Backlog.md?",
+							message: "How would you like your AI tools to connect to Roadmap.md?",
 							initialValue: "mcp",
 							options: [
 								{
@@ -661,7 +661,7 @@ program
 									value: "cli",
 								},
 								{
-									label: "Skip for now (I am not using Backlog.md with AI tools)",
+									label: "Skip for now (I am not using Roadmap.md with AI tools)",
 									value: "none",
 								},
 							],
@@ -809,7 +809,7 @@ program
 										"user",
 										mcpServerName,
 										"--",
-										"backlog",
+										"roadmap",
 										"mcp",
 										"start",
 									]);
@@ -822,7 +822,7 @@ program
 										"mcp",
 										"add",
 										mcpServerName,
-										"backlog",
+										"roadmap",
 										"mcp",
 										"start",
 									]);
@@ -837,7 +837,7 @@ program
 										"-s",
 										"user",
 										mcpServerName,
-										"backlog",
+										"roadmap",
 										"mcp",
 										"start",
 									]);
@@ -854,7 +854,7 @@ program
 										"--name",
 										mcpServerName,
 										"--command",
-										"backlog",
+										"roadmap",
 										"--args",
 										"mcp,start",
 									]);
@@ -899,7 +899,7 @@ program
 					}
 				}
 
-				let advancedConfig: Partial<BacklogConfig> = { ...defaultAdvancedConfig };
+				let advancedConfig: Partial<RoadmapConfig> = { ...defaultAdvancedConfig };
 				let advancedConfigured = false;
 				let installClaudeAgentSelection = false;
 				let installShellCompletionsSelection = false;
@@ -912,7 +912,7 @@ program
 						integrationMode === "cli" ? parseBoolean(options.installClaudeAgent, false) : false;
 				} else {
 					const advancedPrompt = await clack.confirm({
-						message: "Configure advanced settings now? (Runs the advanced backlog config wizard)",
+						message: "Configure advanced settings now? (Runs the advanced roadmap config wizard)",
 						initialValue: false,
 					});
 					if (clack.isCancel(advancedPrompt)) {
@@ -957,7 +957,7 @@ program
 						definitionOfDone: advancedConfig.definitionOfDone,
 						defaultPort: advancedConfig.defaultPort,
 						autoOpenBrowser: advancedConfig.autoOpenBrowser,
-						taskPrefix: taskPrefix || undefined,
+						statePrefix: statePrefix || undefined,
 					},
 					existingConfig,
 				});
@@ -1012,7 +1012,7 @@ program
 					summaryLines.push(`${label("MCP server name:")} ${mcpServerName}`);
 					summaryLines.push(`${label("MCP client setup:")} ${mcpClientSetupSummary ?? muted("skipped")}`);
 				} else {
-					summaryLines.push(`${label("AI integration:")} ${muted("skipped (configure later via `backlog init`)")}`);
+					summaryLines.push(`${label("AI integration:")} ${muted("skipped (configure later via `roadmap init`)")}`);
 				}
 				let completionSummary: string;
 				if (completionInstallResult) {
@@ -1048,7 +1048,7 @@ program
 						}`,
 					);
 				} else {
-					summaryLines.push(`${label("Advanced settings:")} ${muted("unchanged (run `backlog config` to customize)")}`);
+					summaryLines.push(`${label("Advanced settings:")} ${muted("unchanged (run `roadmap config` to customize)")}`);
 				}
 				clack.note(summaryLines.join("\n"), "Initialization Summary");
 
@@ -1067,15 +1067,15 @@ program
 						.map((line) => `  ${line}`)
 						.join("\n");
 					console.warn(
-						`⚠️  Shell completion installation failed:\n${indentedError}\n  Run \`backlog completion install\` later to retry.\n`,
+						`⚠️  Shell completion installation failed:\n${indentedError}\n  Run \`roadmap completion install\` later to retry.\n`,
 					);
 				}
 
 				// Log init result
 				if (initResult.isReInitialization) {
-					clack.outro(`Updated backlog project configuration: ${name}`);
+					clack.outro(`Updated roadmap project configuration: ${name}`);
 				} else {
-					clack.outro(`Initialized backlog project: ${name}`);
+					clack.outro(`Initialized roadmap project: ${name}`);
 				}
 
 				// Log agent files result from shared init
@@ -1089,7 +1089,7 @@ program
 
 				// Log Claude agent result from shared init
 				if (integrationMode === "cli" && initResult.mcpResults?.claudeAgent) {
-					clack.log.info(`Claude Code Backlog.md agent ${initResult.mcpResults.claudeAgent}`);
+					clack.log.info(`Claude Code Roadmap.md agent ${initResult.mcpResults.claudeAgent}`);
 				}
 
 				// Final warning if remote operations were enabled but no git remotes are configured
@@ -1102,7 +1102,7 @@ program
 								[
 									"Warning: remoteOperations is enabled but no git remotes are configured.",
 									"Remote features will be skipped until a remote is added (e.g., 'git remote add origin <url>')",
-									"or disable remoteOperations via 'backlog config set remoteOperations false'.",
+									"or disable remoteOperations via 'roadmap config set remoteOperations false'.",
 								].join(" "),
 							);
 						}
@@ -1124,7 +1124,7 @@ export async function generateNextDocId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const roadmapDir = DEFAULT_DIRECTORIES.ROADMAP;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -1139,7 +1139,7 @@ export async function generateNextDocId(core: Core): Promise<string> {
 
 		// Load files from all branches in parallel
 		const branchFilePromises = branches.map(async (branch) => {
-			const files = await core.gitOps.listFilesInTree(branch, `${backlogDir}/docs`);
+			const files = await core.gitOps.listFilesInTree(branch, `${roadmapDir}/docs`);
 			return files
 				.map((file) => {
 					const match = file.match(/doc-(\d+)/);
@@ -1192,7 +1192,7 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const roadmapDir = DEFAULT_DIRECTORIES.ROADMAP;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -1207,7 +1207,7 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 
 		// Load files from all branches in parallel
 		const branchFilePromises = branches.map(async (branch) => {
-			const files = await core.gitOps.listFilesInTree(branch, `${backlogDir}/decisions`);
+			const files = await core.gitOps.listFilesInTree(branch, `${roadmapDir}/decisions`);
 			return files
 				.map((file) => {
 					const match = file.match(/decision-(\d+)/);
@@ -1260,7 +1260,7 @@ function normalizeDependencies(dependencies: unknown): string[] {
 		values
 			.map((value) => value.trim())
 			.filter((value): value is string => value.length > 0)
-			.map((value) => normalizeTaskId(value));
+			.map((value) => normalizeStateId(value));
 
 	if (Array.isArray(dependencies)) {
 		return normalizeList(
@@ -1286,12 +1286,12 @@ async function validateDependencies(
 		return { valid, invalid };
 	}
 
-	// Load both tasks and drafts to validate dependencies
-	const [tasks, drafts] = await Promise.all([core.queryTasks(), core.fs.listDrafts()]);
+	// Load both states and drafts to validate dependencies
+	const [states, drafts] = await Promise.all([core.queryStates(), core.fs.listDrafts()]);
 
-	const knownIds = [...tasks.map((task) => task.id), ...drafts.map((draft) => draft.id)];
+	const knownIds = [...states.map((state) => state.id), ...drafts.map((draft) => draft.id)];
 	for (const dep of dependencies) {
-		const match = knownIds.find((id) => taskIdsEqual(dep, id));
+		const match = knownIds.find((id) => stateIdsEqual(dep, id));
 		if (match) {
 			valid.push(match);
 		} else {
@@ -1302,9 +1302,9 @@ async function validateDependencies(
 	return { valid, invalid };
 }
 
-function buildTaskFromOptions(id: string, title: string, options: Record<string, unknown>): Task {
+function buildStateFromOptions(id: string, title: string, options: Record<string, unknown>): State {
 	const parentInput = options.parent ? String(options.parent) : undefined;
-	const normalizedParent = parentInput ? normalizeTaskId(parentInput) : undefined;
+	const normalizedParent = parentInput ? normalizeStateId(parentInput) : undefined;
 
 	const createdDate = new Date().toISOString().slice(0, 16).replace("T", " ");
 
@@ -1364,24 +1364,24 @@ function buildTaskFromOptions(id: string, title: string, options: Record<string,
 		documentation,
 		rawContent: "",
 		...(options.description || options.desc ? { description: String(options.description || options.desc) } : {}),
-		...(normalizedParent && { parentTaskId: normalizedParent }),
+		...(normalizedParent && { parentStateId: normalizedParent }),
 		...(validatedPriority && { priority: validatedPriority }),
 	};
 }
 
-const taskCmd = program.command("task").aliases(["tasks"]);
+const stateCmd = program.command("state").aliases(["states"]);
 
-taskCmd
+stateCmd
 	.command("create [title]")
 	.option(
 		"-d, --description <text>",
-		"task description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
+		"state description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
 	)
 	.option("--desc <text>", "alias for --description")
 	.option("-a, --assignee <assignee>")
 	.option("-s, --status <status>")
 	.option("-l, --labels <labels>")
-	.option("--priority <priority>", "set task priority (high, medium, low)")
+	.option("--priority <priority>", "set state priority (high, medium, low)")
 	.option("--plain", "use plain text output after creating")
 	.option("--ac <criteria>", "add acceptance criteria (can be used multiple times)", createMultiValueAccumulator())
 	.option(
@@ -1395,16 +1395,16 @@ taskCmd
 	.option("--notes <text>", "add implementation notes")
 	.option("--final-summary <text>", "add final summary")
 	.option("--draft")
-	.option("-p, --parent <taskId>", "specify parent task ID")
+	.option("-p, --parent <stateId>", "specify parent state ID")
 	.option(
-		"--depends-on <taskIds>",
-		"specify task dependencies (comma-separated or use multiple times)",
+		"--depends-on <stateIds>",
+		"specify state dependencies (comma-separated or use multiple times)",
 		(value, previous) => {
 			const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 			return [...soFar, value];
 		},
 	)
-	.option("--dep <taskIds>", "specify task dependencies (shortcut for --depends-on)", (value, previous) => {
+	.option("--dep <stateIds>", "specify state dependencies (shortcut for --depends-on)", (value, previous) => {
 		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 		return [...soFar, value];
 	})
@@ -1433,14 +1433,14 @@ taskCmd
 
 		if (shouldUseWizard) {
 			const statuses = await getValidStatuses(core);
-			const wizardInput = await runTaskCreateWizard({ statuses });
+			const wizardInput = await runStateCreateWizard({ statuses });
 			if (!wizardInput) {
-				clack.cancel("Task create cancelled.");
+				clack.cancel("State create cancelled.");
 				return;
 			}
 			try {
-				const { task, filePath } = await core.createTaskFromInput(wizardInput);
-				console.log(`Created task ${task.id}`);
+				const { state, filePath } = await core.createStateFromInput(wizardInput);
+				console.log(`Created state ${state.id}`);
 				if (filePath) {
 					console.log(`File: ${filePath}`);
 				}
@@ -1453,10 +1453,10 @@ taskCmd
 
 		const createAsDraft = Boolean(options.draft);
 		const id = await core.generateNextId(
-			createAsDraft ? EntityType.Draft : EntityType.Task,
+			createAsDraft ? EntityType.Draft : EntityType.State,
 			createAsDraft ? undefined : options.parent,
 		);
-		const task = buildTaskFromOptions(id, title ?? "", options);
+		const state = buildStateFromOptions(id, title ?? "", options);
 
 		// Normalize and validate status if provided (case-insensitive)
 		if (options.status) {
@@ -1469,26 +1469,26 @@ taskCmd
 				process.exitCode = 1;
 				return;
 			}
-			task.status = canonical;
+			state.status = canonical;
 		}
 
 		// Validate dependencies if provided
-		if (task.dependencies.length > 0) {
-			const { valid, invalid } = await validateDependencies(task.dependencies, core);
+		if (state.dependencies.length > 0) {
+			const { valid, invalid } = await validateDependencies(state.dependencies, core);
 			if (invalid.length > 0) {
 				console.error(`Error: The following dependencies do not exist: ${invalid.join(", ")}`);
-				console.error("Please create these tasks first or check the task IDs.");
+				console.error("Please create these states first or check the state IDs.");
 				process.exitCode = 1;
 				return;
 			}
-			task.dependencies = valid;
+			state.dependencies = valid;
 		}
 
 		// Handle acceptance criteria for create command (structured only)
 		const criteria = processAcceptanceCriteriaOptions(options);
 		if (criteria.length > 0) {
 			let idx = 1;
-			task.acceptanceCriteriaItems = criteria.map((text) => ({ index: idx++, text, checked: false }));
+			state.acceptanceCriteriaItems = criteria.map((text) => ({ index: idx++, text, checked: false }));
 		}
 
 		const config = await core.filesystem.loadConfig();
@@ -1498,51 +1498,51 @@ taskCmd
 			disableDefaults: options.dodDefaults === false,
 		});
 		if (dodItems) {
-			task.definitionOfDoneItems = dodItems;
+			state.definitionOfDoneItems = dodItems;
 		}
 
 		// Handle implementation plan
 		if (options.plan) {
-			task.implementationPlan = String(options.plan);
+			state.implementationPlan = String(options.plan);
 		}
 
 		// Handle implementation notes
 		if (options.notes) {
-			task.implementationNotes = String(options.notes);
+			state.implementationNotes = String(options.notes);
 		}
 
 		// Handle final summary
 		if (options.finalSummary) {
-			task.finalSummary = String(options.finalSummary);
+			state.finalSummary = String(options.finalSummary);
 		}
 
 		const usePlainOutput = isPlainRequested(options);
 
 		if (createAsDraft) {
-			const filepath = await core.createDraft(task);
+			const filepath = await core.createDraft(state);
 			if (usePlainOutput) {
-				console.log(formatTaskPlainText(task, { filePathOverride: filepath }));
+				console.log(formatStatePlainText(state, { filePathOverride: filepath }));
 				return;
 			}
-			console.log(`Created draft ${task.id}`);
+			console.log(`Created draft ${state.id}`);
 			console.log(`File: ${filepath}`);
 		} else {
-			const filepath = await core.createTask(task);
+			const filepath = await core.createState(state);
 			if (usePlainOutput) {
-				console.log(formatTaskPlainText(task, { filePathOverride: filepath }));
+				console.log(formatStatePlainText(state, { filePathOverride: filepath }));
 				return;
 			}
-			console.log(`Created task ${task.id}`);
+			console.log(`Created state ${state.id}`);
 			console.log(`File: ${filepath}`);
 		}
 	});
 
 program
 	.command("search [query]")
-	.description("search tasks, documents, and decisions using the shared index")
-	.option("--type <type>", "limit results to type (task, document, decision)", createMultiValueAccumulator())
-	.option("--status <status>", "filter task results by status")
-	.option("--priority <priority>", "filter task results by priority (high, medium, low)")
+	.description("search states, documents, and decisions using the shared index")
+	.option("--type <type>", "limit results to type (state, document, decision)", createMultiValueAccumulator())
+	.option("--status <status>", "filter state results by status")
+	.option("--priority <priority>", "filter state results by priority (high, medium, low)")
 	.option("--limit <number>", "limit total results returned")
 	.option("--plain", "print plain text output instead of interactive UI")
 	.action(async (query: string | undefined, options) => {
@@ -1556,13 +1556,13 @@ program
 		};
 
 		const rawTypes = options.type ? (Array.isArray(options.type) ? options.type : [options.type]) : undefined;
-		const allowedTypes: SearchResultType[] = ["task", "document", "decision"];
+		const allowedTypes: SearchResultType[] = ["state", "document", "decision"];
 		const types = rawTypes
 			? rawTypes
 					.map((value: string) => value.toLowerCase())
 					.filter((value: string): value is SearchResultType => {
 						if (!allowedTypes.includes(value as SearchResultType)) {
-							console.warn(`Ignoring unsupported type '${value}'. Supported: task, document, decision`);
+							console.warn(`Ignoring unsupported type '${value}'. Supported: state, document, decision`);
 							return false;
 						}
 						return true;
@@ -1611,31 +1611,31 @@ program
 			return;
 		}
 
-		const taskResults = searchResults.filter(isTaskSearchResult);
-		const searchResultTasks = taskResults.map((result) => result.task);
+		const stateResults = searchResults.filter(isStateSearchResult);
+		const searchResultStates = stateResults.map((result) => result.state);
 
-		const allTasks = (await core.queryTasks()).filter(
-			(task) => task.id && task.id.trim() !== "" && hasAnyPrefix(task.id),
+		const allStates = (await core.queryStates()).filter(
+			(state) => state.id && state.id.trim() !== "" && hasAnyPrefix(state.id),
 		);
 
-		// If no tasks exist at all, show plain text results
-		if (allTasks.length === 0) {
+		// If no states exist at all, show plain text results
+		if (allStates.length === 0) {
 			printSearchResults(searchResults);
 			cleanup();
 			return;
 		}
 
-		// Use the first search result as the selected task, or first available task if no results
-		const firstTask = searchResultTasks[0] || allTasks[0];
+		// Use the first search result as the selected state, or first available state if no results
+		const firstState = searchResultStates[0] || allStates[0];
 		const priorityFilter = filters.priority ? filters.priority : undefined;
 		const statusFilter = filters.status;
 		const { runUnifiedView } = await import("./ui/unified-view.ts");
 
 		await runUnifiedView({
 			core,
-			initialView: "task-list",
-			selectedTask: firstTask,
-			tasks: allTasks, // Pass ALL tasks, not just search results
+			initialView: "state-list",
+			selectedState: firstState,
+			states: allStates, // Pass ALL states, not just search results
 			filter: {
 				title: query ? `Search: ${query}` : "Search",
 				filterDescription: buildSearchFilterDescription({
@@ -1675,13 +1675,13 @@ function printSearchResults(results: SearchResult[]): void {
 		return;
 	}
 
-	const tasks: TaskSearchResult[] = [];
+	const states: StateSearchResult[] = [];
 	const documents: DocumentSearchResult[] = [];
 	const decisions: DecisionSearchResult[] = [];
 
 	for (const result of results) {
-		if (result.type === "task") {
-			tasks.push(result);
+		if (result.type === "state") {
+			states.push(result);
 			continue;
 		}
 		if (result.type === "document") {
@@ -1691,18 +1691,18 @@ function printSearchResults(results: SearchResult[]): void {
 		decisions.push(result);
 	}
 
-	const localTasks = tasks.filter((t) => isLocalEditableTask(t.task));
+	const localStates = states.filter((t) => isLocalEditableState(t.state));
 
 	let printed = false;
 
-	if (localTasks.length > 0) {
-		console.log("Tasks:");
-		for (const taskResult of localTasks) {
-			const { task } = taskResult;
-			const scoreText = formatScore(taskResult.score);
-			const statusText = task.status ? ` (${task.status})` : "";
-			const priorityText = task.priority ? ` [${task.priority.toUpperCase()}]` : "";
-			console.log(`  ${task.id} - ${task.title}${statusText}${priorityText}${scoreText}`);
+	if (localStates.length > 0) {
+		console.log("States:");
+		for (const stateResult of localStates) {
+			const { state } = stateResult;
+			const scoreText = formatScore(stateResult.score);
+			const statusText = state.status ? ` (${state.status})` : "";
+			const priorityText = state.priority ? ` [${state.priority.toUpperCase()}]` : "";
+			console.log(`  ${state.id} - ${state.title}${statusText}${priorityText}${scoreText}`);
 		}
 		printed = true;
 	}
@@ -1747,19 +1747,19 @@ function formatScore(score: number | null): string {
 	return ` [score ${invertedScore.toFixed(3)}]`;
 }
 
-function isTaskSearchResult(result: SearchResult): result is TaskSearchResult {
-	return result.type === "task";
+function isStateSearchResult(result: SearchResult): result is StateSearchResult {
+	return result.type === "state";
 }
 
-taskCmd
+stateCmd
 	.command("list")
-	.description("list tasks grouped by status")
-	.option("-s, --status <status>", "filter tasks by status (case-insensitive)")
-	.option("-a, --assignee <assignee>", "filter tasks by assignee")
-	.option("-m, --milestone <milestone>", "filter tasks by milestone (closest match, case-insensitive)")
-	.option("-p, --parent <taskId>", "filter tasks by parent task ID")
-	.option("--priority <priority>", "filter tasks by priority (high, medium, low)")
-	.option("--sort <field>", "sort tasks by field (priority, id)")
+	.description("list states grouped by status")
+	.option("-s, --status <status>", "filter states by status (case-insensitive)")
+	.option("-a, --assignee <assignee>", "filter states by assignee")
+	.option("-m, --milestone <milestone>", "filter states by milestone (closest match, case-insensitive)")
+	.option("-p, --parent <stateId>", "filter states by parent state ID")
+	.option("--priority <priority>", "filter states by priority (high, medium, low)")
+	.option("--sort <field>", "sort states by field (priority, id)")
 	.option("--plain", "use plain text output instead of interactive UI")
 	.action(async (options) => {
 		const cwd = await requireProjectRoot();
@@ -1768,7 +1768,7 @@ taskCmd
 			core.disposeSearchService();
 			core.disposeContentStore();
 		};
-		const baseFilters: TaskListFilter = {};
+		const baseFilters: StateListFilter = {};
 		if (options.status) {
 			baseFilters.status = options.status;
 		}
@@ -1793,8 +1793,8 @@ taskCmd
 		let parentId: string | undefined;
 		if (options.parent) {
 			const parentInput = String(options.parent);
-			parentId = normalizeTaskId(parentInput);
-			baseFilters.parentTaskId = parentInput;
+			parentId = normalizeStateId(parentInput);
+			baseFilters.parentStateId = parentInput;
 		}
 
 		if (options.sort) {
@@ -1810,22 +1810,22 @@ taskCmd
 
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
-			const tasks = await core.queryTasks({ filters: baseFilters, includeCrossBranch: false });
+			const states = await core.queryStates({ filters: baseFilters, includeCrossBranch: false });
 			const config = await core.filesystem.loadConfig();
 
 			if (parentId) {
-				const parentExists = (await core.queryTasks({ includeCrossBranch: false })).some((task) =>
-					taskIdsEqual(parentId, task.id),
+				const parentExists = (await core.queryStates({ includeCrossBranch: false })).some((state) =>
+					stateIdsEqual(parentId, state.id),
 				);
 				if (!parentExists) {
-					console.error(`Parent task ${parentId} not found.`);
+					console.error(`Parent state ${parentId} not found.`);
 					process.exitCode = 1;
 					cleanup();
 					return;
 				}
 			}
 
-			let sortedTasks = tasks;
+			let sortedStates = states;
 			if (options.sort) {
 				const validSortFields = ["priority", "id"];
 				const sortField = options.sort.toLowerCase();
@@ -1835,30 +1835,30 @@ taskCmd
 					cleanup();
 					return;
 				}
-				sortedTasks = sortTasks(tasks, sortField);
+				sortedStates = sortStates(states, sortField);
 			} else {
-				sortedTasks = sortTasks(tasks, "priority");
+				sortedStates = sortStates(states, "priority");
 			}
 
-			let filtered = sortedTasks;
+			let filtered = sortedStates;
 			if (parentId) {
-				filtered = filtered.filter((task) => task.parentTaskId && taskIdsEqual(parentId, task.parentTaskId));
+				filtered = filtered.filter((state) => state.parentStateId && stateIdsEqual(parentId, state.parentStateId));
 			}
 
 			if (filtered.length === 0) {
 				if (options.parent) {
-					const canonicalParent = normalizeTaskId(String(options.parent));
-					console.log(`No child tasks found for parent task ${canonicalParent}.`);
+					const canonicalParent = normalizeStateId(String(options.parent));
+					console.log(`No child states found for parent state ${canonicalParent}.`);
 				} else {
-					console.log("No tasks found.");
+					console.log("No states found.");
 				}
 				cleanup();
 				return;
 			}
 
 			if (options.sort && options.sort.toLowerCase() === "priority") {
-				const sortedByPriority = sortTasks(filtered, "priority");
-				console.log("Tasks (sorted by priority):");
+				const sortedByPriority = sortStates(filtered, "priority");
+				console.log("States (sorted by priority):");
 				for (const t of sortedByPriority) {
 					const priorityIndicator = t.priority ? `[${t.priority.toUpperCase()}] ` : "";
 					const statusIndicator = t.status ? ` (${t.status})` : "";
@@ -1874,12 +1874,12 @@ taskCmd
 				canonicalByLower.set(status.toLowerCase(), status);
 			}
 
-			const groups = new Map<string, Task[]>();
-			for (const task of filtered) {
-				const rawStatus = (task.status || "").trim();
+			const groups = new Map<string, State[]>();
+			for (const state of filtered) {
+				const rawStatus = (state.status || "").trim();
 				const canonicalStatus = canonicalByLower.get(rawStatus.toLowerCase()) || rawStatus;
 				const list = groups.get(canonicalStatus) || [];
-				list.push(task);
+				list.push(state);
 				groups.set(canonicalStatus, list);
 			}
 
@@ -1893,12 +1893,12 @@ taskCmd
 				if (!list) continue;
 				let sortedList = list;
 				if (options.sort) {
-					sortedList = sortTasks(list, options.sort.toLowerCase());
+					sortedList = sortStates(list, options.sort.toLowerCase());
 				}
 				console.log(`${status || "No Status"}:`);
-				sortedList.forEach((task) => {
-					const priorityIndicator = task.priority ? `[${task.priority.toUpperCase()}] ` : "";
-					console.log(`  ${priorityIndicator}${task.id} - ${task.title}`);
+				sortedList.forEach((state) => {
+					const priorityIndicator = state.priority ? `[${state.priority.toUpperCase()}] ` : "";
+					console.log(`  ${priorityIndicator}${state.id} - ${state.title}`);
 				});
 				console.log();
 			}
@@ -1907,12 +1907,12 @@ taskCmd
 		}
 
 		let filterDescription = "";
-		let title = "Tasks";
+		let title = "States";
 		const activeFilters: string[] = [];
 		if (options.status) activeFilters.push(`Status: ${options.status}`);
 		if (options.assignee) activeFilters.push(`Assignee: ${options.assignee}`);
 		if (options.parent) {
-			activeFilters.push(`Parent: ${normalizeTaskId(String(options.parent))}`);
+			activeFilters.push(`Parent: ${normalizeStateId(String(options.parent))}`);
 		}
 		if (options.milestone) activeFilters.push(`Milestone: ${options.milestone}`);
 		if (options.priority) activeFilters.push(`Priority: ${options.priority}`);
@@ -1920,7 +1920,7 @@ taskCmd
 
 		if (activeFilters.length > 0) {
 			filterDescription = activeFilters.join(", ");
-			title = `Tasks (${activeFilters.join(" • ")})`;
+			title = `States (${activeFilters.join(" • ")})`;
 		}
 		const initialUnifiedFilter: {
 			status?: string;
@@ -1930,7 +1930,7 @@ taskCmd
 			sort?: string;
 			title?: string;
 			filterDescription?: string;
-			parentTaskId?: string;
+			parentStateId?: string;
 		} = {
 			status: options.status,
 			assignee: options.assignee,
@@ -1939,61 +1939,61 @@ taskCmd
 			sort: options.sort,
 			title,
 			filterDescription,
-			parentTaskId: parentId,
+			parentStateId: parentId,
 		};
 
 		const { runUnifiedView } = await import("./ui/unified-view.ts");
-		const interactiveLoaderFilters: TaskListFilter = {};
+		const interactiveLoaderFilters: StateListFilter = {};
 		if (options.assignee) {
 			interactiveLoaderFilters.assignee = options.assignee;
 		}
 		if (parentId) {
-			interactiveLoaderFilters.parentTaskId = parentId;
+			interactiveLoaderFilters.parentStateId = parentId;
 		}
 		await runUnifiedView({
 			core,
-			initialView: "task-list",
-			tasksLoader: async (updateProgress) => {
+			initialView: "state-list",
+			statesLoader: async (updateProgress) => {
 				updateProgress("Loading configuration...");
 				const config = await core.filesystem.loadConfig();
 
-				// Use loadTasks with progress callback for consistent loading experience
-				// This populates the ContentStore, so subsequent queryTasks calls are fast
-				await core.loadTasks((msg) => {
+				// Use loadStates with progress callback for consistent loading experience
+				// This populates the ContentStore, so subsequent queryStates calls are fast
+				await core.loadStates((msg) => {
 					updateProgress(msg);
 				});
 
 				// Now query with filters - this will use the already-populated ContentStore
 				updateProgress("Applying filters...");
-				const [tasks, allTasksForParentCheck] = await Promise.all([
-					core.queryTasks({
+				const [states, allStatesForParentCheck] = await Promise.all([
+					core.queryStates({
 						filters: Object.keys(interactiveLoaderFilters).length > 0 ? interactiveLoaderFilters : undefined,
 					}),
-					parentId ? core.queryTasks() : Promise.resolve(undefined),
+					parentId ? core.queryStates() : Promise.resolve(undefined),
 				]);
 
-				if (parentId && allTasksForParentCheck) {
-					const parentExists = allTasksForParentCheck.some((task) => taskIdsEqual(parentId, task.id));
+				if (parentId && allStatesForParentCheck) {
+					const parentExists = allStatesForParentCheck.some((state) => stateIdsEqual(parentId, state.id));
 					if (!parentExists) {
-						throw new Error(`Parent task ${parentId} not found.`);
+						throw new Error(`Parent state ${parentId} not found.`);
 					}
 				}
 
-				let sortedTasks = tasks;
+				let sortedStates = states;
 				if (options.sort) {
 					const validSortFields = ["priority", "id"];
 					const sortField = options.sort.toLowerCase();
 					if (!validSortFields.includes(sortField)) {
 						throw new Error(`Invalid sort field: ${options.sort}. Valid values are: priority, id`);
 					}
-					sortedTasks = sortTasks(tasks, sortField);
+					sortedStates = sortStates(states, sortField);
 				} else {
-					sortedTasks = sortTasks(tasks, "priority");
+					sortedStates = sortStates(states, "priority");
 				}
 
-				let filtered = sortedTasks;
+				let filtered = sortedStates;
 				if (parentId) {
-					filtered = filtered.filter((task) => task.parentTaskId && taskIdsEqual(parentId, task.parentTaskId));
+					filtered = filtered.filter((state) => state.parentStateId && stateIdsEqual(parentId, state.parentStateId));
 				}
 
 				if (options.milestone && filtered.length > 0) {
@@ -2007,7 +2007,7 @@ taskCmd
 					]);
 					const resolvedMilestone = resolveClosestMilestoneFilterValue(
 						options.milestone,
-						filtered.map((task) => resolveMilestoneFilterValue(task.milestone ?? "")),
+						filtered.map((state) => resolveMilestoneFilterValue(state.milestone ?? "")),
 					);
 					if (resolvedMilestone) {
 						initialUnifiedFilter.milestone = resolvedMilestone;
@@ -2015,7 +2015,7 @@ taskCmd
 				}
 
 				return {
-					tasks: filtered,
+					states: filtered,
 					statuses: config?.statuses || [],
 				};
 			},
@@ -2024,20 +2024,20 @@ taskCmd
 		cleanup();
 	});
 
-taskCmd
-	.command("edit [taskId]")
-	.description("edit an existing task")
+stateCmd
+	.command("edit [stateId]")
+	.description("edit an existing state")
 	.option("-t, --title <title>")
 	.option(
 		"-d, --description <text>",
-		"task description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
+		"state description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
 	)
 	.option("--desc <text>", "alias for --description")
 	.option("-a, --assignee <assignee>")
 	.option("-s, --status <status>")
 	.option("-l, --label <labels>")
-	.option("--priority <priority>", "set task priority (high, medium, low)")
-	.option("--ordinal <number>", "set task ordinal for custom ordering")
+	.option("--priority <priority>", "set state priority (high, medium, low)")
+	.option("--ordinal <number>", "set state ordinal for custom ordering")
 	.option("--plain", "use plain text output after editing")
 	.option("--add-label <label>")
 	.option("--remove-label <label>")
@@ -2089,14 +2089,14 @@ taskCmd
 	)
 	.option("--clear-final-summary", "remove final summary")
 	.option(
-		"--depends-on <taskIds>",
-		"set task dependencies (comma-separated or use multiple times)",
+		"--depends-on <stateIds>",
+		"set state dependencies (comma-separated or use multiple times)",
 		(value, previous) => {
 			const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 			return [...soFar, value];
 		},
 	)
-	.option("--dep <taskIds>", "set task dependencies (shortcut for --depends-on)", (value, previous) => {
+	.option("--dep <stateIds>", "set state dependencies (shortcut for --depends-on)", (value, previous) => {
 		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 		return [...soFar, value];
 	})
@@ -2108,10 +2108,10 @@ taskCmd
 		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 		return [...soFar, value];
 	})
-	.action(async (taskId: string | undefined, options) => {
+	.action(async (stateId: string | undefined, options) => {
 		const shouldUseWizard = hasInteractiveTTY && !hasEditFieldFlags(options);
-		if (!shouldUseWizard && !taskId) {
-			printMissingRequiredArgument("taskId");
+		if (!shouldUseWizard && !stateId) {
+			printMissingRequiredArgument("stateId");
 			return;
 		}
 
@@ -2119,41 +2119,41 @@ taskCmd
 		const core = new Core(cwd);
 
 		if (shouldUseWizard) {
-			let selectedTaskId = taskId ? normalizeTaskId(taskId) : undefined;
-			if (!selectedTaskId) {
-				const localTasks = await core.queryTasks({ includeCrossBranch: false });
-				const taskOptions = localTasks.map((candidate) => ({
+			let selectedStateId = stateId ? normalizeStateId(stateId) : undefined;
+			if (!selectedStateId) {
+				const localStates = await core.queryStates({ includeCrossBranch: false });
+				const stateOptions = localStates.map((candidate) => ({
 					id: candidate.id,
 					title: candidate.title,
 				}));
-				if (taskOptions.length === 0) {
-					console.log("No tasks found.");
+				if (stateOptions.length === 0) {
+					console.log("No states found.");
 					return;
 				}
-				selectedTaskId = await pickTaskForEditWizard({ tasks: taskOptions });
-				if (!selectedTaskId) {
-					clack.cancel("Task edit cancelled.");
+				selectedStateId = await pickStateForEditWizard({ states: stateOptions });
+				if (!selectedStateId) {
+					clack.cancel("State edit cancelled.");
 					return;
 				}
 			}
 
-			const existingTaskForWizard = await core.loadTaskById(selectedTaskId);
-			if (!existingTaskForWizard) {
-				console.error(`Task ${selectedTaskId} not found.`);
+			const existingStateForWizard = await core.loadStateById(selectedStateId);
+			if (!existingStateForWizard) {
+				console.error(`State ${selectedStateId} not found.`);
 				process.exitCode = 1;
 				return;
 			}
 
 			const statuses = await getValidStatuses(core);
-			const wizardInput = await runTaskEditWizard({ task: existingTaskForWizard, statuses });
+			const wizardInput = await runStateEditWizard({ state: existingStateForWizard, statuses });
 			if (!wizardInput) {
-				clack.cancel("Task edit cancelled.");
+				clack.cancel("State edit cancelled.");
 				return;
 			}
 
 			try {
-				const updatedTask = await core.editTask(existingTaskForWizard.id, wizardInput);
-				console.log(`Updated task ${updatedTask.id}`);
+				const updatedState = await core.editState(existingStateForWizard.id, wizardInput);
+				console.log(`Updated state ${updatedState.id}`);
 			} catch (error) {
 				console.error(error instanceof Error ? error.message : String(error));
 				process.exitCode = 1;
@@ -2161,11 +2161,11 @@ taskCmd
 			return;
 		}
 
-		const canonicalId = normalizeTaskId(taskId ?? "");
-		const existingTask = await core.loadTaskById(canonicalId);
+		const canonicalId = normalizeStateId(stateId ?? "");
+		const existingState = await core.loadStateById(canonicalId);
 
-		if (!existingTask) {
-			console.error(`Task ${taskId} not found.`);
+		if (!existingState) {
+			console.error(`State ${stateId} not found.`);
 			process.exitCode = 1;
 			return;
 		}
@@ -2291,7 +2291,7 @@ taskCmd
 		const notesAppendValues = toStringArray(options.appendNotes);
 		const finalSummaryAppendValues = toStringArray(options.appendFinalSummary);
 
-		const editArgs: TaskEditArgs = {};
+		const editArgs: StateEditArgs = {};
 		if (options.title) {
 			editArgs.title = String(options.title);
 		}
@@ -2372,10 +2372,10 @@ taskCmd
 			editArgs.definitionOfDoneUncheck = uncheckDod;
 		}
 
-		let updatedTask: Task;
+		let updatedState: State;
 		try {
-			const updateInput = buildTaskUpdateInput(editArgs);
-			updatedTask = await core.editTask(canonicalId, updateInput);
+			const updateInput = buildStateUpdateInput(editArgs);
+			updatedState = await core.editState(canonicalId, updateInput);
 		} catch (error) {
 			console.error(error instanceof Error ? error.message : String(error));
 			process.exitCode = 1;
@@ -2384,108 +2384,108 @@ taskCmd
 
 		const usePlainOutput = isPlainRequested(options);
 		if (usePlainOutput) {
-			console.log(formatTaskPlainText(updatedTask));
+			console.log(formatStatePlainText(updatedState));
 			return;
 		}
 
-		console.log(`Updated task ${updatedTask.id}`);
+		console.log(`Updated state ${updatedState.id}`);
 	});
 
-// Note: Implementation notes appending is handled via `task edit --append-notes` only.
+// Note: Implementation notes appending is handled via `state edit --append-notes` only.
 
-taskCmd
-	.command("view <taskId>")
-	.description("display task details")
+stateCmd
+	.command("view <stateId>")
+	.description("display state details")
 	.option("--plain", "use plain text output instead of interactive UI")
-	.action(async (taskId: string, options) => {
+	.action(async (stateId: string, options) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const localTasks = await core.fs.listTasks();
-		const task = await core.getTaskWithSubtasks(taskId, localTasks);
-		if (!task) {
-			console.error(`Task ${taskId} not found.`);
+		const localStates = await core.fs.listStates();
+		const state = await core.getStateWithSubstates(stateId, localStates);
+		if (!state) {
+			console.error(`State ${stateId} not found.`);
 			return;
 		}
 
-		const allTasks = localTasks.some((candidate) => taskIdsEqual(task.id, candidate.id))
-			? localTasks
-			: [...localTasks, task];
+		const allStates = localStates.some((candidate) => stateIdsEqual(state.id, candidate.id))
+			? localStates
+			: [...localStates, state];
 
 		// Plain text output for non-interactive environments
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
-			console.log(formatTaskPlainText(task));
+			console.log(formatStatePlainText(state));
 			return;
 		}
 
-		// Use enhanced task viewer with detail focus
-		await viewTaskEnhanced(task, { startWithDetailFocus: true, core, tasks: allTasks });
+		// Use enhanced state viewer with detail focus
+		await viewStateEnhanced(state, { startWithDetailFocus: true, core, states: allStates });
 	});
 
-taskCmd
-	.command("archive <taskId>")
-	.description("archive a task")
-	.action(async (taskId: string) => {
+stateCmd
+	.command("archive <stateId>")
+	.description("archive a state")
+	.action(async (stateId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.archiveTask(taskId);
+		const success = await core.archiveState(stateId);
 		if (success) {
-			console.log(`Archived task ${taskId}`);
+			console.log(`Archived state ${stateId}`);
 		} else {
-			console.error(`Task ${taskId} not found.`);
+			console.error(`State ${stateId} not found.`);
 		}
 	});
 
-taskCmd
-	.command("demote <taskId>")
-	.description("move task back to drafts")
-	.action(async (taskId: string) => {
+stateCmd
+	.command("demote <stateId>")
+	.description("move state back to drafts")
+	.action(async (stateId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.demoteTask(taskId);
+		const success = await core.demoteState(stateId);
 		if (success) {
-			console.log(`Demoted task ${taskId}`);
+			console.log(`Demoted state ${stateId}`);
 		} else {
-			console.error(`Task ${taskId} not found.`);
+			console.error(`State ${stateId} not found.`);
 		}
 	});
 
-taskCmd
-	.argument("[taskId]")
+stateCmd
+	.argument("[stateId]")
 	.option("--plain", "use plain text output")
-	.action(async (taskId: string | undefined, options: { plain?: boolean }) => {
+	.action(async (stateId: string | undefined, options: { plain?: boolean }) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
 
 		// Don't handle commands that should be handled by specific command handlers
 		const reservedCommands = ["create", "list", "edit", "view", "archive", "demote"];
-		if (taskId && reservedCommands.includes(taskId)) {
-			console.error(`Unknown command: ${taskId}`);
-			taskCmd.help();
+		if (stateId && reservedCommands.includes(stateId)) {
+			console.error(`Unknown command: ${stateId}`);
+			stateCmd.help();
 			return;
 		}
 
-		// Handle single task view only
-		if (!taskId) {
-			taskCmd.help();
+		// Handle single state view only
+		if (!stateId) {
+			stateCmd.help();
 			return;
 		}
 
-		const localTasks = await core.fs.listTasks();
-		const task = await core.getTaskWithSubtasks(taskId, localTasks);
-		if (!task) {
-			console.error(`Task ${taskId} not found.`);
+		const localStates = await core.fs.listStates();
+		const state = await core.getStateWithSubstates(stateId, localStates);
+		if (!state) {
+			console.error(`State ${stateId} not found.`);
 			return;
 		}
 
-		const allTasks = localTasks.some((candidate) => taskIdsEqual(task.id, candidate.id))
-			? localTasks
-			: [...localTasks, task];
+		const allStates = localStates.some((candidate) => stateIdsEqual(state.id, candidate.id))
+			? localStates
+			: [...localStates, state];
 
 		// Plain text output for non-interactive environments
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
-			console.log(formatTaskPlainText(task));
+			console.log(formatStatePlainText(state));
 			return;
 		}
 
@@ -2493,9 +2493,9 @@ taskCmd
 		const { runUnifiedView } = await import("./ui/unified-view.ts");
 		await runUnifiedView({
 			core,
-			initialView: "task-detail",
-			selectedTask: task,
-			tasks: allTasks,
+			initialView: "state-detail",
+			selectedState: state,
+			states: allStates,
 		});
 	});
 
@@ -2518,7 +2518,7 @@ draftCmd
 		}
 
 		// Apply sorting - default to priority sorting like the web UI
-		const { sortTasks } = await import("./utils/task-sorting.ts");
+		const { sortStates } = await import("./utils/state-sorting.ts");
 		let sortedDrafts = drafts;
 
 		if (options.sort) {
@@ -2529,10 +2529,10 @@ draftCmd
 				process.exitCode = 1;
 				return;
 			}
-			sortedDrafts = sortTasks(drafts, sortField);
+			sortedDrafts = sortStates(drafts, sortField);
 		} else {
 			// Default to priority sorting to match web UI behavior
-			sortedDrafts = sortTasks(drafts, "priority");
+			sortedDrafts = sortStates(drafts, "priority");
 		}
 
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
@@ -2551,9 +2551,9 @@ draftCmd
 			const { runUnifiedView } = await import("./ui/unified-view.ts");
 			await runUnifiedView({
 				core,
-				initialView: "task-list",
-				selectedTask: firstDraft,
-				tasks: sortedDrafts,
+				initialView: "state-list",
+				selectedState: firstDraft,
+				states: sortedDrafts,
 				filter: {
 					filterDescription: "All Drafts",
 				},
@@ -2566,7 +2566,7 @@ draftCmd
 	.command("create <title>")
 	.option(
 		"-d, --description <text>",
-		"task description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
+		"state description (multi-line: bash $'Line1\\nLine2', POSIX printf, PowerShell \"Line1`nLine2\")",
 	)
 	.option("--desc <text>", "alias for --description")
 	.option("-a, --assignee <assignee>")
@@ -2577,106 +2577,106 @@ draftCmd
 		const core = new Core(cwd);
 		await core.ensureConfigLoaded();
 		const id = await core.generateNextId(EntityType.Draft);
-		const task = buildTaskFromOptions(id, title, options);
-		const filepath = await core.createDraft(task);
+		const state = buildStateFromOptions(id, title, options);
+		const filepath = await core.createDraft(state);
 		console.log(`Created draft ${id}`);
 		console.log(`File: ${filepath}`);
 	});
 
 draftCmd
-	.command("archive <taskId>")
+	.command("archive <stateId>")
 	.description("archive a draft")
-	.action(async (taskId: string) => {
+	.action(async (stateId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.archiveDraft(taskId);
+		const success = await core.archiveDraft(stateId);
 		if (success) {
-			console.log(`Archived draft ${taskId}`);
+			console.log(`Archived draft ${stateId}`);
 		} else {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 		}
 	});
 
 draftCmd
-	.command("promote <taskId>")
-	.description("promote draft to task")
-	.action(async (taskId: string) => {
+	.command("promote <stateId>")
+	.description("promote draft to state")
+	.action(async (stateId: string) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const success = await core.promoteDraft(taskId);
+		const success = await core.promoteDraft(stateId);
 		if (success) {
-			console.log(`Promoted draft ${taskId}`);
+			console.log(`Promoted draft ${stateId}`);
 		} else {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 		}
 	});
 
 draftCmd
-	.command("view <taskId>")
+	.command("view <stateId>")
 	.description("display draft details")
 	.option("--plain", "use plain text output instead of interactive UI")
-	.action(async (taskId: string, options) => {
+	.action(async (stateId: string, options) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const { getDraftPath } = await import("./utils/task-path.ts");
-		const filePath = await getDraftPath(taskId, core);
+		const { getDraftPath } = await import("./utils/state-path.ts");
+		const filePath = await getDraftPath(stateId, core);
 
 		if (!filePath) {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 			return;
 		}
-		const draft = await core.filesystem.loadDraft(taskId);
+		const draft = await core.filesystem.loadDraft(stateId);
 
 		if (!draft) {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 			return;
 		}
 
 		// Plain text output for non-interactive environments
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
-			console.log(formatTaskPlainText(draft));
+			console.log(formatStatePlainText(draft));
 			return;
 		}
 
-		// Use enhanced task viewer with detail focus
-		await viewTaskEnhanced(draft, { startWithDetailFocus: true, core });
+		// Use enhanced state viewer with detail focus
+		await viewStateEnhanced(draft, { startWithDetailFocus: true, core });
 	});
 
 draftCmd
-	.argument("[taskId]")
+	.argument("[stateId]")
 	.option("--plain", "use plain text output")
-	.action(async (taskId: string | undefined, options: { plain?: boolean }) => {
-		if (!taskId) {
+	.action(async (stateId: string | undefined, options: { plain?: boolean }) => {
+		if (!stateId) {
 			draftCmd.help();
 			return;
 		}
 
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const { getDraftPath } = await import("./utils/task-path.ts");
-		const filePath = await getDraftPath(taskId, core);
+		const { getDraftPath } = await import("./utils/state-path.ts");
+		const filePath = await getDraftPath(stateId, core);
 
 		if (!filePath) {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 			return;
 		}
-		const draft = await core.filesystem.loadDraft(taskId);
+		const draft = await core.filesystem.loadDraft(stateId);
 
 		if (!draft) {
-			console.error(`Draft ${taskId} not found.`);
+			console.error(`Draft ${stateId} not found.`);
 			return;
 		}
 
 		// Plain text output for non-interactive environments
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
-			console.log(formatTaskPlainText(draft, { filePathOverride: filePath }));
+			console.log(formatStatePlainText(draft, { filePathOverride: filePath }));
 			return;
 		}
 
-		// Use enhanced task viewer with detail focus
-		await viewTaskEnhanced(draft, { startWithDetailFocus: true, core });
+		// Use enhanced state viewer with detail focus
+		await viewStateEnhanced(draft, { startWithDetailFocus: true, core });
 	});
 
 const milestoneCmd = program.command("milestone").aliases(["milestones"]);
@@ -2691,8 +2691,8 @@ milestoneCmd
 		const core = new Core(cwd);
 		await core.ensureConfigLoaded();
 
-		const [tasks, milestones, archivedMilestones, config] = await Promise.all([
-			core.queryTasks({ includeCrossBranch: false }),
+		const [states, milestones, archivedMilestones, config] = await Promise.all([
+			core.queryStates({ includeCrossBranch: false }),
 			core.filesystem.listMilestones(),
 			core.filesystem.listArchivedMilestones(),
 			core.filesystem.loadConfig(),
@@ -2700,7 +2700,7 @@ milestoneCmd
 
 		const statuses = config?.statuses ?? ["To Do", "In Progress", "Done"];
 		const archivedMilestoneIds = collectArchivedMilestoneKeys(archivedMilestones, milestones);
-		const buckets = buildMilestoneBuckets(tasks, milestones, statuses, { archivedMilestoneIds, archivedMilestones });
+		const buckets = buildMilestoneBuckets(states, milestones, statuses, { archivedMilestoneIds, archivedMilestones });
 		const active = buckets.filter((bucket) => !bucket.isNoMilestone && !bucket.isCompleted);
 		const completed = buckets.filter((bucket) => !bucket.isNoMilestone && bucket.isCompleted);
 
@@ -2756,7 +2756,7 @@ function addBoardOptions(cmd: Command) {
 	return cmd
 		.option("-l, --layout <layout>", "board layout (horizontal|vertical)", "horizontal")
 		.option("--vertical", "use vertical layout (shortcut for --layout vertical)")
-		.option("-m, --milestones", "group tasks by milestone");
+		.option("-m, --milestones", "group states by milestone");
 }
 
 async function handleBoardView(options: { layout?: string; vertical?: boolean; milestones?: boolean }) {
@@ -2774,9 +2774,9 @@ async function handleBoardView(options: { layout?: string; vertical?: boolean; m
 		core,
 		initialView: "kanban",
 		milestoneMode: options.milestones,
-		tasksLoader: async (updateProgress) => {
-			const [tasks, milestoneEntities, archivedMilestones] = await Promise.all([
-				core.loadTasks((msg) => {
+		statesLoader: async (updateProgress) => {
+			const [states, milestoneEntities, archivedMilestones] = await Promise.all([
+				core.loadStates((msg) => {
 					updateProgress(msg);
 				}),
 				core.filesystem.listMilestones(),
@@ -2865,27 +2865,27 @@ async function handleBoardView(options: { layout?: string; vertical?: boolean; m
 				return normalized;
 			};
 			const archivedKeys = new Set(collectArchivedMilestoneKeys(archivedMilestones, milestoneEntities));
-			const normalizedTasks =
+			const normalizedStates =
 				archivedKeys.size > 0
-					? tasks.map((task) => {
-							const key = milestoneKey(resolveMilestoneAlias(task.milestone));
+					? states.map((state) => {
+							const key = milestoneKey(resolveMilestoneAlias(state.milestone));
 							if (!key || !archivedKeys.has(key)) {
-								return task;
+								return state;
 							}
-							return { ...task, milestone: undefined };
+							return { ...state, milestone: undefined };
 						})
-					: tasks;
+					: states;
 			return {
-				tasks: normalizedTasks.map((t) => ({ ...t, status: t.status || "" })),
+				states: normalizedStates.map((t) => ({ ...t, status: t.status || "" })),
 				statuses,
 			};
 		},
 	});
 }
 
-addBoardOptions(boardCmd).description("display tasks in a Kanban board").action(handleBoardView);
+addBoardOptions(boardCmd).description("display states in a Kanban board").action(handleBoardView);
 
-addBoardOptions(boardCmd.command("view").description("display tasks in a Kanban board")).action(handleBoardView);
+addBoardOptions(boardCmd.command("view").description("display states in a Kanban board")).action(handleBoardView);
 
 boardCmd
 	.command("export [filename]")
@@ -2899,17 +2899,17 @@ boardCmd
 		const config = await core.filesystem.loadConfig();
 		const statuses = config?.statuses || [];
 
-		// Load tasks with progress tracking
-		const loadingScreen = await createLoadingScreen("Loading tasks for export");
+		// Load states with progress tracking
+		const loadingScreen = await createLoadingScreen("Loading states for export");
 
-		let finalTasks: Task[];
+		let finalStates: State[];
 		try {
-			// Use the shared Core method for loading board tasks
-			finalTasks = await core.loadTasks((msg) => {
+			// Use the shared Core method for loading board states
+			finalStates = await core.loadStates((msg) => {
 				loadingScreen?.update(msg);
 			});
 
-			loadingScreen?.update(`Total tasks: ${finalTasks.length}`);
+			loadingScreen?.update(`Total states: ${finalStates.length}`);
 
 			// Close loading screen before export
 			loadingScreen?.close();
@@ -2921,11 +2921,11 @@ boardCmd
 			if (options.readme) {
 				// Use version from option if provided, otherwise use the CLI version
 				const exportVersion = options.exportVersion || version;
-				await updateReadmeWithBoard(finalTasks, statuses, projectName, exportVersion);
+				await updateReadmeWithBoard(finalStates, statuses, projectName, exportVersion);
 				console.log("Updated README.md with Kanban board.");
 			} else {
-				// Use filename argument or default to Backlog.md
-				const outputFile = filename || "Backlog.md";
+				// Use filename argument or default to Roadmap.md
+				const outputFile = filename || "Roadmap.md";
 				const outputPath = join(cwd, outputFile as string);
 
 				// Check if file exists and handle overwrite confirmation
@@ -2943,7 +2943,7 @@ boardCmd
 					}
 				}
 
-				await exportKanbanBoardToFile(finalTasks, statuses, outputPath, projectName, options.force || !fileExists);
+				await exportKanbanBoardToFile(finalStates, statuses, outputPath, projectName, options.force || !fileExists);
 				console.log(`Exported board to ${outputPath}`);
 			}
 		} catch (error) {
@@ -3072,10 +3072,10 @@ agentsCmd
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 
-			// Check if backlog project is initialized
+			// Check if roadmap project is initialized
 			const config = await core.filesystem.loadConfig();
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
@@ -3118,7 +3118,7 @@ agentsCmd
 // Config command group
 const configCmd = program
 	.command("config")
-	.description("manage backlog configuration")
+	.description("manage roadmap configuration")
 	.action(async () => {
 		try {
 			const cwd = await requireProjectRoot();
@@ -3126,7 +3126,7 @@ const configCmd = program
 			const existingConfig = await core.filesystem.loadConfig();
 
 			if (!existingConfig) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
@@ -3171,7 +3171,7 @@ const configCmd = program
 			}
 			if (shouldInstallClaude) {
 				await installClaudeAgent(cwd);
-				console.log("✓ Claude Code Backlog.md agent installed to .claude/agents/");
+				console.log("✓ Claude Code Roadmap.md agent installed to .claude/agents/");
 			}
 			if (completionResult) {
 				const instructions = completionResult.instructions.trim();
@@ -3190,10 +3190,10 @@ const configCmd = program
 					.map((line) => `  ${line}`)
 					.join("\n");
 				console.warn(
-					`⚠️  Shell completion installation failed:\n${indentedError}\n  Run \`backlog completion install\` later to retry.\n`,
+					`⚠️  Shell completion installation failed:\n${indentedError}\n  Run \`roadmap completion install\` later to retry.\n`,
 				);
 			}
-			console.log("\nUse `backlog config list` to review all configuration values.");
+			console.log("\nUse `roadmap config list` to review all configuration values.");
 		} catch (err) {
 			console.error("Failed to update configuration", err);
 			process.exitCode = 1;
@@ -3204,17 +3204,17 @@ const configCmd = program
 const sequenceCmd = program.command("sequence");
 
 sequenceCmd
-	.description("list and inspect execution sequences computed from task dependencies")
+	.description("list and inspect execution sequences computed from state dependencies")
 	.command("list")
 	.description("list sequences (interactive by default; use --plain for text output)")
 	.option("--plain", "use plain text output instead of interactive UI")
 	.action(async (options) => {
 		const cwd = await requireProjectRoot();
 		const core = new Core(cwd);
-		const tasks = await core.queryTasks();
-		// Exclude tasks marked as Done from sequences (case-insensitive)
-		const activeTasks = tasks.filter((t) => (t.status || "").toLowerCase() !== "done");
-		const { unsequenced, sequences } = computeSequences(activeTasks);
+		const states = await core.queryStates();
+		// Exclude states marked as Done from sequences (case-insensitive)
+		const activeStates = states.filter((t) => (t.status || "").toLowerCase() !== "done");
+		const { unsequenced, sequences } = computeSequences(activeStates);
 
 		const usePlainOutput = isPlainRequested(options) || shouldAutoPlain;
 		if (usePlainOutput) {
@@ -3227,7 +3227,7 @@ sequenceCmd
 			}
 			for (const seq of sequences) {
 				console.log(`Sequence ${seq.index}:`);
-				for (const t of seq.tasks) {
+				for (const t of seq.states) {
 					console.log(`  ${t.id} - ${t.title}`);
 				}
 				console.log("");
@@ -3250,7 +3250,7 @@ configCmd
 			const config = await core.filesystem.loadConfig();
 
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
@@ -3337,7 +3337,7 @@ configCmd
 			const config = await core.filesystem.loadConfig();
 
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
@@ -3468,24 +3468,24 @@ configCmd
 					if (key === "milestones") {
 						console.error("milestones cannot be set directly.");
 						console.error(
-							"Use milestone files via milestone commands (e.g. `backlog milestone list`, `backlog milestone add`).",
+							"Use milestone files via milestone commands (e.g. `roadmap milestone list`, `roadmap milestone add`).",
 						);
 					} else if (key === "definitionOfDone") {
 						console.error("definitionOfDone cannot be set directly.");
 						console.error(
-							"Use `backlog config` for interactive editing, update `backlog/config.yml`, or use Web UI Settings.",
+							"Use `roadmap config` for interactive editing, update `roadmap/config.yml`, or use Web UI Settings.",
 						);
 					} else {
-						console.error(`${key} cannot be set directly. Use 'backlog config list-${key}' to view current values.`);
+						console.error(`${key} cannot be set directly. Use 'roadmap config list-${key}' to view current values.`);
 						console.error("Array values should be edited in the config file directly.");
 					}
 					process.exit(1);
 					break;
-				case "taskPrefix":
+				case "statePrefix":
 				case "prefixes":
-					console.error("Task prefix cannot be changed after initialization.");
+					console.error("State prefix cannot be changed after initialization.");
 					console.error(
-						"The prefix is set during 'backlog init' and is permanent to avoid breaking existing task IDs.",
+						"The prefix is set during 'roadmap init' and is permanent to avoid breaking existing state IDs.",
 					);
 					process.exit(1);
 					break;
@@ -3515,7 +3515,7 @@ configCmd
 			const config = await core.filesystem.loadConfig();
 
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
@@ -3536,7 +3536,7 @@ configCmd
 			console.log(`  autoCommit: ${config.autoCommit ?? "(not set)"}`);
 			console.log(`  bypassGitHooks: ${config.bypassGitHooks ?? "(not set)"}`);
 			console.log(`  zeroPaddedIds: ${config.zeroPaddedIds ?? "(disabled)"}`);
-			console.log(`  taskPrefix: ${config.prefixes?.task || "task"} (read-only)`);
+			console.log(`  statePrefix: ${config.prefixes?.state || "state"} (read-only)`);
 			console.log(`  checkActiveBranches: ${config.checkActiveBranches ?? "true"}`);
 			console.log(`  activeBranchDays: ${config.activeBranchDays ?? "30"}`);
 		} catch (err) {
@@ -3545,32 +3545,32 @@ configCmd
 		}
 	});
 
-// Cleanup command for managing completed tasks
+// Cleanup command for managing completed states
 program
 	.command("cleanup")
-	.description("move completed tasks to completed folder based on age")
+	.description("move completed states to completed folder based on age")
 	.action(async () => {
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 
-			// Check if backlog project is initialized
+			// Check if roadmap project is initialized
 			const config = await core.filesystem.loadConfig();
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 
-			// Get all Done tasks
-			const tasks = await core.queryTasks();
-			const doneTasks = tasks.filter((task) => task.status === "Done");
+			// Get all Done states
+			const states = await core.queryStates();
+			const doneStates = states.filter((state) => state.status === "Done");
 
-			if (doneTasks.length === 0) {
-				console.log("No completed tasks found to clean up.");
+			if (doneStates.length === 0) {
+				console.log("No completed states found to clean up.");
 				return;
 			}
 
-			console.log(`Found ${doneTasks.length} tasks marked as Done.`);
+			console.log(`Found ${doneStates.length} states marked as Done.`);
 
 			const ageOptions = [
 				{ title: "1 day", value: 1 },
@@ -3583,7 +3583,7 @@ program
 			];
 
 			const selectedAgePrompt = await clack.select({
-				message: "Move tasks to completed folder if they are older than:",
+				message: "Move states to completed folder if they are older than:",
 				options: ageOptions.map((option) => ({ label: option.title, value: option.value })),
 			});
 			const selectedAge = clack.isCancel(selectedAgePrompt) ? undefined : selectedAgePrompt;
@@ -3593,27 +3593,27 @@ program
 				return;
 			}
 
-			// Get tasks older than selected period
-			const tasksToMove = await core.getDoneTasksByAge(selectedAge);
+			// Get states older than selected period
+			const statesToMove = await core.getDoneStatesByAge(selectedAge);
 
-			if (tasksToMove.length === 0) {
-				console.log(`No tasks found that are older than ${ageOptions.find((o) => o.value === selectedAge)?.title}.`);
+			if (statesToMove.length === 0) {
+				console.log(`No states found that are older than ${ageOptions.find((o) => o.value === selectedAge)?.title}.`);
 				return;
 			}
 
 			console.log(
-				`\nFound ${tasksToMove.length} tasks older than ${ageOptions.find((o) => o.value === selectedAge)?.title}:`,
+				`\nFound ${statesToMove.length} states older than ${ageOptions.find((o) => o.value === selectedAge)?.title}:`,
 			);
-			for (const task of tasksToMove.slice(0, 5)) {
-				const date = task.updatedDate || task.createdDate;
-				console.log(`  - ${task.id}: ${task.title} (${date})`);
+			for (const state of statesToMove.slice(0, 5)) {
+				const date = state.updatedDate || state.createdDate;
+				console.log(`  - ${state.id}: ${state.title} (${date})`);
 			}
-			if (tasksToMove.length > 5) {
-				console.log(`  ... and ${tasksToMove.length - 5} more`);
+			if (statesToMove.length > 5) {
+				console.log(`  ... and ${statesToMove.length - 5} more`);
 			}
 
 			const confirmedPrompt = await clack.confirm({
-				message: `Move ${tasksToMove.length} tasks to completed folder?`,
+				message: `Move ${statesToMove.length} states to completed folder?`,
 				initialValue: false,
 			});
 			const confirmed = clack.isCancel(confirmedPrompt) ? false : confirmedPrompt;
@@ -3623,37 +3623,37 @@ program
 				return;
 			}
 
-			// Move tasks to completed folder
+			// Move states to completed folder
 			let successCount = 0;
 			const shouldAutoCommit = config.autoCommit ?? false;
 
-			console.log("Moving tasks...");
-			const movedTasks: Array<{ fromPath: string; toPath: string; taskId: string }> = [];
+			console.log("Moving states...");
+			const movedStates: Array<{ fromPath: string; toPath: string; stateId: string }> = [];
 
-			for (const task of tasksToMove) {
-				const fromPath = task.filePath ?? (await core.getTask(task.id))?.filePath ?? null;
+			for (const state of statesToMove) {
+				const fromPath = state.filePath ?? (await core.getState(state.id))?.filePath ?? null;
 
 				if (!fromPath) {
-					console.error(`Failed to locate file for task ${task.id}`);
+					console.error(`Failed to locate file for state ${state.id}`);
 					continue;
 				}
 
-				const taskFilename = basename(fromPath);
-				const toPath = join(core.filesystem.completedDir, taskFilename);
+				const stateFilename = basename(fromPath);
+				const toPath = join(core.filesystem.completedDir, stateFilename);
 
-				const success = await core.completeTask(task.id);
+				const success = await core.completeState(state.id);
 				if (success) {
 					successCount++;
-					movedTasks.push({ fromPath, toPath, taskId: task.id });
+					movedStates.push({ fromPath, toPath, stateId: state.id });
 				} else {
-					console.error(`Failed to move task ${task.id}`);
+					console.error(`Failed to move state ${state.id}`);
 				}
 			}
 
 			// If autoCommit is disabled, stage the moves so Git recognizes them
 			if (successCount > 0 && !shouldAutoCommit) {
 				console.log("Staging file moves for Git...");
-				for (const { fromPath, toPath } of movedTasks) {
+				for (const { fromPath, toPath } of movedStates) {
 					try {
 						await core.gitOps.stageFileMove(fromPath, toPath);
 					} catch (error) {
@@ -3662,9 +3662,9 @@ program
 				}
 			}
 
-			console.log(`Successfully moved ${successCount} of ${tasksToMove.length} tasks to completed folder.`);
+			console.log(`Successfully moved ${successCount} of ${statesToMove.length} states to completed folder.`);
 			if (successCount > 0 && !shouldAutoCommit) {
-				console.log("Files have been staged. To commit: git commit -m 'cleanup: Move completed tasks'");
+				console.log("Files have been staged. To commit: git commit -m 'cleanup: Move completed states'");
 			}
 		} catch (err) {
 			console.error("Failed to run cleanup", err);
@@ -3675,14 +3675,14 @@ program
 // Browser command for web UI
 program
 	.command("browser")
-	.description("open browser interface for task management (press Ctrl+C or Cmd+C to stop)")
+	.description("open browser interface for state management (press Ctrl+C or Cmd+C to stop)")
 	.option("-p, --port <port>", "port to run server on")
 	.option("--no-open", "don't automatically open browser")
 	.action(async (options) => {
 		try {
 			const cwd = await requireProjectRoot();
-			const { BacklogServer } = await import("./server/index.ts");
-			const server = new BacklogServer(cwd);
+			const { RoadmapServer } = await import("./server/index.ts");
+			const server = new RoadmapServer(cwd);
 
 			// Load config to get default port
 			const core = new Core(cwd);
@@ -3732,7 +3732,7 @@ program
 			const config = await core.filesystem.loadConfig();
 
 			if (!config) {
-				console.error("No backlog project found. Initialize one first with: backlog init");
+				console.error("No roadmap project found. Initialize one first with: roadmap init");
 				process.exit(1);
 			}
 

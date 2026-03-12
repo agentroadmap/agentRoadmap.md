@@ -2,14 +2,14 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { extractStructuredSection } from "../markdown/structured-sections.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 
-describe("Append Implementation Notes via task edit --append-notes", () => {
+describe("Append Implementation Notes via state edit --append-notes", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-append-notes");
 		await rm(TEST_DIR, { recursive: true, force: true }).catch(() => {});
@@ -33,9 +33,9 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 
 	it("appends to existing Implementation Notes with single blank line separation", async () => {
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "Existing notes",
 				status: "To Do",
 				assignee: [],
@@ -49,16 +49,16 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 		);
 
 		// Append twice in one call and once again afterwards
-		let res = await $`bun ${CLI_PATH} task edit 1 --append-notes "First addition" --append-notes "Second addition"`
+		let res = await $`bun ${CLI_PATH} state edit 1 --append-notes "First addition" --append-notes "Second addition"`
 			.cwd(TEST_DIR)
 			.quiet()
 			.nothrow();
 		expect(res.exitCode).toBe(0);
 
-		res = await $`bun ${CLI_PATH} task edit 1 --append-notes "Third addition"`.cwd(TEST_DIR).quiet().nothrow();
+		res = await $`bun ${CLI_PATH} state edit 1 --append-notes "Third addition"`.cwd(TEST_DIR).quiet().nothrow();
 		expect(res.exitCode).toBe(0);
 
-		const updatedBody = await core.getTaskContent("task-1");
+		const updatedBody = await core.getStateContent("state-1");
 		expect(updatedBody).not.toBeNull();
 
 		const body = extractStructuredSection(updatedBody ?? "", "implementationNotes") || "";
@@ -67,9 +67,9 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 
 	it("creates Implementation Notes at correct position when missing (after Plan)", async () => {
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-2",
+				id: "state-2",
 				title: "No notes yet",
 				status: "To Do",
 				assignee: [],
@@ -83,10 +83,10 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 			false,
 		);
 
-		const res = await $`bun ${CLI_PATH} task edit 2 --append-notes "Notes after plan"`.cwd(TEST_DIR).quiet().nothrow();
+		const res = await $`bun ${CLI_PATH} state edit 2 --append-notes "Notes after plan"`.cwd(TEST_DIR).quiet().nothrow();
 		expect(res.exitCode).toBe(0);
 
-		const content = (await core.getTaskContent("task-2")) ?? "";
+		const content = (await core.getStateContent("state-2")) ?? "";
 		const notesContent = extractStructuredSection(content, "implementationNotes") || "";
 		expect(notesContent).toBe("Notes after plan");
 		const planMarker = "<!-- SECTION:PLAN:BEGIN -->";
@@ -97,9 +97,9 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 
 	it("supports multi-line appended content and preserves literal newlines", async () => {
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-3",
+				id: "state-3",
 				title: "Multiline append",
 				status: "To Do",
 				assignee: [],
@@ -113,22 +113,22 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 
 		// Pass a JS string containing real newlines as an argument
 		const multiline = "Line1\nLine2\n\nPara2";
-		const res = await $`bun ${[CLI_PATH, "task", "edit", "3", "--append-notes", multiline]}`
+		const res = await $`bun ${[CLI_PATH, "state", "edit", "3", "--append-notes", multiline]}`
 			.cwd(TEST_DIR)
 			.quiet()
 			.nothrow();
 		expect(res.exitCode).toBe(0);
 
-		const updatedBody = await core.getTaskContent("task-3");
+		const updatedBody = await core.getStateContent("state-3");
 		const body = extractStructuredSection(updatedBody ?? "", "implementationNotes") || "";
 		expect(body).toContain("Line1\nLine2\n\nPara2");
 	});
 
 	it("allows combining --notes (replace) with --append-notes (append)", async () => {
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-4",
+				id: "state-4",
 				title: "Mix flags",
 				status: "To Do",
 				assignee: [],
@@ -140,14 +140,14 @@ describe("Append Implementation Notes via task edit --append-notes", () => {
 			false,
 		);
 
-		const res = await $`bun ${CLI_PATH} task edit 4 --notes "Replace" --append-notes "Append"`
+		const res = await $`bun ${CLI_PATH} state edit 4 --notes "Replace" --append-notes "Append"`
 			.cwd(TEST_DIR)
 			.quiet()
 			.nothrow();
 
 		// Should succeed: --notes replaces existing, then --append-notes appends
 		expect(res.exitCode).toBe(0);
-		const updatedBody = await core.getTaskContent("task-4");
+		const updatedBody = await core.getStateContent("state-4");
 		const body = extractStructuredSection(updatedBody ?? "", "implementationNotes") || "";
 		expect(body).toBe("Replace\n\nAppend");
 	});

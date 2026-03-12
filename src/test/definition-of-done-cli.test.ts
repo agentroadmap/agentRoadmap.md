@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -34,38 +34,38 @@ describe("Definition of Done CLI", () => {
 		}
 	});
 
-	it("creates task with Definition of Done defaults", async () => {
-		const result = await $`bun ${CLI_PATH} task create "DoD defaults task"`.cwd(TEST_DIR).quiet();
+	it("creates state with Definition of Done defaults", async () => {
+		const result = await $`bun ${CLI_PATH} state create "DoD defaults state"`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		const task = await core.filesystem.loadTask("task-1");
-		expect(task).not.toBeNull();
-		const body = task?.rawContent ?? "";
+		const state = await core.filesystem.loadState("state-1");
+		expect(state).not.toBeNull();
+		const body = state?.rawContent ?? "";
 		expect(body).toContain("## Definition of Done");
 		expect(body).toContain("- [ ] #1 Run tests");
 		expect(body).toContain("- [ ] #2 Update docs");
 	});
 
 	it("disables Definition of Done defaults when --no-dod-defaults is used", async () => {
-		const result = await $`bun ${CLI_PATH} task create "DoD no defaults" --no-dod-defaults`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${CLI_PATH} state create "DoD no defaults" --no-dod-defaults`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		const task = await core.filesystem.loadTask("task-1");
-		const body = task?.rawContent ?? "";
+		const state = await core.filesystem.loadState("state-1");
+		const body = state?.rawContent ?? "";
 		expect(body).not.toContain("## Definition of Done");
 	});
 
 	it("appends Definition of Done items with --dod", async () => {
-		const result = await $`bun ${CLI_PATH} task create "DoD add" --dod "Ship notes" --dod "Sync roadmap"`
+		const result = await $`bun ${CLI_PATH} state create "DoD add" --dod "Ship notes" --dod "Sync roadmap"`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(result.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		const task = await core.filesystem.loadTask("task-1");
-		const body = task?.rawContent ?? "";
+		const state = await core.filesystem.loadState("state-1");
+		const body = state?.rawContent ?? "";
 		expect(body).toContain("- [ ] #1 Run tests");
 		expect(body).toContain("- [ ] #2 Update docs");
 		expect(body).toContain("- [ ] #3 Ship notes");
@@ -73,29 +73,29 @@ describe("Definition of Done CLI", () => {
 	});
 
 	it("edits Definition of Done items with check/uncheck/remove", async () => {
-		await $`bun ${CLI_PATH} task create "DoD edit"`.cwd(TEST_DIR).quiet();
+		await $`bun ${CLI_PATH} state create "DoD edit"`.cwd(TEST_DIR).quiet();
 
-		let editResult = await $`bun ${CLI_PATH} task edit 1 --check-dod 2`.cwd(TEST_DIR).quiet();
+		let editResult = await $`bun ${CLI_PATH} state edit 1 --check-dod 2`.cwd(TEST_DIR).quiet();
 		expect(editResult.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		let task = await core.filesystem.loadTask("task-1");
-		let body = task?.rawContent ?? "";
+		let state = await core.filesystem.loadState("state-1");
+		let body = state?.rawContent ?? "";
 		expect(body).toContain("- [x] #2 Update docs");
 
-		editResult = await $`bun ${CLI_PATH} task edit 1 --remove-dod 1`.cwd(TEST_DIR).quiet();
+		editResult = await $`bun ${CLI_PATH} state edit 1 --remove-dod 1`.cwd(TEST_DIR).quiet();
 		expect(editResult.exitCode).toBe(0);
 
-		task = await core.filesystem.loadTask("task-1");
-		body = task?.rawContent ?? "";
+		state = await core.filesystem.loadState("state-1");
+		body = state?.rawContent ?? "";
 		expect(body).not.toContain("Run tests");
 		expect(body).toContain("- [x] #1 Update docs");
 
-		editResult = await $`bun ${CLI_PATH} task edit 1 --uncheck-dod 1`.cwd(TEST_DIR).quiet();
+		editResult = await $`bun ${CLI_PATH} state edit 1 --uncheck-dod 1`.cwd(TEST_DIR).quiet();
 		expect(editResult.exitCode).toBe(0);
 
-		task = await core.filesystem.loadTask("task-1");
-		body = task?.rawContent ?? "";
+		state = await core.filesystem.loadState("state-1");
+		body = state?.rawContent ?? "";
 		expect(body).toContain("- [ ] #1 Update docs");
 	});
 });

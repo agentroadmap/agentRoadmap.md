@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { calculateNewOrdinal, DEFAULT_ORDINAL_STEP, resolveOrdinalConflicts } from "../core/reorder.ts";
-import { serializeTask } from "../markdown/serializer.ts";
-import type { Task } from "../types/index.ts";
+import { serializeState } from "../markdown/serializer.ts";
+import type { State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const item = (id: string, ordinal?: number) => ({ id, ordinal });
@@ -15,9 +15,9 @@ let core: Core;
 
 const FIXED_DATE = "2025-01-01 00:00";
 
-const buildTask = (id: string, status: string, ordinal?: number): Task => ({
+const buildState = (id: string, status: string, ordinal?: number): State => ({
 	id,
-	title: `Task ${id}`,
+	title: `State ${id}`,
 	status,
 	assignee: [],
 	createdDate: FIXED_DATE,
@@ -64,7 +64,7 @@ describe("calculateNewOrdinal", () => {
 		expect(result.requiresRebalance).toBe(true);
 	});
 
-	it("appends step when dropping after the last task", () => {
+	it("appends step when dropping after the last state", () => {
 		const result = calculateNewOrdinal({
 			previous: item("a", 4000),
 		});
@@ -104,97 +104,97 @@ describe("resolveOrdinalConflicts", () => {
 	});
 });
 
-describe("Core.reorderTask", () => {
-	const createTasks = async (tasks: Array<[string, string, number?]>) => {
-		for (const [id, status, ordinal] of tasks) {
-			await core.createTask(buildTask(id, status, ordinal), false);
+describe("Core.reorderState", () => {
+	const createStates = async (states: Array<[string, string, number?]>) => {
+		for (const [id, status, ordinal] of states) {
+			await core.createState(buildState(id, status, ordinal), false);
 		}
 	};
 
-	it("reorders within a column without touching unaffected tasks", async () => {
-		await createTasks([
-			["task-1", "To Do", 1000],
-			["task-2", "To Do", 2000],
-			["task-3", "To Do", 3000],
+	it("reorders within a column without touching unaffected states", async () => {
+		await createStates([
+			["state-1", "To Do", 1000],
+			["state-2", "To Do", 2000],
+			["state-3", "To Do", 3000],
 		]);
 
-		const result = await core.reorderTask({
-			taskId: "task-3",
+		const result = await core.reorderState({
+			stateId: "state-3",
 			targetStatus: "To Do",
-			orderedTaskIds: ["task-1", "task-3", "task-2"],
+			orderedStateIds: ["state-1", "state-3", "state-2"],
 		});
 
-		expect(result.updatedTask.id).toBe("TASK-3");
-		expect(result.updatedTask.ordinal).toBeGreaterThan(1000);
-		expect(result.updatedTask.ordinal).toBeLessThan(2000);
-		expect(result.changedTasks.map((task) => task.id)).toEqual(["TASK-3"]);
+		expect(result.updatedState.id).toBe("STATE-3");
+		expect(result.updatedState.ordinal).toBeGreaterThan(1000);
+		expect(result.updatedState.ordinal).toBeLessThan(2000);
+		expect(result.changedStates.map((state) => state.id)).toEqual(["STATE-3"]);
 
-		const task2 = await core.filesystem.loadTask("task-2");
-		expect(task2?.ordinal).toBe(2000);
+		const state2 = await core.filesystem.loadState("state-2");
+		expect(state2?.ordinal).toBe(2000);
 	});
 
 	it("rebalances ordinals when collisions exist", async () => {
-		await createTasks([
-			["task-1", "To Do", 1000],
-			["task-2", "To Do", 1000],
-			["task-3", "To Do", 1000],
+		await createStates([
+			["state-1", "To Do", 1000],
+			["state-2", "To Do", 1000],
+			["state-3", "To Do", 1000],
 		]);
 
-		const result = await core.reorderTask({
-			taskId: "task-3",
+		const result = await core.reorderState({
+			stateId: "state-3",
 			targetStatus: "To Do",
-			orderedTaskIds: ["task-1", "task-3", "task-2"],
+			orderedStateIds: ["state-1", "state-3", "state-2"],
 		});
 
-		expect(result.changedTasks.map((task) => task.id).sort()).toEqual(["TASK-2", "TASK-3"]);
+		expect(result.changedStates.map((state) => state.id).sort()).toEqual(["STATE-2", "STATE-3"]);
 
-		const task1 = await core.filesystem.loadTask("task-1");
-		const task2 = await core.filesystem.loadTask("task-2");
-		const task3 = await core.filesystem.loadTask("task-3");
-		expect(task1?.ordinal).toBe(1000);
-		expect(task2?.ordinal).toBe(3000);
-		expect(task3?.ordinal).toBe(2000);
+		const state1 = await core.filesystem.loadState("state-1");
+		const state2 = await core.filesystem.loadState("state-2");
+		const state3 = await core.filesystem.loadState("state-3");
+		expect(state1?.ordinal).toBe(1000);
+		expect(state2?.ordinal).toBe(3000);
+		expect(state3?.ordinal).toBe(2000);
 	});
 
 	it("updates status and ordinal when moving across columns", async () => {
-		await createTasks([
-			["task-1", "To Do", 1000],
-			["task-2", "In Progress", 1000],
-			["task-3", "In Progress", 2000],
+		await createStates([
+			["state-1", "To Do", 1000],
+			["state-2", "In Progress", 1000],
+			["state-3", "In Progress", 2000],
 		]);
 
-		const result = await core.reorderTask({
-			taskId: "task-1",
+		const result = await core.reorderState({
+			stateId: "state-1",
 			targetStatus: "In Progress",
-			orderedTaskIds: ["task-1", "task-2", "task-3"],
+			orderedStateIds: ["state-1", "state-2", "state-3"],
 		});
 
-		expect(result.updatedTask.status).toBe("In Progress");
-		expect(result.updatedTask.ordinal).toBeGreaterThan(0);
-		expect(result.changedTasks.map((task) => task.id)).toContain("TASK-1");
+		expect(result.updatedState.status).toBe("In Progress");
+		expect(result.updatedState.ordinal).toBeGreaterThan(0);
+		expect(result.changedStates.map((state) => state.id)).toContain("STATE-1");
 
-		const task2 = await core.filesystem.loadTask("task-2");
-		const task3 = await core.filesystem.loadTask("task-3");
-		expect(task2?.ordinal).toBe(1000);
-		expect(task3?.ordinal).toBe(2000);
+		const state2 = await core.filesystem.loadState("state-2");
+		const state3 = await core.filesystem.loadState("state-3");
+		expect(state2?.ordinal).toBe(1000);
+		expect(state3?.ordinal).toBe(2000);
 	});
 
-	it("reorders tasks with legacy lowercase IDs", async () => {
-		await createTasks([
-			["task-1", "To Do", 1000],
-			["task-2", "To Do", 2000],
+	it("reorders states with legacy lowercase IDs", async () => {
+		await createStates([
+			["state-1", "To Do", 1000],
+			["state-2", "To Do", 2000],
 		]);
 
-		const legacyTask = buildTask("task-3", "To Do", 3000);
-		const legacyPath = join(core.filesystem.tasksDir, "task-3 - Legacy Task.md");
-		await Bun.write(legacyPath, serializeTask(legacyTask));
+		const legacyState = buildState("state-3", "To Do", 3000);
+		const legacyPath = join(core.filesystem.statesDir, "state-3 - Legacy State.md");
+		await Bun.write(legacyPath, serializeState(legacyState));
 
-		const result = await core.reorderTask({
-			taskId: "task-3",
+		const result = await core.reorderState({
+			stateId: "state-3",
 			targetStatus: "To Do",
-			orderedTaskIds: ["task-1", "task-3", "task-2"],
+			orderedStateIds: ["state-1", "state-3", "state-2"],
 		});
 
-		expect(result.updatedTask.id).toBe("TASK-3");
+		expect(result.updatedState.id).toBe("STATE-3");
 	});
 });

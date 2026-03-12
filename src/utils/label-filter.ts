@@ -1,14 +1,14 @@
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 
 function normalizeLabel(label: string): string {
 	return label.trim().toLowerCase();
 }
 
 /**
- * Collect available labels from configuration and tasks, de-duplicated but preserving
+ * Collect available labels from configuration and states, de-duplicated but preserving
  * the first-seen casing so UI surfaces familiar labels.
  */
-export function collectAvailableLabels(tasks: Task[], configured: string[] = []): string[] {
+export function collectAvailableLabels(states: State[], configured: string[] = []): string[] {
 	const seen = new Set<string>();
 	const ordered: string[] = [];
 
@@ -25,8 +25,8 @@ export function collectAvailableLabels(tasks: Task[], configured: string[] = [])
 		addLabel(label);
 	}
 
-	for (const task of tasks) {
-		for (const label of task.labels || []) {
+	for (const state of states) {
+		for (const label of state.labels || []) {
 			addLabel(label);
 		}
 	}
