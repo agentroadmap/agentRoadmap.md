@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { canMoveToUnsequenced } from "../core/sequences.ts";
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 
-function t(id: string, deps: string[] = [], extra: Partial<Task> = {}): Task {
+function t(id: string, deps: string[] = [], extra: Partial<State> = {}): State {
 	return {
 		id,
 		title: id,
@@ -17,18 +17,18 @@ function t(id: string, deps: string[] = [], extra: Partial<Task> = {}): Task {
 }
 
 describe("canMoveToUnsequenced", () => {
-	it("returns true for isolated tasks (no deps, no dependents)", () => {
-		const tasks = [t("task-1"), t("task-2")];
-		expect(canMoveToUnsequenced(tasks, "task-2")).toBe(true);
+	it("returns true for isolated states (no deps, no dependents)", () => {
+		const states = [t("state-1"), t("state-2")];
+		expect(canMoveToUnsequenced(states, "state-2")).toBe(true);
 	});
 
-	it("returns false when task has dependencies", () => {
-		const tasks = [t("task-1"), t("task-2", ["task-1"])];
-		expect(canMoveToUnsequenced(tasks, "task-2")).toBe(false);
+	it("returns false when state has dependencies", () => {
+		const states = [t("state-1"), t("state-2", ["state-1"])];
+		expect(canMoveToUnsequenced(states, "state-2")).toBe(false);
 	});
 
-	it("returns false when task has dependents", () => {
-		const tasks = [t("task-1"), t("task-2", ["task-1"])];
-		expect(canMoveToUnsequenced(tasks, "task-1")).toBe(false);
+	it("returns false when state has dependents", () => {
+		const states = [t("state-1"), t("state-2", ["state-1"])];
+		expect(canMoveToUnsequenced(states, "state-1")).toBe(false);
 	});
 });

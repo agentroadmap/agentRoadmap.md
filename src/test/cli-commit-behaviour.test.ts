@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { GitOperations } from "../git/operations.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
@@ -38,7 +38,7 @@ describe("CLI Auto-Commit Behavior with autoCommit: false", () => {
 			config.autoCommit = false;
 			await core.filesystem.saveConfig(config);
 			// Commit the config change to have a clean state for tests
-			const configPath = join(TEST_DIR, "backlog", "config.yml");
+			const configPath = join(TEST_DIR, "roadmap", "config.yml");
 			await git.addFile(configPath);
 			// Only commit if there are actual changes staged, to avoid errors on empty commits.
 			const diffProc = await $`git diff --staged --quiet`.cwd(TEST_DIR).nothrow().quiet();
@@ -56,10 +56,10 @@ describe("CLI Auto-Commit Behavior with autoCommit: false", () => {
 		}
 	});
 
-	test("should not commit when creating a task if autoCommit is false", async () => {
+	test("should not commit when creating a state if autoCommit is false", async () => {
 		const initialCommitCount = await getCommitCountInTest(TEST_DIR);
 
-		const result = await $`bun ${CLI_PATH} task create "No-commit Task"`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${CLI_PATH} state create "No-commit State"`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
 		const finalCommitCount = await getCommitCountInTest(TEST_DIR);
@@ -117,7 +117,7 @@ describe("CLI Auto-Commit Behavior with autoCommit: true", () => {
 		if (config) {
 			config.autoCommit = true; // Enable auto-commit for this test suite
 			await core.filesystem.saveConfig(config);
-			const configPath = join(TEST_DIR, "backlog", "config.yml");
+			const configPath = join(TEST_DIR, "roadmap", "config.yml");
 			await git.addFile(configPath);
 			// Only commit if there are actual changes staged, to avoid errors on empty commits.
 			const diffProc = await $`git diff --staged --quiet`.cwd(TEST_DIR).nothrow().quiet();
@@ -135,13 +135,13 @@ describe("CLI Auto-Commit Behavior with autoCommit: true", () => {
 		}
 	});
 
-	test("should commit when creating a task if autoCommit is true", async () => {
+	test("should commit when creating a state if autoCommit is true", async () => {
 		const initialCommitCount = await getCommitCountInTest(TEST_DIR);
 
-		const result = await $`bun ${CLI_PATH} task create "Auto-commit Task"`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${CLI_PATH} state create "Auto-commit State"`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
-		// Note: isClean() is omitted as createTask's commit strategy can leave the repo dirty.
+		// Note: isClean() is omitted as createState's commit strategy can leave the repo dirty.
 		const finalCommitCount = await getCommitCountInTest(TEST_DIR);
 		expect(finalCommitCount).toBe(initialCommitCount + 1);
 	});

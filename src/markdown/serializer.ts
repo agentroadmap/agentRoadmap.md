@@ -1,5 +1,5 @@
 import matter from "gray-matter";
-import type { Decision, Document, Task } from "../types/index.ts";
+import type { Decision, Document, State } from "../types/index.ts";
 import { normalizeAssignee } from "../utils/assignee.ts";
 import {
 	AcceptanceCriteriaManager,
@@ -8,54 +8,54 @@ import {
 	updateStructuredSections,
 } from "./structured-sections.ts";
 
-export function serializeTask(task: Task): string {
-	normalizeAssignee(task);
+export function serializeState(state: State): string {
+	normalizeAssignee(state);
 	const frontmatter = {
-		id: task.id,
-		title: task.title,
-		status: task.status,
-		assignee: task.assignee,
-		...(task.reporter && { reporter: task.reporter }),
-		created_date: task.createdDate,
-		...(task.updatedDate && { updated_date: task.updatedDate }),
-		labels: task.labels,
-		...(task.milestone && { milestone: task.milestone }),
-		dependencies: task.dependencies,
-		...(task.references && task.references.length > 0 && { references: task.references }),
-		...(task.documentation && task.documentation.length > 0 && { documentation: task.documentation }),
-		...(task.parentTaskId && { parent_task_id: task.parentTaskId }),
-		...(task.subtasks && task.subtasks.length > 0 && { subtasks: task.subtasks }),
-		...(task.priority && { priority: task.priority }),
-		...(task.ordinal !== undefined && { ordinal: task.ordinal }),
-		...(task.onStatusChange && { onStatusChange: task.onStatusChange }),
+		id: state.id,
+		title: state.title,
+		status: state.status,
+		assignee: state.assignee,
+		...(state.reporter && { reporter: state.reporter }),
+		created_date: state.createdDate,
+		...(state.updatedDate && { updated_date: state.updatedDate }),
+		labels: state.labels,
+		...(state.milestone && { milestone: state.milestone }),
+		dependencies: state.dependencies,
+		...(state.references && state.references.length > 0 && { references: state.references }),
+		...(state.documentation && state.documentation.length > 0 && { documentation: state.documentation }),
+		...(state.parentStateId && { parent_state_id: state.parentStateId }),
+		...(state.substates && state.substates.length > 0 && { substates: state.substates }),
+		...(state.priority && { priority: state.priority }),
+		...(state.ordinal !== undefined && { ordinal: state.ordinal }),
+		...(state.onStatusChange && { onStatusChange: state.onStatusChange }),
 	};
 
-	let contentBody = task.rawContent ?? "";
-	if (typeof task.description === "string" && task.description.trim() !== "") {
-		contentBody = updateTaskDescription(contentBody, task.description);
+	let contentBody = state.rawContent ?? "";
+	if (typeof state.description === "string" && state.description.trim() !== "") {
+		contentBody = updateStateDescription(contentBody, state.description);
 	}
-	if (Array.isArray(task.acceptanceCriteriaItems)) {
-		const existingCriteria = AcceptanceCriteriaManager.parseAllCriteria(task.rawContent ?? "");
+	if (Array.isArray(state.acceptanceCriteriaItems)) {
+		const existingCriteria = AcceptanceCriteriaManager.parseAllCriteria(state.rawContent ?? "");
 		const hasExistingStructuredCriteria = existingCriteria.length > 0;
-		if (task.acceptanceCriteriaItems.length > 0 || hasExistingStructuredCriteria) {
-			contentBody = AcceptanceCriteriaManager.updateContent(contentBody, task.acceptanceCriteriaItems);
+		if (state.acceptanceCriteriaItems.length > 0 || hasExistingStructuredCriteria) {
+			contentBody = AcceptanceCriteriaManager.updateContent(contentBody, state.acceptanceCriteriaItems);
 		}
 	}
-	if (Array.isArray(task.definitionOfDoneItems)) {
-		const existingDefinitionOfDone = DefinitionOfDoneManager.parseAllCriteria(task.rawContent ?? "");
+	if (Array.isArray(state.definitionOfDoneItems)) {
+		const existingDefinitionOfDone = DefinitionOfDoneManager.parseAllCriteria(state.rawContent ?? "");
 		const hasExistingDefinitionOfDone = existingDefinitionOfDone.length > 0;
-		if (task.definitionOfDoneItems.length > 0 || hasExistingDefinitionOfDone) {
-			contentBody = DefinitionOfDoneManager.updateContent(contentBody, task.definitionOfDoneItems);
+		if (state.definitionOfDoneItems.length > 0 || hasExistingDefinitionOfDone) {
+			contentBody = DefinitionOfDoneManager.updateContent(contentBody, state.definitionOfDoneItems);
 		}
 	}
-	if (typeof task.implementationPlan === "string") {
-		contentBody = updateTaskImplementationPlan(contentBody, task.implementationPlan);
+	if (typeof state.implementationPlan === "string") {
+		contentBody = updateStateImplementationPlan(contentBody, state.implementationPlan);
 	}
-	if (typeof task.implementationNotes === "string") {
-		contentBody = updateTaskImplementationNotes(contentBody, task.implementationNotes);
+	if (typeof state.implementationNotes === "string") {
+		contentBody = updateStateImplementationNotes(contentBody, state.implementationNotes);
 	}
-	if (typeof task.finalSummary === "string") {
-		contentBody = updateTaskFinalSummary(contentBody, task.finalSummary);
+	if (typeof state.finalSummary === "string") {
+		contentBody = updateStateFinalSummary(contentBody, state.finalSummary);
 	}
 
 	const serialized = matter.stringify(contentBody, frontmatter);
@@ -95,7 +95,7 @@ export function serializeDocument(document: Document): string {
 	return matter.stringify(document.rawContent, frontmatter);
 }
 
-export function updateTaskAcceptanceCriteria(content: string, criteria: string[]): string {
+export function updateStateAcceptanceCriteria(content: string, criteria: string[]): string {
 	// Normalize to LF while computing, preserve original EOL at return
 	const useCRLF = /\r\n/.test(content);
 	const src = content.replace(/\r\n/g, "\n");
@@ -117,7 +117,7 @@ export function updateTaskAcceptanceCriteria(content: string, criteria: string[]
 	return useCRLF ? out.replace(/\n/g, "\r\n") : out;
 }
 
-export function updateTaskImplementationPlan(content: string, plan: string): string {
+export function updateStateImplementationPlan(content: string, plan: string): string {
 	const sections = getStructuredSections(content);
 	return updateStructuredSections(content, {
 		description: sections.description ?? "",
@@ -127,7 +127,7 @@ export function updateTaskImplementationPlan(content: string, plan: string): str
 	});
 }
 
-export function updateTaskImplementationNotes(content: string, notes: string): string {
+export function updateStateImplementationNotes(content: string, notes: string): string {
 	const sections = getStructuredSections(content);
 	return updateStructuredSections(content, {
 		description: sections.description ?? "",
@@ -137,7 +137,7 @@ export function updateTaskImplementationNotes(content: string, notes: string): s
 	});
 }
 
-export function updateTaskFinalSummary(content: string, summary: string): string {
+export function updateStateFinalSummary(content: string, summary: string): string {
 	const sections = getStructuredSections(content);
 	return updateStructuredSections(content, {
 		description: sections.description ?? "",
@@ -147,7 +147,7 @@ export function updateTaskFinalSummary(content: string, summary: string): string
 	});
 }
 
-export function appendTaskImplementationNotes(content: string, notesChunks: string | string[]): string {
+export function appendStateImplementationNotes(content: string, notesChunks: string | string[]): string {
 	const chunks = (Array.isArray(notesChunks) ? notesChunks : [notesChunks])
 		.map((c) => String(c))
 		.map((c) => c.replace(/\r\n/g, "\n"))
@@ -166,7 +166,7 @@ export function appendTaskImplementationNotes(content: string, notesChunks: stri
 	});
 }
 
-export function updateTaskDescription(content: string, description: string): string {
+export function updateStateDescription(content: string, description: string): string {
 	const sections = getStructuredSections(content);
 	return updateStructuredSections(content, {
 		description,

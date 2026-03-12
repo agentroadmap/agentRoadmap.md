@@ -1,11 +1,11 @@
-export type TaskStatus = string;
+export type StateStatus = string;
 
 /**
- * Entity types in the backlog system.
+ * Entity types in the roadmap system.
  * Used for ID generation and prefix resolution.
  */
 export enum EntityType {
-	Task = "task",
+	State = "state",
 	Draft = "draft",
 	Document = "document",
 	Decision = "decision",
@@ -23,10 +23,11 @@ export interface AcceptanceCriterionInput {
 	checked?: boolean;
 }
 
-export interface Task {
+export type State = State;
+export interface State {
 	id: string;
 	title: string;
-	status: TaskStatus;
+	status: StateStatus;
 	assignee: string[];
 	reporter?: string;
 	createdDate: string;
@@ -45,10 +46,14 @@ export interface Task {
 	acceptanceCriteriaItems?: AcceptanceCriterion[];
 	/** Structured Definition of Done checklist parsed from body (checked state + text + index) */
 	definitionOfDoneItems?: AcceptanceCriterion[];
-	parentTaskId?: string;
-	parentTaskTitle?: string;
-	subtasks?: string[];
-	subtaskSummaries?: Array<{ id: string; title: string }>;
+	parentStateId?: string;
+	parentStateTitle?: string;
+	substates?: string[];
+	type?: "terminal" | "transitional" | "operational" | "spike";
+	hype?: string;
+	substateSummaries?: Array<{ id: string; title: string }>;
+	requires?: string[];
+	unlocks?: string[];
 	priority?: "high" | "medium" | "low";
 	branch?: string;
 	ordinal?: number;
@@ -56,7 +61,7 @@ export interface Task {
 	// Metadata fields
 	lastModified?: Date;
 	source?: "local" | "remote" | "completed" | "local-branch";
-	/** Optional per-task callback command to run on status change (overrides global config) */
+	/** Optional per-state callback command to run on status change (overrides global config) */
 	onStatusChange?: string;
 }
 
@@ -66,7 +71,7 @@ export interface MilestoneBucket {
 	milestone?: string;
 	isNoMilestone: boolean;
 	isCompleted: boolean;
-	tasks: Task[];
+	states: State[];
 	statusCounts: Record<string, number>;
 	total: number;
 	doneCount: number;
@@ -79,16 +84,16 @@ export interface MilestoneSummary {
 }
 
 /**
- * Check if a task is locally editable (not from a remote or other local branch)
+ * Check if a state is locally editable (not from a remote or other local branch)
  */
-export function isLocalEditableTask(task: Task): boolean {
-	return task.source === undefined || task.source === "local" || task.source === "completed";
+export function isLocalEditableState(state: State): boolean {
+	return state.source === undefined || state.source === "local" || state.source === "completed";
 }
 
-export interface TaskCreateInput {
+export interface StateCreateInput {
 	title: string;
 	description?: string;
-	status?: TaskStatus;
+	status?: StateStatus;
 	priority?: "high" | "medium" | "low";
 	milestone?: string;
 	labels?: string[];
@@ -96,7 +101,7 @@ export interface TaskCreateInput {
 	dependencies?: string[];
 	references?: string[];
 	documentation?: string[];
-	parentTaskId?: string;
+	parentStateId?: string;
 	implementationPlan?: string;
 	implementationNotes?: string;
 	finalSummary?: string;
@@ -106,10 +111,10 @@ export interface TaskCreateInput {
 	rawContent?: string;
 }
 
-export interface TaskUpdateInput {
+export interface StateUpdateInput {
 	title?: string;
 	description?: string;
-	status?: TaskStatus;
+	status?: StateStatus;
 	priority?: "high" | "medium" | "low";
 	milestone?: string | null;
 	labels?: string[];
@@ -147,12 +152,12 @@ export interface TaskUpdateInput {
 	rawContent?: string;
 }
 
-export interface TaskListFilter {
+export interface StateListFilter {
 	status?: string;
 	assignee?: string;
 	priority?: "high" | "medium" | "low";
 	milestone?: string;
-	parentTaskId?: string;
+	parentStateId?: string;
 	labels?: string[];
 }
 
@@ -189,7 +194,7 @@ export interface Document {
 	lastModified?: string;
 }
 
-export type SearchResultType = "task" | "document" | "decision";
+export type SearchResultType = "state" | "document" | "decision";
 
 export type SearchPriorityFilter = "high" | "medium" | "low";
 
@@ -213,10 +218,10 @@ export interface SearchOptions {
 	filters?: SearchFilters;
 }
 
-export interface TaskSearchResult {
-	type: "task";
+export interface StateSearchResult {
+	type: "state";
 	score: number | null;
-	task: Task;
+	state: State;
 	matches?: SearchMatch[];
 }
 
@@ -234,26 +239,26 @@ export interface DecisionSearchResult {
 	matches?: SearchMatch[];
 }
 
-export type SearchResult = TaskSearchResult | DocumentSearchResult | DecisionSearchResult;
+export type SearchResult = StateSearchResult | DocumentSearchResult | DecisionSearchResult;
 
 export interface Sequence {
 	/** 1-based sequence index */
 	index: number;
-	/** Tasks that can be executed in parallel within this sequence */
-	tasks: Task[];
+	/** States that can be executed in parallel within this sequence */
+	states: State[];
 }
 
 /**
- * Configuration for ID prefixes used in task files.
- * Allows customization of task prefix (e.g., "JIRA-", "issue-", "bug-").
+ * Configuration for ID prefixes used in state files.
+ * Allows customization of state prefix (e.g., "JIRA-", "issue-", "bug-").
  * Note: Draft prefix is always "draft" and not configurable.
  */
 export interface PrefixConfig {
-	/** Prefix for task IDs (default: "task") - produces IDs like TASK-1, TASK-2 */
-	task: string;
+	/** Prefix for state IDs (default: "state") - produces IDs like STATE-1, STATE-2 */
+	state: string;
 }
 
-export interface BacklogConfig {
+export interface RoadmapConfig {
 	projectName: string;
 	defaultAssignee?: string;
 	defaultReporter?: string;
@@ -265,7 +270,7 @@ export interface BacklogConfig {
 	defaultStatus?: string;
 	dateFormat: string;
 	maxColumnWidth?: number;
-	taskResolutionStrategy?: "most_recent" | "most_progressed";
+	stateResolutionStrategy?: "most_recent" | "most_progressed";
 	defaultEditor?: string;
 	autoOpenBrowser?: boolean;
 	defaultPort?: number;
@@ -274,11 +279,11 @@ export interface BacklogConfig {
 	zeroPaddedIds?: number;
 	includeDateTimeInDates?: boolean; // Whether to include time in new dates
 	bypassGitHooks?: boolean;
-	checkActiveBranches?: boolean; // Check task states across active branches (default: true)
+	checkActiveBranches?: boolean; // Check state states across active branches (default: true)
 	activeBranchDays?: number; // How many days a branch is considered active (default: 30)
-	/** Global callback command to run on any task status change. Supports $TASK_ID, $OLD_STATUS, $NEW_STATUS, $TASK_TITLE variables. */
+	/** Global callback command to run on any state status change. Supports $STATE_ID, $OLD_STATUS, $NEW_STATUS, $STATE_TITLE variables. */
 	onStatusChange?: string;
-	/** ID prefix configuration for tasks and drafts. Defaults to { task: "task", draft: "draft" } */
+	/** ID prefix configuration for states and drafts. Defaults to { state: "state", draft: "draft" } */
 	prefixes?: PrefixConfig;
 	mcp?: {
 		http?: {

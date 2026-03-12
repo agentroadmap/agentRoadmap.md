@@ -3,8 +3,8 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { migrateDraftPrefixes, needsDraftPrefixMigration } from "../core/prefix-migration.ts";
 import { FileSystem } from "../file-system/operations.ts";
-import { serializeTask } from "../markdown/serializer.ts";
-import type { BacklogConfig, Task } from "../types/index.ts";
+import { serializeState } from "../markdown/serializer.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -15,7 +15,7 @@ describe("Draft Prefix Migration", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-prefix-migration");
 		filesystem = new FileSystem(TEST_DIR);
-		await filesystem.ensureBacklogStructure();
+		await filesystem.ensureRoadmapStructure();
 	});
 
 	afterEach(async () => {
@@ -32,7 +32,7 @@ describe("Draft Prefix Migration", () => {
 		});
 
 		it("should return true when prefixes section is missing", () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -43,14 +43,14 @@ describe("Draft Prefix Migration", () => {
 		});
 
 		it("should return false when prefixes section exists", () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
 				milestones: [],
 				dateFormat: "YYYY-MM-DD",
 				prefixes: {
-					task: "task",
+					state: "state",
 				},
 			};
 			expect(needsDraftPrefixMigration(config)).toBe(false);
@@ -60,7 +60,7 @@ describe("Draft Prefix Migration", () => {
 	describe("migrateDraftPrefixes", () => {
 		it("should add prefixes section to config when drafts folder is empty", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -75,12 +75,12 @@ describe("Draft Prefix Migration", () => {
 			// Verify config has prefixes section
 			const config = await filesystem.loadConfig();
 			expect(config?.prefixes).toBeDefined();
-			expect(config?.prefixes?.task).toBe("task");
+			expect(config?.prefixes?.state).toBe("state");
 		});
 
-		it("should rename task-*.md files in drafts folder to draft-*.md", async () => {
+		it("should rename state-*.md files in drafts folder to draft-*.md", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -89,27 +89,27 @@ describe("Draft Prefix Migration", () => {
 			};
 			await filesystem.saveConfig(initialConfig);
 
-			// Create task-*.md file in drafts folder (old format)
+			// Create state-*.md file in drafts folder (old format)
 			const draftsDir = await filesystem.getDraftsDir();
-			const oldTask: Task = {
-				id: "task-1",
+			const oldState: State = {
+				id: "state-1",
 				title: "Old Draft",
 				status: "Draft",
 				assignee: [],
 				createdDate: "2025-01-01",
 				labels: [],
 				dependencies: [],
-				description: "This is an old draft with task- prefix",
+				description: "This is an old draft with state- prefix",
 			};
-			const content = serializeTask(oldTask);
-			await Bun.write(join(draftsDir, "task-1 - Old Draft.md"), content);
+			const content = serializeState(oldState);
+			await Bun.write(join(draftsDir, "state-1 - Old Draft.md"), content);
 
 			// Run migration
 			await migrateDraftPrefixes(filesystem);
 
 			// Verify old file is gone
 			const files = await readdir(draftsDir);
-			expect(files.some((f) => f.startsWith("task-1"))).toBe(false);
+			expect(files.some((f) => f.startsWith("state-1"))).toBe(false);
 
 			// Verify new draft file exists
 			expect(files.some((f) => f.startsWith("draft-1"))).toBe(true);
@@ -122,7 +122,7 @@ describe("Draft Prefix Migration", () => {
 
 		it("should update IDs inside migrated files", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -131,11 +131,11 @@ describe("Draft Prefix Migration", () => {
 			};
 			await filesystem.saveConfig(initialConfig);
 
-			// Create task-*.md file in drafts folder
+			// Create state-*.md file in drafts folder
 			const draftsDir = await filesystem.getDraftsDir();
-			const oldTask: Task = {
-				id: "task-5",
-				title: "Draft with Task ID",
+			const oldState: State = {
+				id: "state-5",
+				title: "Draft with State ID",
 				status: "Draft",
 				assignee: ["@developer"],
 				createdDate: "2025-01-01",
@@ -143,8 +143,8 @@ describe("Draft Prefix Migration", () => {
 				dependencies: [],
 				description: "Test draft",
 			};
-			const content = serializeTask(oldTask);
-			await Bun.write(join(draftsDir, "task-5 - Draft with Task ID.md"), content);
+			const content = serializeState(oldState);
+			await Bun.write(join(draftsDir, "state-5 - Draft with State ID.md"), content);
 
 			// Run migration
 			await migrateDraftPrefixes(filesystem);
@@ -156,9 +156,9 @@ describe("Draft Prefix Migration", () => {
 			expect(migratedDraft?.labels).toEqual(["feature"]);
 		});
 
-		it("should handle multiple task-*.md files", async () => {
+		it("should handle multiple state-*.md files", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -167,16 +167,16 @@ describe("Draft Prefix Migration", () => {
 			};
 			await filesystem.saveConfig(initialConfig);
 
-			// Create multiple task-*.md files
+			// Create multiple state-*.md files
 			const draftsDir = await filesystem.getDraftsDir();
-			const tasks = [
-				{ id: "task-1", title: "First Draft" },
-				{ id: "task-2", title: "Second Draft" },
-				{ id: "task-3", title: "Third Draft" },
+			const states = [
+				{ id: "state-1", title: "First Draft" },
+				{ id: "state-2", title: "Second Draft" },
+				{ id: "state-3", title: "Third Draft" },
 			];
 
-			for (const t of tasks) {
-				const task: Task = {
+			for (const t of states) {
+				const state: State = {
 					...t,
 					status: "Draft",
 					assignee: [],
@@ -184,7 +184,7 @@ describe("Draft Prefix Migration", () => {
 					labels: [],
 					dependencies: [],
 				};
-				const content = serializeTask(task);
+				const content = serializeState(state);
 				await Bun.write(join(draftsDir, `${t.id} - ${t.title}.md`), content);
 			}
 
@@ -193,7 +193,7 @@ describe("Draft Prefix Migration", () => {
 
 			// Verify all files were migrated
 			const files = await readdir(draftsDir);
-			expect(files.filter((f) => f.startsWith("task-")).length).toBe(0);
+			expect(files.filter((f) => f.startsWith("state-")).length).toBe(0);
 			expect(files.filter((f) => f.startsWith("draft-")).length).toBe(3);
 
 			// Verify drafts can be loaded
@@ -203,7 +203,7 @@ describe("Draft Prefix Migration", () => {
 
 		it("should be idempotent - running twice has same result", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -212,10 +212,10 @@ describe("Draft Prefix Migration", () => {
 			};
 			await filesystem.saveConfig(initialConfig);
 
-			// Create task-*.md file
+			// Create state-*.md file
 			const draftsDir = await filesystem.getDraftsDir();
-			const oldTask: Task = {
-				id: "task-1",
+			const oldState: State = {
+				id: "state-1",
 				title: "Draft",
 				status: "Draft",
 				assignee: [],
@@ -223,8 +223,8 @@ describe("Draft Prefix Migration", () => {
 				labels: [],
 				dependencies: [],
 			};
-			const content = serializeTask(oldTask);
-			await Bun.write(join(draftsDir, "task-1 - Draft.md"), content);
+			const content = serializeState(oldState);
+			await Bun.write(join(draftsDir, "state-1 - Draft.md"), content);
 
 			// Run migration first time
 			await migrateDraftPrefixes(filesystem);
@@ -246,7 +246,7 @@ describe("Draft Prefix Migration", () => {
 
 		it("should not affect existing draft-*.md files", async () => {
 			// Create initial config without prefixes
-			const initialConfig: BacklogConfig = {
+			const initialConfig: RoadmapConfig = {
 				projectName: "Test Project",
 				statuses: ["To Do", "In Progress", "Done"],
 				labels: [],
@@ -256,7 +256,7 @@ describe("Draft Prefix Migration", () => {
 			await filesystem.saveConfig(initialConfig);
 
 			// Create an existing draft-*.md file (correct format)
-			const existingDraft: Task = {
+			const existingDraft: State = {
 				id: "draft-1",
 				title: "Existing Draft",
 				status: "Draft",
@@ -267,10 +267,10 @@ describe("Draft Prefix Migration", () => {
 			};
 			await filesystem.saveDraft(existingDraft);
 
-			// Create a task-*.md file (old format)
+			// Create a state-*.md file (old format)
 			const draftsDir = await filesystem.getDraftsDir();
-			const oldTask: Task = {
-				id: "task-5",
+			const oldState: State = {
+				id: "state-5",
 				title: "Old Format Draft",
 				status: "Draft",
 				assignee: [],
@@ -278,8 +278,8 @@ describe("Draft Prefix Migration", () => {
 				labels: [],
 				dependencies: [],
 			};
-			const content = serializeTask(oldTask);
-			await Bun.write(join(draftsDir, "task-5 - Old Format Draft.md"), content);
+			const content = serializeState(oldState);
+			await Bun.write(join(draftsDir, "state-5 - Old Format Draft.md"), content);
 
 			// Run migration
 			await migrateDraftPrefixes(filesystem);

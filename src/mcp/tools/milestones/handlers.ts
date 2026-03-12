@@ -1,5 +1,5 @@
 import { rename as moveFile } from "node:fs/promises";
-import type { Milestone, Task } from "../../../types/index.ts";
+import type { Milestone, State } from "../../../types/index.ts";
 import { McpError } from "../../errors/mcp-errors.ts";
 import type { McpServer } from "../../server.ts";
 import type { CallToolResult } from "../../types.ts";
@@ -19,12 +19,12 @@ export type MilestoneAddArgs = {
 export type MilestoneRenameArgs = {
 	from: string;
 	to: string;
-	updateTasks?: boolean;
+	updateStates?: boolean;
 };
 
 export type MilestoneRemoveArgs = {
 	name: string;
-	taskHandling?: "clear" | "keep" | "reassign";
+	stateHandling?: "clear" | "keep" | "reassign";
 	reassignTo?: string;
 };
 
@@ -57,10 +57,10 @@ function formatListBlock(title: string, items: string[]): string {
 	return `${title}\n${items.map((item) => `  - ${item}`).join("\n")}`;
 }
 
-function formatTaskIdList(taskIds: string[], limit = 20): string {
-	if (taskIds.length === 0) return "";
-	const shown = taskIds.slice(0, limit);
-	const suffix = taskIds.length > limit ? ` (and ${taskIds.length - limit} more)` : "";
+function formatStateIdList(stateIds: string[], limit = 20): string {
+	if (stateIds.length === 0) return "";
+	const shown = stateIds.slice(0, limit);
+	const suffix = stateIds.length > limit ? ` (and ${stateIds.length - limit} more)` : "";
 	return `${shown.join(", ")}${suffix}`;
 }
 
@@ -80,7 +80,7 @@ function findActiveMilestoneByAlias(name: string, milestones: Milestone[]): Mile
 	return titleMatches.length === 1 ? titleMatches[0] : undefined;
 }
 
-function buildTaskMatchKeysForMilestone(name: string, milestone?: Milestone, includeTitleMatch = true): Set<string> {
+function buildStateMatchKeysForMilestone(name: string, milestone?: Milestone, includeTitleMatch = true): Set<string> {
 	if (!milestone) {
 		return buildMilestoneMatchKeys(name, []);
 	}
@@ -214,20 +214,20 @@ function resolveMilestoneValueForReporting(
 export class MilestoneHandlers {
 	constructor(private readonly core: McpServer) {}
 
-	private async listLocalTasks(): Promise<Task[]> {
-		return await this.core.queryTasks({ includeCrossBranch: false });
+	private async listLocalStates(): Promise<State[]> {
+		return await this.core.queryStates({ includeCrossBranch: false });
 	}
 
-	private async rollbackTaskMilestones(previousMilestones: Map<string, string | undefined>): Promise<string[]> {
-		const failedTaskIds: string[] = [];
-		for (const [taskId, milestone] of previousMilestones.entries()) {
+	private async rollbackStateMilestones(previousMilestones: Map<string, string | undefined>): Promise<string[]> {
+		const failedStateIds: string[] = [];
+		for (const [stateId, milestone] of previousMilestones.entries()) {
 			try {
-				await this.core.editTask(taskId, { milestone: milestone ?? null }, false);
+				await this.core.editState(stateId, { milestone: milestone ?? null }, false);
 			} catch {
-				failedTaskIds.push(taskId);
+				failedStateIds.push(stateId);
 			}
 		}
-		return failedTaskIds.sort((a, b) => a.localeCompare(b));
+		return failedStateIds.sort((a, b) => a.localeCompare(b));
 	}
 
 	private async commitMilestoneMutation(
@@ -235,7 +235,7 @@ export class MilestoneHandlers {
 		options: {
 			sourcePath?: string;
 			targetPath?: string;
-			taskFilePaths?: Iterable<string>;
+			stateFilePaths?: Iterable<string>;
 		},
 	): Promise<void> {
 		const shouldAutoCommit = await this.core.shouldAutoCommit();
@@ -249,7 +249,7 @@ export class MilestoneHandlers {
 			repoRoot = await this.core.git.stageFileMove(options.sourcePath, options.targetPath);
 			commitPaths.push(options.sourcePath, options.targetPath);
 		}
-		for (const filePath of options.taskFilePaths ?? []) {
+		for (const filePath of options.stateFilePaths ?? []) {
 			await this.core.git.addFile(filePath);
 			commitPaths.push(filePath);
 		}
@@ -297,11 +297,11 @@ export class MilestoneHandlers {
 		}
 		const archivedKeys = new Set<string>(collectArchivedMilestoneKeys(archivedMilestones, fileMilestones));
 
-		// Get milestones discovered from tasks
-		const tasks = await this.listLocalTasks();
+		// Get milestones discovered from states
+		const states = await this.listLocalStates();
 		const discoveredByKey = new Map<string, string>();
-		for (const task of tasks) {
-			const normalized = normalizeMilestoneName(task.milestone ?? "");
+		for (const state of states) {
+			const normalized = normalizeMilestoneName(state.milestone ?? "");
 			if (!normalized) continue;
 			const canonicalValue = resolveMilestoneValueForReporting(normalized, fileMilestones, archivedMilestones);
 			const key = milestoneKey(canonicalValue);
@@ -314,7 +314,7 @@ export class MilestoneHandlers {
 			.filter(([key]) => !fileMilestoneKeys.has(key) && !archivedKeys.has(key))
 			.map(([, value]) => value)
 			.sort((a, b) => a.localeCompare(b));
-		const archivedTaskValues = Array.from(discoveredByKey.entries())
+		const archivedStateValues = Array.from(discoveredByKey.entries())
 			.filter(([key]) => !fileMilestoneKeys.has(key) && archivedKeys.has(key))
 			.map(([, value]) => value)
 			.sort((a, b) => a.localeCompare(b));
@@ -322,9 +322,9 @@ export class MilestoneHandlers {
 		const blocks: string[] = [];
 		const milestoneLines = fileMilestones.map((m) => `${m.id}: ${m.title}`);
 		blocks.push(formatListBlock(`Milestones (${fileMilestones.length}):`, milestoneLines));
-		blocks.push(formatListBlock(`Milestones found on tasks without files (${unconfigured.length}):`, unconfigured));
+		blocks.push(formatListBlock(`Milestones found on states without files (${unconfigured.length}):`, unconfigured));
 		blocks.push(
-			formatListBlock(`Archived milestone values still on tasks (${archivedTaskValues.length}):`, archivedTaskValues),
+			formatListBlock(`Archived milestone values still on states (${archivedStateValues.length}):`, archivedStateValues),
 		);
 		blocks.push(
 			"Hint: use milestone_add to create milestone files, milestone_rename / milestone_remove to manage, milestone_archive to archive.",
@@ -415,14 +415,14 @@ export class MilestoneHandlers {
 		}
 
 		const targetMilestone = sourceMilestone.id;
-		const shouldUpdateTasks = args.updateTasks ?? true;
-		const tasks = shouldUpdateTasks ? await this.listLocalTasks() : [];
-		const matchKeys = shouldUpdateTasks
-			? buildTaskMatchKeysForMilestone(fromName, sourceMilestone, !hasTitleCollision)
+		const shouldUpdateStates = args.updateStates ?? true;
+		const states = shouldUpdateStates ? await this.listLocalStates() : [];
+		const matchKeys = shouldUpdateStates
+			? buildStateMatchKeysForMilestone(fromName, sourceMilestone, !hasTitleCollision)
 			: new Set<string>();
-		const matches = shouldUpdateTasks ? tasks.filter((task) => matchKeys.has(milestoneKey(task.milestone ?? ""))) : [];
-		let updatedTaskIds: string[] = [];
-		const updatedTaskFilePaths = new Set<string>();
+		const matches = shouldUpdateStates ? states.filter((state) => matchKeys.has(milestoneKey(state.milestone ?? ""))) : [];
+		let updatedStateIds: string[] = [];
+		const updatedStateFilePaths = new Set<string>();
 
 		const renameResult = await this.core.renameMilestone(sourceMilestone.id, toName, false);
 		if (!renameResult.success || !renameResult.milestone) {
@@ -431,50 +431,50 @@ export class MilestoneHandlers {
 
 		const renamedMilestone = renameResult.milestone;
 		const previousMilestones = new Map<string, string | undefined>();
-		if (shouldUpdateTasks) {
+		if (shouldUpdateStates) {
 			try {
-				for (const task of matches) {
-					previousMilestones.set(task.id, task.milestone);
-					const updatedTask = await this.core.editTask(task.id, { milestone: targetMilestone }, false);
-					const taskFilePath = updatedTask.filePath ?? task.filePath;
-					if (taskFilePath) {
-						updatedTaskFilePaths.add(taskFilePath);
+				for (const state of matches) {
+					previousMilestones.set(state.id, state.milestone);
+					const updatedState = await this.core.editState(state.id, { milestone: targetMilestone }, false);
+					const stateFilePath = updatedState.filePath ?? state.filePath;
+					if (stateFilePath) {
+						updatedStateFilePaths.add(stateFilePath);
 					}
-					updatedTaskIds.push(task.id);
+					updatedStateIds.push(state.id);
 				}
-				updatedTaskIds = updatedTaskIds.sort((a, b) => a.localeCompare(b));
+				updatedStateIds = updatedStateIds.sort((a, b) => a.localeCompare(b));
 			} catch {
-				const rollbackTaskFailures = await this.rollbackTaskMilestones(previousMilestones);
+				const rollbackStateFailures = await this.rollbackStateMilestones(previousMilestones);
 				const rollbackRenameResult = await this.core.renameMilestone(sourceMilestone.id, sourceMilestone.title, false);
 				const rollbackDetails: string[] = [];
 				if (!rollbackRenameResult.success) {
 					rollbackDetails.push("failed to rollback milestone file rename");
 				}
-				if (rollbackTaskFailures.length > 0) {
-					rollbackDetails.push(`failed to rollback task milestones for: ${rollbackTaskFailures.join(", ")}`);
+				if (rollbackStateFailures.length > 0) {
+					rollbackDetails.push(`failed to rollback state milestones for: ${rollbackStateFailures.join(", ")}`);
 				}
 				const detailSuffix = rollbackDetails.length > 0 ? ` (${rollbackDetails.join("; ")})` : "";
 				throw new McpError(
-					`Failed to update task milestones after renaming "${sourceMilestone.title}"${detailSuffix}.`,
+					`Failed to update state milestones after renaming "${sourceMilestone.title}"${detailSuffix}.`,
 					"INTERNAL_ERROR",
 				);
 			}
 		}
 		try {
-			await this.commitMilestoneMutation(`backlog: Rename milestone ${sourceMilestone.id}`, {
+			await this.commitMilestoneMutation(`roadmap: Rename milestone ${sourceMilestone.id}`, {
 				sourcePath: renameResult.sourcePath,
 				targetPath: renameResult.targetPath,
-				taskFilePaths: updatedTaskFilePaths,
+				stateFilePaths: updatedStateFilePaths,
 			});
 		} catch {
-			const rollbackTaskFailures = await this.rollbackTaskMilestones(previousMilestones);
+			const rollbackStateFailures = await this.rollbackStateMilestones(previousMilestones);
 			const rollbackRenameResult = await this.core.renameMilestone(sourceMilestone.id, sourceMilestone.title, false);
 			const rollbackDetails: string[] = [];
 			if (!rollbackRenameResult.success) {
 				rollbackDetails.push("failed to rollback milestone file rename");
 			}
-			if (rollbackTaskFailures.length > 0) {
-				rollbackDetails.push(`failed to rollback task milestones for: ${rollbackTaskFailures.join(", ")}`);
+			if (rollbackStateFailures.length > 0) {
+				rollbackDetails.push(`failed to rollback state milestones for: ${rollbackStateFailures.join(", ")}`);
 			}
 			const detailSuffix = rollbackDetails.length > 0 ? ` (${rollbackDetails.join("; ")})` : "";
 			throw new McpError(
@@ -486,12 +486,12 @@ export class MilestoneHandlers {
 		const summaryLines: string[] = [
 			`Renamed milestone "${sourceMilestone.title}" (${sourceMilestone.id}) → "${renamedMilestone.title}" (${renamedMilestone.id}).`,
 		];
-		if (shouldUpdateTasks) {
+		if (shouldUpdateStates) {
 			summaryLines.push(
-				`Updated ${updatedTaskIds.length} local task${updatedTaskIds.length === 1 ? "" : "s"}: ${formatTaskIdList(updatedTaskIds)}`,
+				`Updated ${updatedStateIds.length} local state${updatedStateIds.length === 1 ? "" : "s"}: ${formatStateIdList(updatedStateIds)}`,
 			);
 		} else {
-			summaryLines.push("Skipped updating tasks (updateTasks=false).");
+			summaryLines.push("Skipped updating states (updateStates=false).");
 		}
 		if (renameResult.sourcePath && renameResult.targetPath && renameResult.sourcePath !== renameResult.targetPath) {
 			summaryLines.push(`Renamed milestone file: ${renameResult.sourcePath} -> ${renameResult.targetPath}`);
@@ -523,16 +523,16 @@ export class MilestoneHandlers {
 			...fileMilestones,
 			...archivedMilestones,
 		]);
-		const removeKeys = buildTaskMatchKeysForMilestone(name, sourceMilestone, !hasTitleCollision);
-		const taskHandling = args.taskHandling ?? "clear";
+		const removeKeys = buildStateMatchKeysForMilestone(name, sourceMilestone, !hasTitleCollision);
+		const stateHandling = args.stateHandling ?? "clear";
 		const reassignTo = normalizeMilestoneName(args.reassignTo ?? "");
 		const targetMilestone =
-			taskHandling === "reassign" ? findActiveMilestoneByAlias(reassignTo, fileMilestones) : undefined;
+			stateHandling === "reassign" ? findActiveMilestoneByAlias(reassignTo, fileMilestones) : undefined;
 		const reassignedMilestone = targetMilestone?.id ?? "";
 
-		if (taskHandling === "reassign") {
+		if (stateHandling === "reassign") {
 			if (!reassignTo) {
-				throw new McpError("reassignTo is required when taskHandling is reassign.", "VALIDATION_ERROR");
+				throw new McpError("reassignTo is required when stateHandling is reassign.", "VALIDATION_ERROR");
 			}
 			if (!targetMilestone) {
 				throw new McpError(`Target milestone not found: "${reassignTo}"`, "VALIDATION_ERROR");
@@ -542,34 +542,34 @@ export class MilestoneHandlers {
 			}
 		}
 
-		const tasks = taskHandling !== "keep" ? await this.listLocalTasks() : [];
+		const states = stateHandling !== "keep" ? await this.listLocalStates() : [];
 		const matches =
-			taskHandling !== "keep" ? tasks.filter((task) => removeKeys.has(milestoneKey(task.milestone ?? ""))) : [];
+			stateHandling !== "keep" ? states.filter((state) => removeKeys.has(milestoneKey(state.milestone ?? ""))) : [];
 		const previousMilestones = new Map<string, string | undefined>();
-		let updatedTaskIds: string[] = [];
-		const updatedTaskFilePaths = new Set<string>();
-		if (taskHandling !== "keep") {
+		let updatedStateIds: string[] = [];
+		const updatedStateFilePaths = new Set<string>();
+		if (stateHandling !== "keep") {
 			try {
-				for (const task of matches) {
-					previousMilestones.set(task.id, task.milestone);
-					const updatedTask = await this.core.editTask(
-						task.id,
-						{ milestone: taskHandling === "reassign" ? reassignedMilestone : null },
+				for (const state of matches) {
+					previousMilestones.set(state.id, state.milestone);
+					const updatedState = await this.core.editState(
+						state.id,
+						{ milestone: stateHandling === "reassign" ? reassignedMilestone : null },
 						false,
 					);
-					const taskFilePath = updatedTask.filePath ?? task.filePath;
-					if (taskFilePath) {
-						updatedTaskFilePaths.add(taskFilePath);
+					const stateFilePath = updatedState.filePath ?? state.filePath;
+					if (stateFilePath) {
+						updatedStateFilePaths.add(stateFilePath);
 					}
-					updatedTaskIds.push(task.id);
+					updatedStateIds.push(state.id);
 				}
-				updatedTaskIds = updatedTaskIds.sort((a, b) => a.localeCompare(b));
+				updatedStateIds = updatedStateIds.sort((a, b) => a.localeCompare(b));
 			} catch {
-				const rollbackFailures = await this.rollbackTaskMilestones(previousMilestones);
+				const rollbackFailures = await this.rollbackStateMilestones(previousMilestones);
 				const detailSuffix =
 					rollbackFailures.length > 0 ? ` (failed rollback for: ${rollbackFailures.join(", ")})` : "";
 				throw new McpError(
-					`Failed while updating tasks for milestone removal "${sourceMilestone.title}"${detailSuffix}.`,
+					`Failed while updating states for milestone removal "${sourceMilestone.title}"${detailSuffix}.`,
 					"INTERNAL_ERROR",
 				);
 			}
@@ -578,8 +578,8 @@ export class MilestoneHandlers {
 		const archiveResult = await this.core.archiveMilestone(sourceMilestone.id, false);
 		if (!archiveResult.success) {
 			let detailSuffix = "";
-			if (taskHandling !== "keep") {
-				const rollbackFailures = await this.rollbackTaskMilestones(previousMilestones);
+			if (stateHandling !== "keep") {
+				const rollbackFailures = await this.rollbackStateMilestones(previousMilestones);
 				if (rollbackFailures.length > 0) {
 					detailSuffix = ` (failed rollback for: ${rollbackFailures.join(", ")})`;
 				}
@@ -590,10 +590,10 @@ export class MilestoneHandlers {
 			);
 		}
 		try {
-			await this.commitMilestoneMutation(`backlog: Remove milestone ${sourceMilestone.id}`, {
+			await this.commitMilestoneMutation(`roadmap: Remove milestone ${sourceMilestone.id}`, {
 				sourcePath: archiveResult.sourcePath,
 				targetPath: archiveResult.targetPath,
-				taskFilePaths: updatedTaskFilePaths,
+				stateFilePaths: updatedStateFilePaths,
 			});
 		} catch {
 			const rollbackDetails: string[] = [];
@@ -604,8 +604,8 @@ export class MilestoneHandlers {
 					rollbackDetails.push("failed to rollback milestone archive");
 				}
 			}
-			if (taskHandling !== "keep") {
-				const rollbackFailures = await this.rollbackTaskMilestones(previousMilestones);
+			if (stateHandling !== "keep") {
+				const rollbackFailures = await this.rollbackStateMilestones(previousMilestones);
 				if (rollbackFailures.length > 0) {
 					rollbackDetails.push(`failed rollback for: ${rollbackFailures.join(", ")}`);
 				}
@@ -618,16 +618,16 @@ export class MilestoneHandlers {
 		}
 
 		const summaryLines: string[] = [`Removed milestone "${sourceMilestone.title}" (${sourceMilestone.id}).`];
-		if (taskHandling === "keep") {
-			summaryLines.push("Kept task milestone values unchanged (taskHandling=keep).");
-		} else if (taskHandling === "reassign") {
+		if (stateHandling === "keep") {
+			summaryLines.push("Kept state milestone values unchanged (stateHandling=keep).");
+		} else if (stateHandling === "reassign") {
 			const targetSummary = `"${targetMilestone?.title}" (${reassignedMilestone})`;
 			summaryLines.push(
-				`Reassigned ${updatedTaskIds.length} local task${updatedTaskIds.length === 1 ? "" : "s"} to ${targetSummary}: ${formatTaskIdList(updatedTaskIds)}`,
+				`Reassigned ${updatedStateIds.length} local state${updatedStateIds.length === 1 ? "" : "s"} to ${targetSummary}: ${formatStateIdList(updatedStateIds)}`,
 			);
 		} else {
 			summaryLines.push(
-				`Cleared milestone for ${updatedTaskIds.length} local task${updatedTaskIds.length === 1 ? "" : "s"}: ${formatTaskIdList(updatedTaskIds)}`,
+				`Cleared milestone for ${updatedStateIds.length} local state${updatedStateIds.length === 1 ? "" : "s"}: ${formatStateIdList(updatedStateIds)}`,
 			);
 		}
 		return {

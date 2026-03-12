@@ -79,16 +79,16 @@ describe("Line Wrapping", () => {
 		screen.destroy();
 	});
 
-	test("task viewer boxes have wrap enabled", async () => {
+	test("state viewer boxes have wrap enabled", async () => {
 		const screen = createScreen({ smartCSR: false });
 
-		// Simulate task viewer boxes
+		// Simulate state viewer boxes
 		const testBoxes = [
 			{
 				name: "header",
 				box: box({
 					parent: screen,
-					content: "Task-123 - This is a very long task title that should wrap properly",
+					content: "State-123 - This is a very long state title that should wrap properly",
 					wrap: true,
 				}),
 			},
@@ -138,21 +138,21 @@ describe("Line Wrapping", () => {
 			border: "line",
 		});
 
-		// Task list items should fit within column
-		const taskList = list({
+		// State list items should fit within column
+		const stateList = list({
 			parent: column,
 			width: "100%-2",
 			items: [
-				"TASK-1 - Short task",
-				"TASK-2 - This is a much longer task title that might need special handling",
-				"TASK-3 - Another task with @assignee",
+				"STATE-1 - Short state",
+				"STATE-2 - This is a much longer state title that might need special handling",
+				"STATE-3 - Another state with @assignee",
 			],
 		});
 
 		screen.render();
 
 		// The list should be constrained by its parent width
-		expect(taskList.width).toBeLessThan(screen.width);
+		expect(stateList.width).toBeLessThan(screen.width);
 
 		screen.destroy();
 	});
@@ -175,7 +175,7 @@ describe("Line Wrapping", () => {
 
 		const contentArea = box({
 			parent: screen,
-			content: "Task content goes here with descriptions and acceptance criteria",
+			content: "State content goes here with descriptions and acceptance criteria",
 			wrap: true,
 		});
 
@@ -192,10 +192,10 @@ describe("Line Wrapping", () => {
 		// percentage-based widths, which allows blessed to handle wrapping
 		// based on the actual terminal size
 		const widthConfigs = [
-			{ component: "task-viewer header", width: "100%" },
-			{ component: "task-viewer tagBox", width: "100%" },
-			{ component: "task-viewer description", width: "60%" },
-			{ component: "task-viewer bottomBox", width: "100%" },
+			{ component: "state-viewer header", width: "100%" },
+			{ component: "state-viewer tagBox", width: "100%" },
+			{ component: "state-viewer description", width: "60%" },
+			{ component: "state-viewer bottomBox", width: "100%" },
 			{ component: "board column", width: "dynamic%" },
 			{ component: "popup contentArea", width: "100%" },
 		];

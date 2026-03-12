@@ -24,7 +24,7 @@ describe("--desc alias functionality", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email "test@example.com"`.cwd(TEST_DIR).quiet();
 
-		// Initialize backlog project using Core
+		// Initialize roadmap project using Core
 		const core = new Core(TEST_DIR);
 		await core.initializeProject("Desc Alias Test Project");
 	});
@@ -37,36 +37,36 @@ describe("--desc alias functionality", () => {
 		}
 	});
 
-	it("should create task with --desc alias", async () => {
-		const _result = await $`bun ${cliPath} task create "Test --desc alias" --desc "Created with --desc"`
+	it("should create state with --desc alias", async () => {
+		const _result = await $`bun ${cliPath} state create "Test --desc alias" --desc "Created with --desc"`
 			.cwd(TEST_DIR)
 			.quiet();
 
 		// Check that command succeeded (no exception thrown)
-		const output = await $`bun ${cliPath} task 1 --plain`.cwd(TEST_DIR).text();
+		const output = await $`bun ${cliPath} state 1 --plain`.cwd(TEST_DIR).text();
 		expect(output).toContain("Test --desc alias");
 		expect(output).toContain("Created with --desc");
 	});
 
-	it("should verify task created with --desc has correct description", async () => {
-		// Create task with --desc
-		await $`bun ${cliPath} task create "Test task" --desc "Description via --desc"`.cwd(TEST_DIR).quiet();
+	it("should verify state created with --desc has correct description", async () => {
+		// Create state with --desc
+		await $`bun ${cliPath} state create "Test state" --desc "Description via --desc"`.cwd(TEST_DIR).quiet();
 
-		// Verify the task was created with correct description
+		// Verify the state was created with correct description
 		const core = new Core(TEST_DIR);
-		const task = await core.filesystem.loadTask("task-1");
+		const state = await core.filesystem.loadState("state-1");
 
-		expect(task).not.toBeNull();
-		expect(task?.description).toContain("Description via --desc");
+		expect(state).not.toBeNull();
+		expect(state?.description).toContain("Description via --desc");
 	});
 
-	it("should edit task description with --desc alias", async () => {
-		// Create initial task
+	it("should edit state description with --desc alias", async () => {
+		// Create initial state
 		const core = new Core(TEST_DIR);
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
-				title: "Edit test task",
+				id: "state-1",
+				title: "Edit test state",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-07-04",
@@ -78,13 +78,13 @@ describe("--desc alias functionality", () => {
 		);
 
 		// Edit with --desc
-		await $`bun ${cliPath} task edit 1 --desc "Updated via --desc"`.cwd(TEST_DIR).quiet();
+		await $`bun ${cliPath} state edit 1 --desc "Updated via --desc"`.cwd(TEST_DIR).quiet();
 
 		// Command succeeded without throwing
 
 		// Verify the description was updated
-		const updatedTask = await core.filesystem.loadTask("task-1");
-		expect(updatedTask?.description).toContain("Updated via --desc");
+		const updatedState = await core.filesystem.loadState("state-1");
+		expect(updatedState?.description).toContain("Updated via --desc");
 	});
 
 	it("should create draft with --desc alias", async () => {
@@ -106,7 +106,7 @@ describe("--desc alias functionality", () => {
 	});
 
 	it("should show --desc in help text", async () => {
-		const result = await $`bun ${cliPath} task create --help`.cwd(TEST_DIR).text();
+		const result = await $`bun ${cliPath} state create --help`.cwd(TEST_DIR).text();
 
 		expect(result).toContain("-d, --description <text>");
 		expect(result).toContain("--desc <text>");

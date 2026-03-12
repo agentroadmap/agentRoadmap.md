@@ -2,12 +2,12 @@
  * MCP Command Group - Model Context Protocol CLI commands.
  *
  * This simplified command set focuses on the stdio transport, which is the
- * only supported transport for Backlog.md's local MCP integration.
+ * only supported transport for Roadmap.md's local MCP integration.
  */
 
 import type { Command } from "commander";
 import { createMcpServer } from "../mcp/server.ts";
-import { findBacklogRoot } from "../utils/find-backlog-root.ts";
+import { findRoadmapRoot } from "../utils/find-roadmap-root.ts";
 import { resolveRuntimeCwd } from "../utils/runtime-cwd.ts";
 
 type StartOptions = {
@@ -33,11 +33,11 @@ function registerStartCommand(mcpCmd: Command): void {
 		.command("start")
 		.description("Start the MCP server using stdio transport")
 		.option("-d, --debug", "Enable debug logging", false)
-		.option("--cwd <path>", "Directory to resolve Backlog root from (overrides BACKLOG_CWD)")
+		.option("--cwd <path>", "Directory to resolve Roadmap root from (overrides ROADMAP_CWD)")
 		.action(async (options: StartOptions) => {
 			try {
 				const runtimeCwd = await resolveRuntimeCwd({ cwd: options.cwd });
-				const projectRoot = (await findBacklogRoot(runtimeCwd.cwd)) ?? runtimeCwd.cwd;
+				const projectRoot = (await findRoadmapRoot(runtimeCwd.cwd)) ?? runtimeCwd.cwd;
 				const server = await createMcpServer(projectRoot, { debug: options.debug });
 
 				await server.connect();
@@ -47,7 +47,7 @@ function registerStartCommand(mcpCmd: Command): void {
 					if (runtimeCwd.source !== "process") {
 						console.error(`Using MCP start directory from ${runtimeCwd.sourceLabel}: ${runtimeCwd.cwd}`);
 					}
-					console.error("Backlog.md MCP server started (stdio transport)");
+					console.error("Roadmap.md MCP server started (stdio transport)");
 				}
 
 				let shutdownTriggered = false;

@@ -2,19 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { FileSystem } from "../file-system/operations.ts";
-import { BacklogServer } from "../server/index.ts";
+import { RoadmapServer } from "../server/index.ts";
 import { createUniqueTestDir, retry, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 let filesystem: FileSystem;
-let server: BacklogServer | null = null;
+let server: RoadmapServer | null = null;
 let serverPort = 0;
 
-describe("BacklogServer asset serving", () => {
+describe("RoadmapServer asset serving", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("server-assets");
 		filesystem = new FileSystem(TEST_DIR);
-		await filesystem.ensureBacklogStructure();
+		await filesystem.ensureRoadmapStructure();
 
 		// ensure config so server starts cleanly
 		await filesystem.saveConfig({
@@ -26,9 +26,9 @@ describe("BacklogServer asset serving", () => {
 			remoteOperations: false,
 		});
 
-		// create backlog/assets and nested dirs
-		const backlogRoot = dirname(filesystem.docsDir);
-		const assetsDir = join(backlogRoot, "assets");
+		// create roadmap/assets and nested dirs
+		const roadmapRoot = dirname(filesystem.docsDir);
+		const assetsDir = join(roadmapRoot, "assets");
 		await mkdir(join(assetsDir, "images"), { recursive: true });
 		await mkdir(join(assetsDir, "docs"), { recursive: true });
 
@@ -36,7 +36,7 @@ describe("BacklogServer asset serving", () => {
 		await Bun.write(join(assetsDir, "images", "test.png"), "PNGTEST");
 		await Bun.write(join(assetsDir, "docs", "readme.txt"), "Hello assets\n");
 
-		server = new BacklogServer(TEST_DIR);
+		server = new RoadmapServer(TEST_DIR);
 		await server.start(0, false);
 		const port = server.getPort();
 		expect(port).not.toBeNull();

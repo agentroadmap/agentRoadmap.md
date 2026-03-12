@@ -2,9 +2,9 @@ import { mkdir, rename, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { DEFAULT_DIRECTORIES, DEFAULT_FILES, DEFAULT_STATUSES } from "../constants/index.ts";
-import { parseDecision, parseDocument, parseMilestone, parseTask } from "../markdown/parser.ts";
-import { serializeDecision, serializeDocument, serializeTask } from "../markdown/serializer.ts";
-import type { BacklogConfig, Decision, Document, Milestone, Task, TaskListFilter } from "../types/index.ts";
+import { parseDecision, parseDocument, parseMilestone, parseState } from "../markdown/parser.ts";
+import { serializeDecision, serializeDocument, serializeState } from "../markdown/serializer.ts";
+import type { RoadmapConfig, Decision, Document, Milestone, State, StateListFilter } from "../types/index.ts";
 import { documentIdsEqual, normalizeDocumentId } from "../utils/document-id.ts";
 import {
 	buildGlobPattern,
@@ -13,56 +13,56 @@ import {
 	idForFilename,
 	normalizeId,
 } from "../utils/prefix-config.ts";
-import { getTaskFilename, getTaskPath, normalizeTaskIdentity } from "../utils/task-path.ts";
-import { sortByTaskId } from "../utils/task-sorting.ts";
+import { getStateFilename, getStatePath, normalizeStateIdentity } from "../utils/state-path.ts";
+import { sortByStateId } from "../utils/state-sorting.ts";
 
-// Interface for task path resolution context
-interface TaskPathContext {
+// Interface for state path resolution context
+interface StatePathContext {
 	filesystem: {
-		tasksDir: string;
+		statesDir: string;
 	};
 }
 
 export class FileSystem {
-	private readonly backlogDir: string;
+	private readonly roadmapDir: string;
 	private readonly projectRoot: string;
-	private cachedConfig: BacklogConfig | null = null;
+	private cachedConfig: RoadmapConfig | null = null;
 
 	constructor(projectRoot: string) {
 		this.projectRoot = projectRoot;
-		this.backlogDir = join(projectRoot, DEFAULT_DIRECTORIES.BACKLOG);
+		this.roadmapDir = join(projectRoot, DEFAULT_DIRECTORIES.ROADMAP);
 	}
 
-	private async getBacklogDir(): Promise<string> {
+	private async getRoadmapDir(): Promise<string> {
 		// Ensure migration is checked if needed
 		if (!this.cachedConfig) {
 			this.cachedConfig = await this.loadConfigDirect();
 		}
-		// Always use "backlog" as the directory name - no configuration needed
-		return join(this.projectRoot, DEFAULT_DIRECTORIES.BACKLOG);
+		// Always use "roadmap" as the directory name - no configuration needed
+		return join(this.projectRoot, DEFAULT_DIRECTORIES.ROADMAP);
 	}
 
-	private async loadConfigDirect(): Promise<BacklogConfig | null> {
+	private async loadConfigDirect(): Promise<RoadmapConfig | null> {
 		try {
-			// First try the standard "backlog" directory
-			let configPath = join(this.projectRoot, DEFAULT_DIRECTORIES.BACKLOG, DEFAULT_FILES.CONFIG);
+			// First try the standard "roadmap" directory
+			let configPath = join(this.projectRoot, DEFAULT_DIRECTORIES.ROADMAP, DEFAULT_FILES.CONFIG);
 			let file = Bun.file(configPath);
 			let exists = await file.exists();
 
-			// If not found, check for legacy ".backlog" directory and migrate it
+			// If not found, check for legacy ".roadmap" directory and migrate it
 			if (!exists) {
-				const legacyBacklogDir = join(this.projectRoot, ".backlog");
-				const legacyConfigPath = join(legacyBacklogDir, DEFAULT_FILES.CONFIG);
+				const legacyRoadmapDir = join(this.projectRoot, ".roadmap");
+				const legacyConfigPath = join(legacyRoadmapDir, DEFAULT_FILES.CONFIG);
 				const legacyFile = Bun.file(legacyConfigPath);
 				const legacyExists = await legacyFile.exists();
 
 				if (legacyExists) {
-					// Migrate legacy .backlog directory to backlog
-					const newBacklogDir = join(this.projectRoot, DEFAULT_DIRECTORIES.BACKLOG);
-					await rename(legacyBacklogDir, newBacklogDir);
+					// Migrate legacy .roadmap directory to roadmap
+					const newRoadmapDir = join(this.projectRoot, DEFAULT_DIRECTORIES.ROADMAP);
+					await rename(legacyRoadmapDir, newRoadmapDir);
 
 					// Update paths to use the new location
-					configPath = join(this.projectRoot, DEFAULT_DIRECTORIES.BACKLOG, DEFAULT_FILES.CONFIG);
+					configPath = join(this.projectRoot, DEFAULT_DIRECTORIES.ROADMAP, DEFAULT_FILES.CONFIG);
 					file = Bun.file(configPath);
 					exists = true;
 				}
@@ -83,33 +83,33 @@ export class FileSystem {
 	}
 
 	// Public accessors for directory paths
-	get tasksDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.TASKS);
+	get statesDir(): string {
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.STATES);
 	}
 	get completedDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.COMPLETED);
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.COMPLETED);
 	}
 
-	get archiveTasksDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_TASKS);
+	get archiveStatesDir(): string {
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_STATES);
 	}
 	get archiveMilestonesDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES);
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES);
 	}
 	get decisionsDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.DECISIONS);
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.DECISIONS);
 	}
 
 	get docsDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.DOCS);
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.DOCS);
 	}
 
 	get milestonesDir(): string {
-		return join(this.backlogDir, DEFAULT_DIRECTORIES.MILESTONES);
+		return join(this.roadmapDir, DEFAULT_DIRECTORIES.MILESTONES);
 	}
 
 	get configFilePath(): string {
-		return join(this.backlogDir, DEFAULT_FILES.CONFIG);
+		return join(this.roadmapDir, DEFAULT_FILES.CONFIG);
 	}
 
 	/** Get the project root directory */
@@ -121,64 +121,64 @@ export class FileSystem {
 		this.cachedConfig = null;
 	}
 
-	private async getTasksDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.TASKS);
+	private async getStatesDir(): Promise<string> {
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.STATES);
 	}
 
 	async getDraftsDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.DRAFTS);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.DRAFTS);
 	}
 
-	async getArchiveTasksDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_TASKS);
+	async getArchiveStatesDir(): Promise<string> {
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_STATES);
 	}
 
 	private async getArchiveMilestonesDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES);
 	}
 
 	private async getArchiveDraftsDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_DRAFTS);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_DRAFTS);
 	}
 
 	private async getDecisionsDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.DECISIONS);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.DECISIONS);
 	}
 
 	private async getDocsDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.DOCS);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.DOCS);
 	}
 
 	private async getMilestonesDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.MILESTONES);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.MILESTONES);
 	}
 
 	private async getCompletedDir(): Promise<string> {
-		const backlogDir = await this.getBacklogDir();
-		return join(backlogDir, DEFAULT_DIRECTORIES.COMPLETED);
+		const roadmapDir = await this.getRoadmapDir();
+		return join(roadmapDir, DEFAULT_DIRECTORIES.COMPLETED);
 	}
 
-	async ensureBacklogStructure(): Promise<void> {
-		const backlogDir = await this.getBacklogDir();
+	async ensureRoadmapStructure(): Promise<void> {
+		const roadmapDir = await this.getRoadmapDir();
 		const directories = [
-			backlogDir,
-			join(backlogDir, DEFAULT_DIRECTORIES.TASKS),
-			join(backlogDir, DEFAULT_DIRECTORIES.DRAFTS),
-			join(backlogDir, DEFAULT_DIRECTORIES.COMPLETED),
-			join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_TASKS),
-			join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_DRAFTS),
-			join(backlogDir, DEFAULT_DIRECTORIES.MILESTONES),
-			join(backlogDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES),
-			join(backlogDir, DEFAULT_DIRECTORIES.DOCS),
-			join(backlogDir, DEFAULT_DIRECTORIES.DECISIONS),
+			roadmapDir,
+			join(roadmapDir, DEFAULT_DIRECTORIES.STATES),
+			join(roadmapDir, DEFAULT_DIRECTORIES.DRAFTS),
+			join(roadmapDir, DEFAULT_DIRECTORIES.COMPLETED),
+			join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_STATES),
+			join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_DRAFTS),
+			join(roadmapDir, DEFAULT_DIRECTORIES.MILESTONES),
+			join(roadmapDir, DEFAULT_DIRECTORIES.ARCHIVE_MILESTONES),
+			join(roadmapDir, DEFAULT_DIRECTORIES.DOCS),
+			join(roadmapDir, DEFAULT_DIRECTORIES.DECISIONS),
 		];
 
 		for (const dir of directories) {
@@ -186,32 +186,32 @@ export class FileSystem {
 		}
 	}
 
-	// Task operations
-	async saveTask(task: Task): Promise<string> {
-		// Extract prefix from task ID, or use configured prefix, or fall back to default "task"
-		let prefix = extractAnyPrefix(task.id);
+	// State operations
+	async saveState(state: State): Promise<string> {
+		// Extract prefix from state ID, or use configured prefix, or fall back to default "state"
+		let prefix = extractAnyPrefix(state.id);
 		if (!prefix) {
 			const config = await this.loadConfig();
-			prefix = config?.prefixes?.task ?? "task";
+			prefix = config?.prefixes?.state ?? "state";
 		}
-		const taskId = normalizeId(task.id, prefix);
-		const filename = `${idForFilename(taskId)} - ${this.sanitizeFilename(task.title)}.md`;
-		const tasksDir = await this.getTasksDir();
-		const filepath = join(tasksDir, filename);
-		// Normalize task ID and parentTaskId to uppercase before serialization
-		const normalizedTask = {
-			...task,
-			id: taskId,
-			parentTaskId: task.parentTaskId
-				? normalizeId(task.parentTaskId, extractAnyPrefix(task.parentTaskId) ?? prefix)
+		const stateId = normalizeId(state.id, prefix);
+		const filename = `${idForFilename(stateId)} - ${this.sanitizeFilename(state.title)}.md`;
+		const statesDir = await this.getStatesDir();
+		const filepath = join(statesDir, filename);
+		// Normalize state ID and parentStateId to uppercase before serialization
+		const normalizedState = {
+			...state,
+			id: stateId,
+			parentStateId: state.parentStateId
+				? normalizeId(state.parentStateId, extractAnyPrefix(state.parentStateId) ?? prefix)
 				: undefined,
 		};
-		const content = serializeTask(normalizedTask);
+		const content = serializeState(normalizedState);
 
-		// Delete any existing task files with the same ID but different filenames
+		// Delete any existing state files with the same ID but different filenames
 		try {
-			const core = { filesystem: { tasksDir } };
-			const existingPath = await getTaskPath(taskId, core as TaskPathContext);
+			const core = { filesystem: { statesDir } };
+			const existingPath = await getStatePath(stateId, core as StatePathContext);
 			if (existingPath && !existingPath.endsWith(filename)) {
 				await unlink(existingPath);
 			}
@@ -224,70 +224,70 @@ export class FileSystem {
 		return filepath;
 	}
 
-	async loadTask(taskId: string): Promise<Task | null> {
+	async loadState(stateId: string): Promise<State | null> {
 		try {
-			const tasksDir = await this.getTasksDir();
-			const core = { filesystem: { tasksDir } };
-			const filepath = await getTaskPath(taskId, core as TaskPathContext);
+			const statesDir = await this.getStatesDir();
+			const core = { filesystem: { statesDir } };
+			const filepath = await getStatePath(stateId, core as StatePathContext);
 
 			if (!filepath) return null;
 
 			const content = await Bun.file(filepath).text();
-			const task = normalizeTaskIdentity(parseTask(content));
-			return { ...task, filePath: filepath };
+			const state = normalizeStateIdentity(parseState(content));
+			return { ...state, filePath: filepath };
 		} catch (_error) {
 			return null;
 		}
 	}
 
-	async listTasks(filter?: TaskListFilter): Promise<Task[]> {
-		let tasksDir: string;
+	async listStates(filter?: StateListFilter): Promise<State[]> {
+		let statesDir: string;
 		try {
-			tasksDir = await this.getTasksDir();
+			statesDir = await this.getStatesDir();
 		} catch (_error) {
 			return [];
 		}
 
-		// Get configured task prefix
+		// Get configured state prefix
 		const config = await this.loadConfig();
-		const taskPrefix = (config?.prefixes?.task ?? "task").toLowerCase();
-		const globPattern = buildGlobPattern(taskPrefix);
+		const statePrefix = (config?.prefixes?.state ?? "state").toLowerCase();
+		const globPattern = buildGlobPattern(statePrefix);
 
-		let taskFiles: string[];
+		let stateFiles: string[];
 		try {
-			taskFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: tasksDir, followSymlinks: true }));
+			stateFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: statesDir, followSymlinks: true }));
 		} catch (_error) {
 			return [];
 		}
 
-		let tasks: Task[] = [];
-		for (const file of taskFiles) {
-			const filepath = join(tasksDir, file);
+		let states: State[] = [];
+		for (const file of stateFiles) {
+			const filepath = join(statesDir, file);
 			try {
 				const content = await Bun.file(filepath).text();
-				const task = normalizeTaskIdentity(parseTask(content));
-				tasks.push({ ...task, filePath: filepath });
+				const state = normalizeStateIdentity(parseState(content));
+				states.push({ ...state, filePath: filepath });
 			} catch (error) {
 				if (process.env.DEBUG) {
-					console.error(`Failed to parse task file ${filepath}`, error);
+					console.error(`Failed to parse state file ${filepath}`, error);
 				}
 			}
 		}
 
 		if (filter?.status) {
 			const statusLower = filter.status.toLowerCase();
-			tasks = tasks.filter((t) => t.status.toLowerCase() === statusLower);
+			states = states.filter((t) => t.status.toLowerCase() === statusLower);
 		}
 
 		if (filter?.assignee) {
 			const assignee = filter.assignee;
-			tasks = tasks.filter((t) => t.assignee.includes(assignee));
+			states = states.filter((t) => t.assignee.includes(assignee));
 		}
 
-		return sortByTaskId(tasks);
+		return sortByStateId(states);
 	}
 
-	async listCompletedTasks(): Promise<Task[]> {
+	async listCompletedStates(): Promise<State[]> {
 		let completedDir: string;
 		try {
 			completedDir = await this.getCompletedDir();
@@ -295,83 +295,83 @@ export class FileSystem {
 			return [];
 		}
 
-		// Get configured task prefix
+		// Get configured state prefix
 		const config = await this.loadConfig();
-		const taskPrefix = (config?.prefixes?.task ?? "task").toLowerCase();
-		const globPattern = buildGlobPattern(taskPrefix);
+		const statePrefix = (config?.prefixes?.state ?? "state").toLowerCase();
+		const globPattern = buildGlobPattern(statePrefix);
 
-		let taskFiles: string[];
+		let stateFiles: string[];
 		try {
-			taskFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: completedDir, followSymlinks: true }));
+			stateFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: completedDir, followSymlinks: true }));
 		} catch (_error) {
 			return [];
 		}
 
-		const tasks: Task[] = [];
-		for (const file of taskFiles) {
+		const states: State[] = [];
+		for (const file of stateFiles) {
 			const filepath = join(completedDir, file);
 			try {
 				const content = await Bun.file(filepath).text();
-				const task = parseTask(content);
-				tasks.push({ ...task, filePath: filepath });
+				const state = parseState(content);
+				states.push({ ...state, filePath: filepath });
 			} catch (error) {
 				if (process.env.DEBUG) {
-					console.error(`Failed to parse completed task file ${filepath}`, error);
+					console.error(`Failed to parse completed state file ${filepath}`, error);
 				}
 			}
 		}
 
-		return sortByTaskId(tasks);
+		return sortByStateId(states);
 	}
 
-	async listArchivedTasks(): Promise<Task[]> {
-		let archiveTasksDir: string;
+	async listArchivedStates(): Promise<State[]> {
+		let archiveStatesDir: string;
 		try {
-			archiveTasksDir = await this.getArchiveTasksDir();
+			archiveStatesDir = await this.getArchiveStatesDir();
 		} catch (_error) {
 			return [];
 		}
 
-		// Get configured task prefix
+		// Get configured state prefix
 		const config = await this.loadConfig();
-		const taskPrefix = (config?.prefixes?.task ?? "task").toLowerCase();
-		const globPattern = buildGlobPattern(taskPrefix);
+		const statePrefix = (config?.prefixes?.state ?? "state").toLowerCase();
+		const globPattern = buildGlobPattern(statePrefix);
 
-		let taskFiles: string[];
+		let stateFiles: string[];
 		try {
-			taskFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: archiveTasksDir, followSymlinks: true }));
+			stateFiles = await Array.fromAsync(new Bun.Glob(globPattern).scan({ cwd: archiveStatesDir, followSymlinks: true }));
 		} catch (_error) {
 			return [];
 		}
 
-		const tasks: Task[] = [];
-		for (const file of taskFiles) {
-			const filepath = join(archiveTasksDir, file);
+		const states: State[] = [];
+		for (const file of stateFiles) {
+			const filepath = join(archiveStatesDir, file);
 			try {
 				const content = await Bun.file(filepath).text();
-				const task = parseTask(content);
-				tasks.push({ ...task, filePath: filepath });
+				const state = parseState(content);
+				states.push({ ...state, filePath: filepath });
 			} catch (error) {
 				if (process.env.DEBUG) {
-					console.error(`Failed to parse archived task file ${filepath}`, error);
+					console.error(`Failed to parse archived state file ${filepath}`, error);
 				}
 			}
 		}
 
-		return sortByTaskId(tasks);
+		return sortByStateId(states);
 	}
 
-	async archiveTask(taskId: string): Promise<boolean> {
+	async archiveState(stateId: string): Promise<boolean> {
 		try {
-			const tasksDir = await this.getTasksDir();
-			const archiveTasksDir = await this.getArchiveTasksDir();
-			const core = { filesystem: { tasksDir } };
-			const sourcePath = await getTaskPath(taskId, core as TaskPathContext);
-			const taskFile = await getTaskFilename(taskId, core as TaskPathContext);
+			const statesDir = await this.getStatesDir();
+			const archiveStatesDir = await this.getArchiveStatesDir();
+			const core = { filesystem: { statesDir } };
+			const sourcePath = await getStatePath(stateId, core as StatePathContext);
+			const stateFile = await getStateFilename(stateId, core as StatePathContext);
 
-			if (!sourcePath || !taskFile) return false;
+			if (!sourcePath || !stateFile) return false;
 
-			const targetPath = join(archiveTasksDir, taskFile);
+			const targetPath = join(archiveStatesDir, stateFile);
 
 			// Ensure target directory exists
 			await this.ensureDirectoryExists(dirname(targetPath));
@@ -385,17 +385,17 @@ export class FileSystem {
 		}
 	}
 
-	async completeTask(taskId: string): Promise<boolean> {
+	async completeState(stateId: string): Promise<boolean> {
 		try {
-			const tasksDir = await this.getTasksDir();
+			const statesDir = await this.getStatesDir();
 			const completedDir = await this.getCompletedDir();
-			const core = { filesystem: { tasksDir } };
-			const sourcePath = await getTaskPath(taskId, core as TaskPathContext);
-			const taskFile = await getTaskFilename(taskId, core as TaskPathContext);
+			const core = { filesystem: { statesDir } };
+			const sourcePath = await getStatePath(stateId, core as StatePathContext);
+			const stateFile = await getStateFilename(stateId, core as StatePathContext);
 
-			if (!sourcePath || !taskFile) return false;
+			if (!sourcePath || !stateFile) return false;
 
-			const targetPath = join(completedDir, taskFile);
+			const targetPath = join(completedDir, stateFile);
 
 			// Ensure target directory exists
 			await this.ensureDirectoryExists(dirname(targetPath));
@@ -445,27 +445,27 @@ export class FileSystem {
 			const draft = await this.loadDraft(draftId);
 			if (!draft || !draft.filePath) return false;
 
-			// Get task prefix from config (default: "task")
+			// Get state prefix from config (default: "state")
 			const config = await this.loadConfig();
-			const taskPrefix = config?.prefixes?.task ?? "task";
+			const statePrefix = config?.prefixes?.state ?? "state";
 
-			// Get existing task IDs to generate next ID
-			// Include both active and completed tasks to prevent ID collisions
-			const existingTasks = await this.listTasks();
-			const completedTasks = await this.listCompletedTasks();
-			const existingIds = [...existingTasks, ...completedTasks].map((t) => t.id);
+			// Get existing state IDs to generate next ID
+			// Include both active and completed states to prevent ID collisions
+			const existingStates = await this.listStates();
+			const completedStates = await this.listCompletedStates();
+			const existingIds = [...existingStates, ...completedStates].map((t) => t.id);
 
-			// Generate new task ID
-			const newTaskId = generateNextId(existingIds, taskPrefix, config?.zeroPaddedIds);
+			// Generate new state ID
+			const newStateId = generateNextId(existingIds, statePrefix, config?.zeroPaddedIds);
 
-			// Update draft with new task ID and save as task
-			const promotedTask: Task = {
+			// Update draft with new state ID and save as state
+			const promotedState: State = {
 				...draft,
-				id: newTaskId,
-				filePath: undefined, // Will be set by saveTask
+				id: newStateId,
+				filePath: undefined, // Will be set by saveState
 			};
 
-			await this.saveTask(promotedTask);
+			await this.saveState(promotedState);
 
 			// Delete old draft file
 			await unlink(draft.filePath);
@@ -476,14 +476,14 @@ export class FileSystem {
 		}
 	}
 
-	async demoteTask(taskId: string): Promise<boolean> {
+	async demoteState(stateId: string): Promise<boolean> {
 		try {
-			// Load the task
-			const task = await this.loadTask(taskId);
-			if (!task || !task.filePath) return false;
+			// Load the state
+			const state = await this.loadState(stateId);
+			if (!state || !state.filePath) return false;
 
 			// Get existing draft IDs to generate next ID
-			// Draft prefix is always "draft" (not configurable like task prefix)
+			// Draft prefix is always "draft" (not configurable like state prefix)
 			const existingDrafts = await this.listDrafts();
 			const existingIds = existingDrafts.map((d) => d.id);
 
@@ -491,17 +491,17 @@ export class FileSystem {
 			const config = await this.loadConfig();
 			const newDraftId = generateNextId(existingIds, "draft", config?.zeroPaddedIds);
 
-			// Update task with new draft ID and save as draft
-			const demotedDraft: Task = {
-				...task,
+			// Update state with new draft ID and save as draft
+			const demotedDraft: State = {
+				...state,
 				id: newDraftId,
 				filePath: undefined, // Will be set by saveDraft
 			};
 
 			await this.saveDraft(demotedDraft);
 
-			// Delete old task file
-			await unlink(task.filePath);
+			// Delete old state file
+			await unlink(state.filePath);
 
 			return true;
 		} catch {
@@ -510,14 +510,14 @@ export class FileSystem {
 	}
 
 	// Draft operations
-	async saveDraft(task: Task): Promise<string> {
-		const draftId = normalizeId(task.id, "draft");
-		const filename = `${idForFilename(draftId)} - ${this.sanitizeFilename(task.title)}.md`;
+	async saveDraft(state: State): Promise<string> {
+		const draftId = normalizeId(state.id, "draft");
+		const filename = `${idForFilename(draftId)} - ${this.sanitizeFilename(state.title)}.md`;
 		const draftsDir = await this.getDraftsDir();
 		const filepath = join(draftsDir, filename);
 		// Normalize the draft ID to uppercase before serialization
-		const normalizedTask = { ...task, id: draftId };
-		const content = serializeTask(normalizedTask);
+		const normalizedState = { ...state, id: draftId };
+		const content = serializeState(normalizedState);
 
 		try {
 			// Find existing draft file with same ID but possibly different filename (e.g., title changed)
@@ -538,7 +538,7 @@ export class FileSystem {
 		return filepath;
 	}
 
-	async loadDraft(draftId: string): Promise<Task | null> {
+	async loadDraft(draftId: string): Promise<State | null> {
 		try {
 			const draftsDir = await this.getDraftsDir();
 			// Search for draft files with draft- prefix
@@ -554,29 +554,29 @@ export class FileSystem {
 
 			const filepath = join(draftsDir, draftFile);
 			const content = await Bun.file(filepath).text();
-			const task = normalizeTaskIdentity(parseTask(content));
-			return { ...task, filePath: filepath };
+			const state = normalizeStateIdentity(parseState(content));
+			return { ...state, filePath: filepath };
 		} catch {
 			return null;
 		}
 	}
 
-	async listDrafts(): Promise<Task[]> {
+	async listDrafts(): Promise<State[]> {
 		try {
 			const draftsDir = await this.getDraftsDir();
-			const taskFiles = await Array.fromAsync(
+			const stateFiles = await Array.fromAsync(
 				new Bun.Glob(buildGlobPattern("draft")).scan({ cwd: draftsDir, followSymlinks: true }),
 			);
 
-			const tasks: Task[] = [];
-			for (const file of taskFiles) {
+			const states: State[] = [];
+			for (const file of stateFiles) {
 				const filepath = join(draftsDir, file);
 				const content = await Bun.file(filepath).text();
-				const task = normalizeTaskIdentity(parseTask(content));
-				tasks.push({ ...task, filePath: filepath });
+				const state = normalizeStateIdentity(parseState(content));
+				states.push({ ...state, filePath: filepath });
 			}
 
-			return sortByTaskId(tasks);
+			return sortByStateId(states);
 		} catch {
 			return [];
 		}
@@ -706,7 +706,7 @@ export class FileSystem {
 				const content = await Bun.file(filepath).text();
 				decisions.push(parseDecision(content));
 			}
-			return sortByTaskId(decisions);
+			return sortByStateId(decisions);
 		} catch {
 			return [];
 		}
@@ -1127,15 +1127,15 @@ ${description || `Milestone: ${title}`}`,
 	}
 
 	// Config operations
-	async loadConfig(): Promise<BacklogConfig | null> {
+	async loadConfig(): Promise<RoadmapConfig | null> {
 		// Return cached config if available
 		if (this.cachedConfig !== null) {
 			return this.cachedConfig;
 		}
 
 		try {
-			const backlogDir = await this.getBacklogDir();
-			const configPath = join(backlogDir, DEFAULT_FILES.CONFIG);
+			const roadmapDir = await this.getRoadmapDir();
+			const configPath = join(roadmapDir, DEFAULT_FILES.CONFIG);
 
 			// Check if file exists first to avoid hanging on Windows
 			const file = Bun.file(configPath);
@@ -1156,10 +1156,10 @@ ${description || `Milestone: ${title}`}`,
 		}
 	}
 
-	async saveConfig(config: BacklogConfig): Promise<void> {
-		const backlogDir = await this.getBacklogDir();
-		const configPath = join(backlogDir, DEFAULT_FILES.CONFIG);
-		const normalizedConfig: BacklogConfig = {
+	async saveConfig(config: RoadmapConfig): Promise<void> {
+		const roadmapDir = await this.getRoadmapDir();
+		const configPath = join(roadmapDir, DEFAULT_FILES.CONFIG);
+		const normalizedConfig: RoadmapConfig = {
 			...config,
 			definitionOfDone: this.normalizeDefinitionOfDone(config.definitionOfDone),
 		};
@@ -1181,9 +1181,9 @@ ${description || `Milestone: ${title}`}`,
 
 	private async loadUserSettings(global = false): Promise<Record<string, string> | null> {
 		const primaryPath = global
-			? join(homedir(), "backlog", DEFAULT_FILES.USER)
+			? join(homedir(), "roadmap", DEFAULT_FILES.USER)
 			: join(this.projectRoot, DEFAULT_FILES.USER);
-		const fallbackPath = global ? join(this.projectRoot, "backlog", DEFAULT_FILES.USER) : undefined;
+		const fallbackPath = global ? join(this.projectRoot, "roadmap", DEFAULT_FILES.USER) : undefined;
 		const tryPaths = fallbackPath ? [primaryPath, fallbackPath] : [primaryPath];
 		for (const filePath of tryPaths) {
 			try {
@@ -1210,9 +1210,9 @@ ${description || `Milestone: ${title}`}`,
 
 	private async saveUserSettings(settings: Record<string, string>, global = false): Promise<void> {
 		const primaryPath = global
-			? join(homedir(), "backlog", DEFAULT_FILES.USER)
+			? join(homedir(), "roadmap", DEFAULT_FILES.USER)
 			: join(this.projectRoot, DEFAULT_FILES.USER);
-		const fallbackPath = global ? join(this.projectRoot, "backlog", DEFAULT_FILES.USER) : undefined;
+		const fallbackPath = global ? join(this.projectRoot, "roadmap", DEFAULT_FILES.USER) : undefined;
 
 		const lines = Object.entries(settings).map(([k, v]) => `${k}: ${v}`);
 		const data = `${lines.join("\n")}\n`;
@@ -1253,8 +1253,8 @@ ${description || `Milestone: ${title}`}`,
 		}
 	}
 
-	private parseConfig(content: string): BacklogConfig {
-		const config: Partial<BacklogConfig> = {};
+	private parseConfig(content: string): RoadmapConfig {
+		const config: Partial<RoadmapConfig> = {};
 		const lines = content.split("\n");
 
 		for (const line of lines) {
@@ -1337,8 +1337,8 @@ ${description || `Milestone: ${title}`}`,
 					// Remove surrounding quotes if present, but preserve inner content
 					config.onStatusChange = value.replace(/^['"]|['"]$/g, "");
 					break;
-				case "task_prefix":
-					config.prefixes = { task: value.replace(/['"]/g, "") };
+				case "state_prefix":
+					config.prefixes = { state: value.replace(/['"]/g, "") };
 					break;
 			}
 		}
@@ -1367,7 +1367,7 @@ ${description || `Milestone: ${title}`}`,
 		};
 	}
 
-	private serializeConfig(config: BacklogConfig): string {
+	private serializeConfig(config: RoadmapConfig): string {
 		const normalizedDefinitionOfDone = this.normalizeDefinitionOfDone(config.definitionOfDone);
 		const lines = [
 			`project_name: "${config.projectName}"`,
@@ -1393,7 +1393,7 @@ ${description || `Milestone: ${title}`}`,
 				: []),
 			...(typeof config.activeBranchDays === "number" ? [`active_branch_days: ${config.activeBranchDays}`] : []),
 			...(config.onStatusChange ? [`onStatusChange: '${config.onStatusChange}'`] : []),
-			...(config.prefixes?.task ? [`task_prefix: "${config.prefixes.task}"`] : []),
+			...(config.prefixes?.state ? [`state_prefix: "${config.prefixes.state}"`] : []),
 		];
 
 		return `${lines.join("\n")}\n`;

@@ -1,22 +1,22 @@
 import { describe, expect, it } from "bun:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
-import type { BacklogConfig, Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 
 describe("Board loading with checkActiveBranches config", () => {
-	const createTestTask = (id: string, status = "To Do"): Task => ({
+	const createTestState = (id: string, status = "To Do"): State => ({
 		id,
-		title: `Test Task ${id}`,
+		title: `Test State ${id}`,
 		status,
 		assignee: [],
 		createdDate: "2025-01-08",
 		labels: ["test"],
 		dependencies: [],
-		description: `This is test task ${id}`,
+		description: `This is test state ${id}`,
 	});
 
-	it("should respect checkActiveBranches=false in Core.loadTasks", async () => {
+	it("should respect checkActiveBranches=false in Core.loadStates", async () => {
 		// Create a mock Core with controlled filesystem and git operations
 		const mockFs = {
 			loadConfig: async () =>
@@ -26,8 +26,8 @@ describe("Board loading with checkActiveBranches config", () => {
 					defaultStatus: "To Do",
 					checkActiveBranches: false,
 					activeBranchDays: 30,
-				}) as BacklogConfig,
-			listTasks: async () => [createTestTask("task-1")],
+				}) as RoadmapConfig,
+			listStates: async () => [createTestState("state-1")],
 			listDrafts: async () => [],
 		};
 
@@ -54,9 +54,9 @@ describe("Board loading with checkActiveBranches config", () => {
 		Object.assign(core.filesystem, mockFs);
 		Object.assign(core.gitOps, mockGit);
 
-		// Load tasks and capture progress messages
+		// Load states and capture progress messages
 		try {
-			await core.loadTasks((msg) => {
+			await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
@@ -67,7 +67,7 @@ describe("Board loading with checkActiveBranches config", () => {
 			expect(skipMessage).toBeDefined();
 
 			// Should NOT have done cross-branch checking
-			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving task states across branches"));
+			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving state states across branches"));
 			expect(crossBranchMessage).toBeUndefined();
 		} catch (_error) {
 			// Expected since we're using mocked operations
@@ -75,7 +75,7 @@ describe("Board loading with checkActiveBranches config", () => {
 		}
 	});
 
-	it("should respect checkActiveBranches=true in Core.loadTasks", async () => {
+	it("should respect checkActiveBranches=true in Core.loadStates", async () => {
 		// Create a mock Core with controlled filesystem and git operations
 		const mockFs = {
 			loadConfig: async () =>
@@ -85,8 +85,8 @@ describe("Board loading with checkActiveBranches config", () => {
 					defaultStatus: "To Do",
 					checkActiveBranches: true,
 					activeBranchDays: 30,
-				}) as BacklogConfig,
-			listTasks: async () => [createTestTask("task-1")],
+				}) as RoadmapConfig,
+			listStates: async () => [createTestState("state-1")],
 			listDrafts: async () => [],
 		};
 
@@ -113,14 +113,14 @@ describe("Board loading with checkActiveBranches config", () => {
 		Object.assign(core.filesystem, mockFs);
 		Object.assign(core.gitOps, mockGit);
 
-		// Load tasks and capture progress messages
+		// Load states and capture progress messages
 		try {
-			await core.loadTasks((msg) => {
+			await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
 			// Should have done cross-branch checking
-			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving task states across branches"));
+			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving state states across branches"));
 			expect(crossBranchMessage).toBeDefined();
 
 			// Should NOT have skipped
@@ -143,8 +143,8 @@ describe("Board loading with checkActiveBranches config", () => {
 					statuses: ["To Do", "In Progress", "Done"],
 					defaultStatus: "To Do",
 					// checkActiveBranches is undefined - should default to true
-				}) as BacklogConfig,
-			listTasks: async () => [createTestTask("task-1")],
+				}) as RoadmapConfig,
+			listStates: async () => [createTestState("state-1")],
 			listDrafts: async () => [],
 		};
 
@@ -171,14 +171,14 @@ describe("Board loading with checkActiveBranches config", () => {
 		Object.assign(core.filesystem, mockFs);
 		Object.assign(core.gitOps, mockGit);
 
-		// Load tasks and capture progress messages
+		// Load states and capture progress messages
 		try {
-			await core.loadTasks((msg) => {
+			await core.loadStates((msg) => {
 				progressMessages.push(msg);
 			});
 
 			// Should default to performing cross-branch checking
-			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving task states across branches"));
+			const crossBranchMessage = progressMessages.find((msg) => msg.includes("Resolving state states across branches"));
 			expect(crossBranchMessage).toBeDefined();
 		} catch (_error) {
 			// Expected since we're using mocked operations

@@ -5,15 +5,15 @@
 
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { TaskCreateInput, TaskUpdateInput } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { StateCreateInput, StateUpdateInput } from "../types/index.ts";
 import { hasAnyPrefix } from "../utils/prefix-config.ts";
-import { normalizeDependencies } from "../utils/task-builders.ts";
+import { normalizeDependencies } from "../utils/state-builders.ts";
 
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 const isWindows = process.platform === "win32";
 
-export interface TaskCreateOptions {
+export interface StateCreateOptions {
 	title: string;
 	description?: string;
 	assignee?: string;
@@ -29,29 +29,29 @@ export interface TaskCreateOptions {
 }
 
 /**
- * Platform-aware task creation that uses Core directly on Windows
+ * Platform-aware state creation that uses Core directly on Windows
  * and CLI spawning on Unix systems
  */
-export async function createTaskPlatformAware(
-	options: TaskCreateOptions,
+export async function createStatePlatformAware(
+	options: StateCreateOptions,
 	testDir: string,
-): Promise<{ exitCode: number; stdout: string; stderr: string; taskId?: string }> {
+): Promise<{ exitCode: number; stdout: string; stderr: string; stateId?: string }> {
 	// Always use Core API for tests to avoid CLI process spawning issues
-	return createTaskViaCore(options, testDir);
+	return createStateViaCore(options, testDir);
 }
 
-async function createTaskViaCore(
-	options: TaskCreateOptions,
+async function createStateViaCore(
+	options: StateCreateOptions,
 	testDir: string,
-): Promise<{ exitCode: number; stdout: string; stderr: string; taskId?: string }> {
+): Promise<{ exitCode: number; stdout: string; stderr: string; stateId?: string }> {
 	const core = new Core(testDir);
 
 	const normalizedPriority = options.priority ? String(options.priority).toLowerCase() : undefined;
-	const createInput: TaskCreateInput = {
+	const createInput: StateCreateInput = {
 		title: options.title.trim(),
 		description: options.description,
 		status: options.status ?? (options.draft ? "Draft" : undefined),
-		priority: normalizedPriority as TaskCreateInput["priority"],
+		priority: normalizedPriority as StateCreateInput["priority"],
 		labels: options.labels
 			? options.labels
 					.split(",")
@@ -60,10 +60,10 @@ async function createTaskViaCore(
 			: undefined,
 		assignee: options.assignee ? [options.assignee] : undefined,
 		dependencies: options.dependencies ? normalizeDependencies(options.dependencies) : undefined,
-		parentTaskId: options.parent
+		parentStateId: options.parent
 			? hasAnyPrefix(options.parent)
 				? options.parent
-				: `task-${options.parent}`
+				: `state-${options.parent}`
 			: undefined,
 	};
 
@@ -91,13 +91,13 @@ async function createTaskViaCore(
 	}
 
 	try {
-		const { task } = await core.createTaskFromInput(createInput);
-		const isDraft = (task.status ?? "").toLowerCase() === "draft";
+		const { state } = await core.createStateFromInput(createInput);
+		const isDraft = (state.status ?? "").toLowerCase() === "draft";
 		return {
 			exitCode: 0,
-			stdout: isDraft ? `Created draft ${task.id}` : `Created task ${task.id}`,
+			stdout: isDraft ? `Created draft ${state.id}` : `Created state ${state.id}`,
 			stderr: "",
-			taskId: task.id,
+			stateId: state.id,
 		};
 	} catch (error) {
 		return {
@@ -108,12 +108,12 @@ async function createTaskViaCore(
 	}
 }
 
-async function _createTaskViaCLI(
-	options: TaskCreateOptions,
+async function _createStateViaCLI(
+	options: StateCreateOptions,
 	testDir: string,
-): Promise<{ exitCode: number; stdout: string; stderr: string; taskId?: string }> {
+): Promise<{ exitCode: number; stdout: string; stderr: string; stateId?: string }> {
 	// Build CLI arguments
-	const args = [CLI_PATH, "task", "create", options.title];
+	const args = [CLI_PATH, "state", "create", options.title];
 
 	if (options.description) args.push("--description", options.description);
 	if (options.assignee) args.push("--assignee", options.assignee);
@@ -128,20 +128,20 @@ async function _createTaskViaCLI(
 
 	const result = await $`bun ${args}`.cwd(testDir).quiet().nothrow();
 
-	// Extract task ID from stdout
-	const match = result.stdout.toString().match(/Created (?:task|draft) (task-\d+)/);
-	const taskId = match ? match[1] : undefined;
+	// Extract state ID from stdout
+	const match = result.stdout.toString().match(/Created (?:state|draft) (state-\d+)/);
+	const stateId = match ? match[1] : undefined;
 
 	return {
 		exitCode: result.exitCode,
 		stdout: result.stdout.toString(),
 		stderr: result.stderr.toString(),
-		taskId,
+		stateId,
 	};
 }
 
-export interface TaskEditOptions {
-	taskId: string;
+export interface StateEditOptions {
+	stateId: string;
 	title?: string;
 	description?: string;
 	assignee?: string;
@@ -154,36 +154,36 @@ export interface TaskEditOptions {
 }
 
 /**
- * Platform-aware task editing that uses Core directly on Windows
+ * Platform-aware state editing that uses Core directly on Windows
  * and CLI spawning on Unix systems
  */
-export async function editTaskPlatformAware(
-	options: TaskEditOptions,
+export async function editStatePlatformAware(
+	options: StateEditOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	// Always use Core API for tests to avoid CLI process spawning issues
-	return editTaskViaCore(options, testDir);
+	return editStateViaCore(options, testDir);
 }
 
-async function editTaskViaCore(
-	options: TaskEditOptions,
+async function editStateViaCore(
+	options: StateEditOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	try {
 		const core = new Core(testDir);
 
-		// Load existing task
-		const taskId = hasAnyPrefix(options.taskId) ? options.taskId : `task-${options.taskId}`;
-		const existingTask = await core.filesystem.loadTask(taskId);
-		if (!existingTask) {
+		// Load existing state
+		const stateId = hasAnyPrefix(options.stateId) ? options.stateId : `state-${options.stateId}`;
+		const existingState = await core.filesystem.loadState(stateId);
+		if (!existingState) {
 			return {
 				exitCode: 1,
 				stdout: "",
-				stderr: `Task ${taskId} not found`,
+				stderr: `State ${stateId} not found`,
 			};
 		}
 
-		const updateInput: TaskUpdateInput = {
+		const updateInput: StateUpdateInput = {
 			...(options.title && { title: options.title }),
 			...(options.description && { description: options.description }),
 			...(options.status && { status: options.status }),
@@ -195,15 +195,15 @@ async function editTaskViaCore(
 					.filter((label) => label.length > 0),
 			}),
 			...(options.dependencies && { dependencies: normalizeDependencies(options.dependencies) }),
-			...(options.priority && { priority: options.priority as TaskUpdateInput["priority"] }),
+			...(options.priority && { priority: options.priority as StateUpdateInput["priority"] }),
 			...(options.notes && { implementationNotes: options.notes }),
 			...(options.plan && { implementationPlan: options.plan }),
 		};
 
-		await core.updateTaskFromInput(taskId, updateInput, false);
+		await core.updateStateFromInput(stateId, updateInput, false);
 		return {
 			exitCode: 0,
-			stdout: `Updated task ${taskId}`,
+			stdout: `Updated state ${stateId}`,
 			stderr: "",
 		};
 	} catch (error) {
@@ -215,12 +215,12 @@ async function editTaskViaCore(
 	}
 }
 
-async function _editTaskViaCLI(
-	options: TaskEditOptions,
+async function _editStateViaCLI(
+	options: StateEditOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	// Build CLI arguments
-	const args = [CLI_PATH, "task", "edit", options.taskId];
+	const args = [CLI_PATH, "state", "edit", options.stateId];
 
 	if (options.title) args.push("--title", options.title);
 	if (options.description) args.push("--description", options.description);
@@ -241,56 +241,56 @@ async function _editTaskViaCLI(
 	};
 }
 
-export interface TaskViewOptions {
-	taskId: string;
+export interface StateViewOptions {
+	stateId: string;
 	plain?: boolean;
 	useViewCommand?: boolean;
 }
 
 /**
- * Platform-aware task viewing that uses Core directly on Windows
+ * Platform-aware state viewing that uses Core directly on Windows
  * and CLI spawning on Unix systems
  */
-export async function viewTaskPlatformAware(
-	options: TaskViewOptions,
+export async function viewStatePlatformAware(
+	options: StateViewOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	// Always use Core API for tests to avoid CLI process spawning issues
-	return viewTaskViaCore(options, testDir);
+	return viewStateViaCore(options, testDir);
 }
 
-async function viewTaskViaCore(
-	options: TaskViewOptions,
+async function viewStateViaCore(
+	options: StateViewOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	try {
 		const core = new Core(testDir);
-		const taskId = hasAnyPrefix(options.taskId) ? options.taskId : `task-${options.taskId}`;
+		const stateId = hasAnyPrefix(options.stateId) ? options.stateId : `state-${options.stateId}`;
 
-		const task = await core.filesystem.loadTask(taskId);
-		if (!task) {
+		const state = await core.filesystem.loadState(stateId);
+		if (!state) {
 			return {
 				exitCode: 1,
 				stdout: "",
-				stderr: `Task ${taskId} not found`,
+				stderr: `State ${stateId} not found`,
 			};
 		}
 
 		// Format output to match CLI output
-		let output = `Task ${taskId} - ${task.title}`;
+		let output = `State ${stateId} - ${state.title}`;
 		if (options.plain) {
-			output += `\nStatus: ${task.status}`;
-			if (task.assignee?.length > 0) {
-				output += `\nAssignee: ${task.assignee.join(", ")}`;
+			output += `\nStatus: ${state.status}`;
+			if (state.assignee?.length > 0) {
+				output += `\nAssignee: ${state.assignee.join(", ")}`;
 			}
-			if (task.labels?.length > 0) {
-				output += `\nLabels: ${task.labels.join(", ")}`;
+			if (state.labels?.length > 0) {
+				output += `\nLabels: ${state.labels.join(", ")}`;
 			}
-			if (task.dependencies?.length > 0) {
-				output += `\nDependencies: ${task.dependencies.join(", ")}`;
+			if (state.dependencies?.length > 0) {
+				output += `\nDependencies: ${state.dependencies.join(", ")}`;
 			}
-			if (task.rawContent) {
-				output += `\n\n${task.rawContent}`;
+			if (state.rawContent) {
+				output += `\n\n${state.rawContent}`;
 			}
 		}
 
@@ -308,17 +308,17 @@ async function viewTaskViaCore(
 	}
 }
 
-async function _viewTaskViaCLI(
-	options: TaskViewOptions,
+async function _viewStateViaCLI(
+	options: StateViewOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	const args = [CLI_PATH, "task"];
+	const args = [CLI_PATH, "state"];
 
-	// Handle both "task 1" and "task view 1" formats
+	// Handle both "state 1" and "state view 1" formats
 	if (options.useViewCommand) {
-		args.push("view", options.taskId);
+		args.push("view", options.stateId);
 	} else {
-		args.push(options.taskId);
+		args.push(options.stateId);
 	}
 
 	if (options.plain) {
@@ -346,22 +346,22 @@ export async function getCliHelpPlatformAware(
 		// Return a mock response that matches the expected behavior
 		return {
 			exitCode: 0,
-			stdout: `Usage: task create [options] <title>
+			stdout: `Usage: state create [options] <title>
 
 Options:
-  -d, --description <description>  task description
+  -d, --description <description>  state description
   -a, --assignee <assignee>        assign to user
-  -s, --status <status>           set task status
+  -s, --status <status>           set state status
   -l, --labels <labels>           add labels (comma-separated)
-  --priority <priority>           set task priority (high, medium, low)
+  --priority <priority>           set state priority (high, medium, low)
   --ac <criteria>                 acceptance criteria (comma-separated)
   --dod <item>                    add Definition of Done item (can be used multiple times)
   --no-dod-defaults               disable Definition of Done defaults
   --plan <plan>                   implementation plan
   --draft                         create as draft
-  -p, --parent <taskId>           specify parent task ID
-  --dep <dependencies>            task dependencies (comma-separated)
-  --depends-on <dependencies>     task dependencies (comma-separated)
+  -p, --parent <stateId>           specify parent state ID
+  --dep <dependencies>            state dependencies (comma-separated)
+  --depends-on <dependencies>     state dependencies (comma-separated)
   -h, --help                      display help for command`,
 			stderr: "",
 		};
@@ -377,70 +377,70 @@ Options:
 	};
 }
 
-export interface TaskListOptions {
+export interface StateListOptions {
 	plain?: boolean;
 	status?: string;
 	assignee?: string;
 }
 
 /**
- * Platform-aware task listing that uses Core directly on Windows
+ * Platform-aware state listing that uses Core directly on Windows
  * and CLI spawning on Unix systems
  */
-export async function listTasksPlatformAware(
-	options: TaskListOptions,
+export async function listStatesPlatformAware(
+	options: StateListOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	// Always use Core API for tests to avoid CLI process spawning issues
-	return listTasksViaCore(options, testDir);
+	return listStatesViaCore(options, testDir);
 }
 
-async function listTasksViaCore(
-	options: TaskListOptions,
+async function listStatesViaCore(
+	options: StateListOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
 	try {
 		const core = new Core(testDir);
-		const tasks = await core.filesystem.listTasks();
+		const states = await core.filesystem.listStates();
 
 		// Filter by status if provided
-		let filteredTasks = tasks;
+		let filteredStates = states;
 		if (options.status) {
 			const statusFilter = options.status.toLowerCase();
-			filteredTasks = tasks.filter((task) => task.status.toLowerCase() === statusFilter);
+			filteredStates = states.filter((state) => state.status.toLowerCase() === statusFilter);
 		}
 
 		// Filter by assignee if provided
 		if (options.assignee) {
-			filteredTasks = filteredTasks.filter((task) =>
-				task.assignee.some((a) => a.toLowerCase().includes(options.assignee?.toLowerCase() ?? "")),
+			filteredStates = filteredStates.filter((state) =>
+				state.assignee.some((a) => a.toLowerCase().includes(options.assignee?.toLowerCase() ?? "")),
 			);
 		}
 
 		// Format output to match CLI output
 		if (options.plain) {
-			if (filteredTasks.length === 0) {
+			if (filteredStates.length === 0) {
 				return {
 					exitCode: 0,
-					stdout: "No tasks found",
+					stdout: "No states found",
 					stderr: "",
 				};
 			}
 
 			// Group by status
-			const tasksByStatus = new Map<string, typeof filteredTasks>();
-			for (const task of filteredTasks) {
-				const status = task.status || "No Status";
-				const existing = tasksByStatus.get(status) || [];
-				existing.push(task);
-				tasksByStatus.set(status, existing);
+			const statesByStatus = new Map<string, typeof filteredStates>();
+			for (const state of filteredStates) {
+				const status = state.status || "No Status";
+				const existing = statesByStatus.get(status) || [];
+				existing.push(state);
+				statesByStatus.set(status, existing);
 			}
 
 			let output = "";
-			for (const [status, statusTasks] of tasksByStatus) {
+			for (const [status, statusStates] of statesByStatus) {
 				output += `${status}:\n`;
-				for (const task of statusTasks) {
-					output += `${task.id} - ${task.title}\n`;
+				for (const state of statusStates) {
+					output += `${state.id} - ${state.title}\n`;
 				}
 				output += "\n";
 			}
@@ -454,8 +454,8 @@ async function listTasksViaCore(
 
 		// Non-plain output (basic format)
 		let output = "";
-		for (const task of filteredTasks) {
-			output += `${task.id} - ${task.title}\n`;
+		for (const state of filteredStates) {
+			output += `${state.id} - ${state.title}\n`;
 		}
 
 		return {
@@ -472,11 +472,11 @@ async function listTasksViaCore(
 	}
 }
 
-async function _listTasksViaCLI(
-	options: TaskListOptions,
+async function _listStatesViaCLI(
+	options: StateListOptions,
 	testDir: string,
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-	const args = [CLI_PATH, "task", "list"];
+	const args = [CLI_PATH, "state", "list"];
 
 	if (options.plain) {
 		args.push("--plain");

@@ -2,10 +2,10 @@ import { spawn } from "bun";
 
 export interface StatusCallbackOptions {
 	command: string;
-	taskId: string;
+	stateId: string;
 	oldStatus: string;
 	newStatus: string;
-	taskTitle: string;
+	stateTitle: string;
 	cwd: string;
 }
 
@@ -20,11 +20,11 @@ export interface StatusCallbackResult {
  * Executes a status change callback command with variable injection.
  * Variables are passed as environment variables to the shell command.
  *
- * @param options - The callback options including command and task details
+ * @param options - The callback options including command and state details
  * @returns The result of the callback execution
  */
 export async function executeStatusCallback(options: StatusCallbackOptions): Promise<StatusCallbackResult> {
-	const { command, taskId, oldStatus, newStatus, taskTitle, cwd } = options;
+	const { command, stateId, oldStatus, newStatus, stateTitle, cwd } = options;
 
 	if (!command || command.trim().length === 0) {
 		return { success: false, error: "Empty command" };
@@ -33,10 +33,10 @@ export async function executeStatusCallback(options: StatusCallbackOptions): Pro
 	try {
 		const env = {
 			...process.env,
-			TASK_ID: taskId,
+			STATE_ID: stateId,
 			OLD_STATUS: oldStatus,
 			NEW_STATUS: newStatus,
-			TASK_TITLE: taskTitle,
+			STATE_TITLE: stateTitle,
 		};
 
 		const proc = spawn({

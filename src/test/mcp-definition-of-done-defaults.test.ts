@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { McpServer } from "../mcp/server.ts";
 import { registerDefinitionOfDoneTools } from "../mcp/tools/definition-of-done/index.ts";
-import { registerTaskTools } from "../mcp/tools/tasks/index.ts";
+import { registerStateTools } from "../mcp/tools/states/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const getText = (content: unknown[] | undefined, index = 0): string => {
@@ -25,7 +25,7 @@ describe("MCP Definition of Done default tools", () => {
 	beforeEach(async () => {
 		testDir = createUniqueTestDir("mcp-dod-defaults");
 		server = new McpServer(testDir, "Test instructions");
-		await server.filesystem.ensureBacklogStructure();
+		await server.filesystem.ensureRoadmapStructure();
 
 		await $`git init -b main`.cwd(testDir).quiet();
 		await $`git config user.name "Test User"`.cwd(testDir).quiet();
@@ -34,7 +34,7 @@ describe("MCP Definition of Done default tools", () => {
 		await server.initializeProject("Test Project");
 
 		const config = await loadConfigOrThrow(server);
-		registerTaskTools(server, config);
+		registerStateTools(server, config);
 		registerDefinitionOfDoneTools(server);
 	});
 
@@ -76,7 +76,7 @@ describe("MCP Definition of Done default tools", () => {
 		expect(reloaded.definitionOfDone).toEqual(["Run tests", "Update docs"]);
 	});
 
-	it("applies updated project defaults to task creation and supports per-task override behavior", async () => {
+	it("applies updated project defaults to state creation and supports per-state override behavior", async () => {
 		await server.testInterface.callTool({
 			params: {
 				name: "definition_of_done_defaults_upsert",
@@ -88,18 +88,18 @@ describe("MCP Definition of Done default tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Task with defaults",
+					title: "State with defaults",
 				},
 			},
 		});
 
 		const withDefaults = await server.testInterface.callTool({
 			params: {
-				name: "task_view",
+				name: "state_view",
 				arguments: {
-					id: "task-1",
+					id: "state-1",
 				},
 			},
 		});
@@ -110,26 +110,26 @@ describe("MCP Definition of Done default tools", () => {
 
 		await server.testInterface.callTool({
 			params: {
-				name: "task_create",
+				name: "state_create",
 				arguments: {
-					title: "Task without defaults",
+					title: "State without defaults",
 					disableDefinitionOfDoneDefaults: true,
-					definitionOfDoneAdd: ["Custom per-task DoD"],
+					definitionOfDoneAdd: ["Custom per-state DoD"],
 				},
 			},
 		});
 
 		const withoutDefaults = await server.testInterface.callTool({
 			params: {
-				name: "task_view",
+				name: "state_view",
 				arguments: {
-					id: "task-2",
+					id: "state-2",
 				},
 			},
 		});
 
 		const withoutDefaultsText = getText(withoutDefaults.content);
-		expect(withoutDefaultsText).toContain("- [ ] #1 Custom per-task DoD");
+		expect(withoutDefaultsText).toContain("- [ ] #1 Custom per-state DoD");
 		expect(withoutDefaultsText).not.toContain("Run tests");
 	});
 

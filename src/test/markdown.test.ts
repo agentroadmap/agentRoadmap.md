@@ -1,23 +1,23 @@
 import { describe, expect, it } from "bun:test";
-import { parseDecision, parseDocument, parseMarkdown, parseTask } from "../markdown/parser.ts";
+import { parseDecision, parseDocument, parseMarkdown, parseState } from "../markdown/parser.ts";
 import {
 	serializeDecision,
 	serializeDocument,
-	serializeTask,
-	updateTaskAcceptanceCriteria,
+	serializeState,
+	updateStateAcceptanceCriteria,
 } from "../markdown/serializer.ts";
-import type { Decision, Document, Task } from "../types/index.ts";
+import type { Decision, Document, State } from "../types/index.ts";
 
 describe("Markdown Parser", () => {
 	describe("parseMarkdown", () => {
 		it("should parse frontmatter and content", () => {
 			const content = `---
-title: "Test Task"
+title: "Test State"
 status: "To Do"
 labels: ["bug", "urgent"]
 ---
 
-This is the task description.
+This is the state description.
 
 ## Acceptance Criteria
 
@@ -26,10 +26,10 @@ This is the task description.
 
 			const result = parseMarkdown(content);
 
-			expect(result.frontmatter.title).toBe("Test Task");
+			expect(result.frontmatter.title).toBe("Test State");
 			expect(result.frontmatter.status).toBe("To Do");
 			expect(result.frontmatter.labels).toEqual(["bug", "urgent"]);
-			expect(result.content).toContain("This is the task description");
+			expect(result.content).toContain("This is the state description");
 		});
 
 		it("should handle content without frontmatter", () => {
@@ -49,10 +49,10 @@ This is the task description.
 		});
 	});
 
-	describe("parseTask", () => {
-		it("should parse a complete task", () => {
+	describe("parseState", () => {
+		it("should parse a complete state", () => {
 			const content = `---
-id: task-1
+id: state-1
 title: "Fix login bug"
 status: "In Progress"
 assignee: "@developer"
@@ -60,9 +60,9 @@ reporter: "@manager"
 created_date: "2025-06-03"
 labels: ["bug", "frontend"]
 milestone: "v1.0"
-dependencies: ["task-0"]
-parent_task_id: "task-parent"
-subtasks: ["task-1.1", "task-1.2"]
+dependencies: ["state-0"]
+parent_state_id: "state-parent"
+substates: ["state-1.1", "state-1.2"]
 ---
 
 ## Description
@@ -74,89 +74,89 @@ Fix the login bug that prevents users from signing in.
 - [ ] Login form validates correctly
 - [ ] Error messages are displayed properly`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.id).toBe("task-1");
-			expect(task.title).toBe("Fix login bug");
-			expect(task.status).toBe("In Progress");
-			expect(task.assignee).toEqual(["@developer"]);
-			expect(task.reporter).toBe("@manager");
-			expect(task.createdDate).toBe("2025-06-03");
-			expect(task.labels).toEqual(["bug", "frontend"]);
-			expect(task.milestone).toBe("v1.0");
-			expect(task.dependencies).toEqual(["task-0"]);
-			expect(task.parentTaskId).toBe("task-parent");
-			expect(task.subtasks).toEqual(["task-1.1", "task-1.2"]);
-			expect(task.acceptanceCriteriaItems?.map((item) => item.text)).toEqual([
+			expect(state.id).toBe("state-1");
+			expect(state.title).toBe("Fix login bug");
+			expect(state.status).toBe("In Progress");
+			expect(state.assignee).toEqual(["@developer"]);
+			expect(state.reporter).toBe("@manager");
+			expect(state.createdDate).toBe("2025-06-03");
+			expect(state.labels).toEqual(["bug", "frontend"]);
+			expect(state.milestone).toBe("v1.0");
+			expect(state.dependencies).toEqual(["state-0"]);
+			expect(state.parentStateId).toBe("state-parent");
+			expect(state.substates).toEqual(["state-1.1", "state-1.2"]);
+			expect(state.acceptanceCriteriaItems?.map((item) => item.text)).toEqual([
 				"Login form validates correctly",
 				"Error messages are displayed properly",
 			]);
 		});
 
-		it("should parse a task with minimal fields", () => {
+		it("should parse a state with minimal fields", () => {
 			const content = `---
-id: task-2
-title: "Simple task"
+id: state-2
+title: "Simple state"
 ---
 
-Just a basic task.`;
+Just a basic state.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.id).toBe("task-2");
-			expect(task.title).toBe("Simple task");
-			expect(task.status).toBe("");
-			expect(task.assignee).toEqual([]);
-			expect(task.reporter).toBeUndefined();
-			expect(task.labels).toEqual([]);
-			expect(task.dependencies).toEqual([]);
-			expect(task.acceptanceCriteriaItems).toEqual([]);
-			expect(task.parentTaskId).toBeUndefined();
-			expect(task.subtasks).toBeUndefined();
+			expect(state.id).toBe("state-2");
+			expect(state.title).toBe("Simple state");
+			expect(state.status).toBe("");
+			expect(state.assignee).toEqual([]);
+			expect(state.reporter).toBeUndefined();
+			expect(state.labels).toEqual([]);
+			expect(state.dependencies).toEqual([]);
+			expect(state.acceptanceCriteriaItems).toEqual([]);
+			expect(state.parentStateId).toBeUndefined();
+			expect(state.substates).toBeUndefined();
 		});
 
-		it("should handle task with empty status", () => {
+		it("should handle state with empty status", () => {
 			const content = `---
-id: task-3
-title: "No status task"
+id: state-3
+title: "No status state"
 created_date: "2025-06-07"
 ---
 
-Task without status.`;
+State without status.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.status).toBe("");
-			expect(task.createdDate).toBe("2025-06-07");
+			expect(state.status).toBe("");
+			expect(state.createdDate).toBe("2025-06-07");
 		});
 
 		it("should parse unquoted created_date", () => {
 			const content = `---
-id: task-5
+id: state-5
 title: "Unquoted"
 created_date: 2025-06-08
 ---`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.createdDate).toBe("2025-06-08");
+			expect(state.createdDate).toBe("2025-06-08");
 		});
 
 		it("should parse created_date in short format", () => {
 			const content = `---
-id: task-6
+id: state-6
 title: "Short"
 created_date: 08-06-25
 ---`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.createdDate).toBe("2025-06-08");
+			expect(state.createdDate).toBe("2025-06-08");
 		});
 
 		it("should preserve frontmatter when title contains dollar-sign digit sequences", () => {
 			const content = `---
-id: task-112.11
+id: state-112.11
 title: 'Build ~$15,000 System (Magnepan 1.7x)'
 status: To Do
 assignee: []
@@ -167,21 +167,21 @@ dependencies: []
 priority: high
 ---
 
-Task body.`;
+State body.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.id).toBe("task-112.11");
-			expect(task.title).toBe("Build ~$15,000 System (Magnepan 1.7x)");
-			expect(task.status).toBe("To Do");
-			expect(task.createdDate).toBe("2026-02-10 18:24");
-			expect(task.labels).toEqual(["TLR"]);
-			expect(task.priority).toBe("high");
+			expect(state.id).toBe("state-112.11");
+			expect(state.title).toBe("Build ~$15,000 System (Magnepan 1.7x)");
+			expect(state.status).toBe("To Do");
+			expect(state.createdDate).toBe("2026-02-10 18:24");
+			expect(state.labels).toEqual(["TLR"]);
+			expect(state.priority).toBe("high");
 		});
 
 		it("should extract acceptance criteria with checked items", () => {
 			const content = `---
-id: task-4
+id: state-4
 title: "Test with mixed criteria"
 ---
 
@@ -191,9 +191,9 @@ title: "Test with mixed criteria"
 - [x] Done item
 - [ ] Another todo`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.acceptanceCriteriaItems?.map((item) => item.text)).toEqual([
+			expect(state.acceptanceCriteriaItems?.map((item) => item.text)).toEqual([
 				"Todo item",
 				"Done item",
 				"Another todo",
@@ -202,64 +202,64 @@ title: "Test with mixed criteria"
 
 		it("should parse unquoted assignee names starting with @", () => {
 			const content = `---
-id: task-5
+id: state-5
 title: "Assignee Test"
 assignee: @MrLesk
 ---
 
-Test task.`;
+Test state.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.assignee).toEqual(["@MrLesk"]);
+			expect(state.assignee).toEqual(["@MrLesk"]);
 		});
 
 		it("should parse unquoted reporter names starting with @", () => {
 			const content = `---
-id: task-6
+id: state-6
 title: "Reporter Test"
 assignee: []
 reporter: @MrLesk
 created_date: 2025-06-08
 ---
 
-Test task with reporter.`;
+Test state with reporter.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.reporter).toBe("@MrLesk");
+			expect(state.reporter).toBe("@MrLesk");
 		});
 
 		it("should parse inline assignee lists with unquoted @ handles", () => {
 			const content = `---
-id: task-7
+id: state-7
 title: "Inline Assignees"
 assignee: [@alice, "@bob"]
 status: To Do
 created_date: 2025-06-08
 ---
 
-Test task with inline list.`;
+Test state with inline list.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.assignee).toEqual(["@alice", "@bob"]);
+			expect(state.assignee).toEqual(["@alice", "@bob"]);
 		});
 
 		it("should escape backslashes in inline @ lists", () => {
 			const content = `---
-id: task-8
+id: state-8
 title: "Backslash Inline Assignees"
 assignee: [@domain\\\\user]
 status: To Do
 created_date: 2025-06-08
 ---
 
-Test task with inline list containing backslash.`;
+Test state with inline list containing backslash.`;
 
-			const task = parseTask(content);
+			const state = parseState(content);
 
-			expect(task.assignee).toEqual(["@domain\\\\user"]);
+			expect(state.assignee).toEqual(["@domain\\\\user"]);
 		});
 	});
 
@@ -369,97 +369,97 @@ Document body.`;
 });
 
 describe("Markdown Serializer", () => {
-	describe("serializeTask", () => {
-		it("should serialize a task correctly", () => {
-			const task: Task = {
-				id: "task-1",
-				title: "Test Task",
+	describe("serializeState", () => {
+		it("should serialize a state correctly", () => {
+			const state: State = {
+				id: "state-1",
+				title: "Test State",
 				status: "To Do",
 				assignee: ["@developer"],
 				reporter: "@manager",
 				createdDate: "2025-06-03",
 				labels: ["bug", "frontend"],
 				milestone: "v1.0",
-				dependencies: ["task-0"],
-				description: "This is a test task description.",
+				dependencies: ["state-0"],
+				description: "This is a test state description.",
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
-			expect(result).toContain("id: task-1");
-			expect(result).toContain("title: Test Task");
+			expect(result).toContain("id: state-1");
+			expect(result).toContain("title: Test State");
 			expect(result).toContain("status: To Do");
 			expect(result).toContain("created_date: '2025-06-03'");
 			expect(result).toContain("labels:");
 			expect(result).toContain("- bug");
 			expect(result).toContain("- frontend");
 			expect(result).toContain("## Description");
-			expect(result).toContain("This is a test task description.");
+			expect(result).toContain("This is a test state description.");
 		});
 
-		it("should serialize task with subtasks", () => {
-			const task: Task = {
-				id: "task-parent",
-				title: "Parent Task",
+		it("should serialize state with substates", () => {
+			const state: State = {
+				id: "state-parent",
+				title: "Parent State",
 				status: "In Progress",
 				assignee: [],
 				createdDate: "2025-06-03",
 				labels: [],
 				dependencies: [],
-				description: "A parent task with subtasks.",
-				subtasks: ["task-parent.1", "task-parent.2"],
+				description: "A parent state with substates.",
+				substates: ["state-parent.1", "state-parent.2"],
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
-			expect(result).toContain("subtasks:");
-			expect(result).toContain("- task-parent.1");
-			expect(result).toContain("- task-parent.2");
+			expect(result).toContain("substates:");
+			expect(result).toContain("- state-parent.1");
+			expect(result).toContain("- state-parent.2");
 		});
 
-		it("should serialize task with parent", () => {
-			const task: Task = {
-				id: "task-1.1",
-				title: "Subtask",
+		it("should serialize state with parent", () => {
+			const state: State = {
+				id: "state-1.1",
+				title: "Substate",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-03",
 				labels: [],
 				dependencies: [],
-				description: "A subtask.",
-				parentTaskId: "task-1",
+				description: "A substate.",
+				parentStateId: "state-1",
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
-			expect(result).toContain("parent_task_id: task-1");
+			expect(result).toContain("parent_state_id: state-1");
 		});
 
-		it("should serialize minimal task", () => {
-			const task: Task = {
-				id: "task-minimal",
-				title: "Minimal Task",
+		it("should serialize minimal state", () => {
+			const state: State = {
+				id: "state-minimal",
+				title: "Minimal State",
 				status: "Draft",
 				assignee: [],
 				createdDate: "2025-06-03",
 				labels: [],
 				dependencies: [],
-				description: "Minimal task.",
+				description: "Minimal state.",
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
-			expect(result).toContain("id: task-minimal");
-			expect(result).toContain("title: Minimal Task");
+			expect(result).toContain("id: state-minimal");
+			expect(result).toContain("title: Minimal State");
 			expect(result).toContain("assignee: []");
 			expect(result).not.toContain("reporter:");
 			expect(result).not.toContain("updated_date:");
 		});
 
 		it("removes acceptance criteria section when list becomes empty", () => {
-			const task: Task = {
-				id: "task-clean",
-				title: "Cleanup Task",
+			const state: State = {
+				id: "state-clean",
+				title: "Cleanup State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-10",
@@ -469,7 +469,7 @@ describe("Markdown Serializer", () => {
 				acceptanceCriteriaItems: [],
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
 			expect(result).not.toContain("## Acceptance Criteria");
 			expect(result).not.toContain("<!-- AC:BEGIN -->");
@@ -478,9 +478,9 @@ describe("Markdown Serializer", () => {
 		});
 
 		it("serializes acceptance criteria when structured items exist", () => {
-			const task: Task = {
-				id: "task-freeform",
-				title: "Legacy Criteria Task",
+			const state: State = {
+				id: "state-freeform",
+				title: "Legacy Criteria State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-11",
@@ -490,7 +490,7 @@ describe("Markdown Serializer", () => {
 				acceptanceCriteriaItems: [{ index: 1, text: "Criterion A", checked: false }],
 			};
 
-			const result = serializeTask(task);
+			const result = serializeState(state);
 
 			expect(result).toContain("## Acceptance Criteria");
 			expect(result).toContain("- [ ] #1 Criterion A");
@@ -581,12 +581,12 @@ describe("Markdown Serializer", () => {
 		});
 	});
 
-	describe("updateTaskAcceptanceCriteria", () => {
+	describe("updateStateAcceptanceCriteria", () => {
 		it("should add acceptance criteria to content without existing section", () => {
-			const content = "# Task Description\n\nThis is a simple task.";
+			const content = "# State Description\n\nThis is a simple state.";
 			const criteria = ["Login works correctly", "Error handling is proper"];
 
-			const result = updateTaskAcceptanceCriteria(content, criteria);
+			const result = updateStateAcceptanceCriteria(content, criteria);
 
 			expect(result).toContain("## Acceptance Criteria");
 			expect(result).toContain("- [ ] Login works correctly");
@@ -594,9 +594,9 @@ describe("Markdown Serializer", () => {
 		});
 
 		it("should replace existing acceptance criteria section", () => {
-			const content = `# Task Description
+			const content = `# State Description
 
-This is a task with existing criteria.
+This is a state with existing criteria.
 
 ## Acceptance Criteria
 
@@ -609,7 +609,7 @@ Some additional notes.`;
 
 			const criteria = ["New criterion 1", "New criterion 2"];
 
-			const result = updateTaskAcceptanceCriteria(content, criteria);
+			const result = updateStateAcceptanceCriteria(content, criteria);
 
 			expect(result).toContain("- [ ] New criterion 1");
 			expect(result).toContain("- [ ] New criterion 2");
@@ -618,10 +618,10 @@ Some additional notes.`;
 		});
 
 		it("should handle empty criteria array", () => {
-			const content = "# Task Description\n\nSimple task.";
+			const content = "# State Description\n\nSimple state.";
 			const criteria: string[] = [];
 
-			const result = updateTaskAcceptanceCriteria(content, criteria);
+			const result = updateStateAcceptanceCriteria(content, criteria);
 
 			expect(result).toContain("## Acceptance Criteria");
 			expect(result).not.toContain("- [ ]");

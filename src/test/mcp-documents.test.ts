@@ -16,7 +16,7 @@ let mcpServer: McpServer;
 async function loadConfig(server: McpServer) {
 	const config = await server.filesystem.loadConfig();
 	if (!config) {
-		throw new Error("Failed to load backlog configuration for tests");
+		throw new Error("Failed to load roadmap configuration for tests");
 	}
 	return config;
 }
@@ -25,7 +25,7 @@ describe("MCP document tools", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("mcp-documents");
 		mcpServer = new McpServer(TEST_DIR, "Test instructions");
-		await mcpServer.filesystem.ensureBacklogStructure();
+		await mcpServer.filesystem.ensureRoadmapStructure();
 
 		await $`git init -b main`.cwd(TEST_DIR).quiet();
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();

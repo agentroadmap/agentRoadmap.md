@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../lib/api';
 import { SuccessToast } from './SuccessToast';
-import type { BacklogConfig } from '../../types';
+import type { RoadmapConfig } from '../../types';
 
 const Settings: React.FC = () => {
-	const [config, setConfig] = useState<BacklogConfig | null>(null);
-	const [originalConfig, setOriginalConfig] = useState<BacklogConfig | null>(null);
+	const [config, setConfig] = useState<RoadmapConfig | null>(null);
+	const [originalConfig, setOriginalConfig] = useState<RoadmapConfig | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -41,7 +41,7 @@ const Settings: React.FC = () => {
 		}
 	};
 
-	const handleInputChange = (field: keyof BacklogConfig, value: any) => {
+	const handleInputChange = (field: keyof RoadmapConfig, value: any) => {
 		if (!config) return;
 		
 		setConfig({
@@ -195,7 +195,7 @@ const Settings: React.FC = () => {
 									<div>
 										<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Auto Commit</span>
 										<p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-											Automatically commit changes to Git after task operations
+											Automatically commit changes to Git after state operations
 										</p>
 									</div>
 									<div className="relative inline-flex items-center cursor-pointer">
@@ -215,7 +215,7 @@ const Settings: React.FC = () => {
 									<div>
 										<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Remote Operations</span>
 										<p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-											Fetch tasks information from remote branches
+											Fetch states information from remote branches
 										</p>
 									</div>
 									<div className="relative inline-flex items-center cursor-pointer">
@@ -245,7 +245,7 @@ const Settings: React.FC = () => {
 									))}
 								</select>
 								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-									Default status for new tasks
+									Default status for new states
 								</p>
 							</div>
 
@@ -262,7 +262,7 @@ const Settings: React.FC = () => {
 									placeholder="e.g., vim, nano, code"
 								/>
 								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-									Editor command to use for editing tasks (overrides EDITOR environment variable)
+									Editor command to use for editing states (overrides EDITOR environment variable)
 								</p>
 							</div>
 						</div>
@@ -272,7 +272,7 @@ const Settings: React.FC = () => {
 					<div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
 						<h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Definition of Done Defaults</h2>
 						<p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-							These checklist items are added to new tasks by default.
+							These checklist items are added to new states by default.
 						</p>
 						<div className="space-y-3">
 							{(config.definitionOfDone ?? []).map((item, index) => (
@@ -381,20 +381,20 @@ const Settings: React.FC = () => {
 							</div>
 
 							<div>
-								<label htmlFor="taskResolutionStrategy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Task Resolution Strategy
+								<label htmlFor="stateResolutionStrategy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+									State Resolution Strategy
 								</label>
 								<select
-									id="taskResolutionStrategy"
-									value={config.taskResolutionStrategy}
-									onChange={(e) => handleInputChange('taskResolutionStrategy', e.target.value as 'most_recent' | 'most_progressed')}
+									id="stateResolutionStrategy"
+									value={config.stateResolutionStrategy}
+									onChange={(e) => handleInputChange('stateResolutionStrategy', e.target.value as 'most_recent' | 'most_progressed')}
 									className="w-full h-10 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 transition-colors duration-200"
 								>
 									<option value="most_recent">Most Recent</option>
 									<option value="most_progressed">Most Progressed</option>
 								</select>
 								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-									Strategy for resolving conflicts when tasks exist in multiple branches
+									Strategy for resolving conflicts when states exist in multiple branches
 								</p>
 							</div>
 
@@ -412,22 +412,22 @@ const Settings: React.FC = () => {
 									className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 transition-colors duration-200"
 								/>
 								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-									Number of digits for ID padding (0 = disabled, 3 = task-001, 4 = task-0001)
+									Number of digits for ID padding (0 = disabled, 3 = state-001, 4 = state-0001)
 								</p>
 							</div>
 
 							<div>
 								<label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-									Task Prefix <span className="text-gray-400 dark:text-gray-500 font-normal">(read-only)</span>
+									State Prefix <span className="text-gray-400 dark:text-gray-500 font-normal">(read-only)</span>
 								</label>
 								<input
 									type="text"
-									value={(config.prefixes?.task || 'task').toUpperCase()}
+									value={(config.prefixes?.state || 'state').toUpperCase()}
 									disabled
 									className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
 								/>
 								<p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-									Set during initialization. Cannot be changed to avoid breaking existing task IDs.
+									Set during initialization. Cannot be changed to avoid breaking existing state IDs.
 								</p>
 							</div>
 						</div>

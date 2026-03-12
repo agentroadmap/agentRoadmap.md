@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { BacklogConfig, Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const CLI_PATH = process.env.TUI_TEST_CLI_PATH?.trim() || join(process.cwd(), "src", "cli.ts");
@@ -34,12 +34,12 @@ const itInteractive = skipReason ? it.skip : it;
 interface InteractiveEditRunOptions {
 	scenario: string;
 	cliArgs: string[];
-	taskTitle: string;
+	stateTitle: string;
 	readyPattern: string;
 }
 
 interface InteractiveEditRunResult {
-	taskContent: string;
+	stateContent: string;
 	transcriptPath: string;
 	editorMarker: string;
 	editorInputLog: string;
@@ -68,15 +68,15 @@ async function runInteractiveEditScenario(options: InteractiveEditRunOptions): P
 		editorScriptPath,
 		`const { appendFileSync, createReadStream } = require("node:fs");
 
-const taskFile = process.argv[2];
+const stateFile = process.argv[2];
 const markerFile = process.env.TUI_EDITOR_MARKER_FILE;
 const keyLogFile = process.env.TUI_EDITOR_KEY_LOG_FILE;
 
 if (markerFile) {
 	appendFileSync(markerFile, "started\\n");
 }
-if (taskFile) {
-	appendFileSync(taskFile, "\\nEdited in interactive TUI test\\n");
+if (stateFile) {
+	appendFileSync(stateFile, "\\nEdited in interactive TUI test\\n");
 }
 
 let input = process.stdin;
@@ -116,7 +116,7 @@ setTimeout(() => {
 		throw new Error(`Failed to load config for scenario ${options.scenario}`);
 	}
 
-	const updatedConfig: BacklogConfig = {
+	const updatedConfig: RoadmapConfig = {
 		...config,
 		remoteOperations: false,
 		checkActiveBranches: false,
@@ -124,9 +124,9 @@ setTimeout(() => {
 	};
 	await core.filesystem.saveConfig(updatedConfig);
 
-	const task: Task = {
-		id: "task-1",
-		title: options.taskTitle,
+	const state: State = {
+		id: "state-1",
+		title: options.stateTitle,
 		status: "To Do",
 		assignee: [],
 		createdDate: "2026-02-11 00:00",
@@ -134,7 +134,7 @@ setTimeout(() => {
 		dependencies: [],
 		description: "TUI interactive editor test",
 	};
-	await core.createTask(task, false);
+	await core.createState(state, false);
 
 	await writeFile(
 		expectScriptPath,
@@ -202,11 +202,11 @@ exit $exit_code
 
 	const markerContent = await readFile(editorMarkerPath, "utf8").catch(() => "");
 	const editorInputLog = await readFile(editorInputPath, "utf8").catch(() => "");
-	const taskContent = await core.getTaskContent("task-1");
+	const stateContent = await core.getStateContent("state-1");
 
 	await safeCleanup(testDir);
 	return {
-		taskContent: taskContent || "",
+		stateContent: stateContent || "",
 		transcriptPath,
 		editorMarker: markerContent,
 		editorInputLog,
@@ -214,31 +214,31 @@ exit $exit_code
 }
 
 describe("interactive TUI editor handoff", () => {
-	itInteractive("launches terminal editor from board view and marks task updated", async () => {
+	itInteractive("launches terminal editor from board view and marks state updated", async () => {
 		const result = await runInteractiveEditScenario({
 			scenario: "board",
 			cliArgs: ["board"],
-			taskTitle: "Board interactive editor task",
-			readyPattern: "Backlog Board",
+			stateTitle: "Board interactive editor state",
+			readyPattern: "Roadmap Board",
 		});
 
 		expect(result.editorMarker).toContain("started");
 		expect(result.editorInputLog).toContain("DATA:27,91,65");
-		expect(result.taskContent).toContain("Edited in interactive TUI test");
+		expect(result.stateContent).toContain("Edited in interactive TUI test");
 		expect(result.transcriptPath).toContain("tui-interactive-transcripts");
 	});
 
-	itInteractive("launches terminal editor from task list view and marks task updated", async () => {
+	itInteractive("launches terminal editor from state list view and marks state updated", async () => {
 		const result = await runInteractiveEditScenario({
-			scenario: "task-list",
-			cliArgs: ["task", "list"],
-			taskTitle: "Task list interactive editor task",
-			readyPattern: "Tasks",
+			scenario: "state-list",
+			cliArgs: ["state", "list"],
+			stateTitle: "State list interactive editor state",
+			readyPattern: "States",
 		});
 
 		expect(result.editorMarker).toContain("started");
 		expect(result.editorInputLog).toContain("DATA:27,91,65");
-		expect(result.taskContent).toContain("Edited in interactive TUI test");
+		expect(result.stateContent).toContain("Edited in interactive TUI test");
 		expect(result.transcriptPath).toContain("tui-interactive-transcripts");
 	});
 });

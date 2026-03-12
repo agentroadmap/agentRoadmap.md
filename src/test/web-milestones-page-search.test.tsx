@@ -4,12 +4,12 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
-import type { Milestone, Task } from "../types/index.ts";
+import type { Milestone, State } from "../types/index.ts";
 import MilestonesPage from "../web/components/MilestonesPage.tsx";
 
-const createTask = (overrides: Partial<Task>): Task => ({
-	id: "task-1",
-	title: "Task",
+const createState = (overrides: Partial<State>): State => ({
+	id: "state-1",
+	title: "State",
 	status: "To Do",
 	assignee: [],
 	labels: [],
@@ -33,11 +33,11 @@ const milestoneEntities: Milestone[] = [
 	},
 ];
 
-const baseTasks: Task[] = [
-	createTask({ id: "task-101", title: "Setup authentication flow", status: "In Progress", milestone: "m-1" }),
-	createTask({ id: "task-202", title: "Deploy pipeline", status: "To Do", milestone: "m-1" }),
-	createTask({ id: "task-404", title: "Ship docs site", status: "To Do", milestone: "m-2" }),
-	createTask({ id: "task-303", title: "Draft release notes", status: "To Do" }),
+const baseStates: State[] = [
+	createState({ id: "state-101", title: "Setup authentication flow", status: "In Progress", milestone: "m-1" }),
+	createState({ id: "state-202", title: "Deploy pipeline", status: "To Do", milestone: "m-1" }),
+	createState({ id: "state-404", title: "Ship docs site", status: "To Do", milestone: "m-2" }),
+	createState({ id: "state-303", title: "Draft release notes", status: "To Do" }),
 ];
 
 let activeRoot: Root | null = null;
@@ -76,7 +76,7 @@ const setupDom = () => {
 	}
 };
 
-const renderPage = (tasks: Task[] = baseTasks): HTMLElement => {
+const renderPage = (states: State[] = baseStates): HTMLElement => {
 	setupDom();
 	const container = document.getElementById("root");
 	expect(container).toBeTruthy();
@@ -85,11 +85,11 @@ const renderPage = (tasks: Task[] = baseTasks): HTMLElement => {
 		activeRoot?.render(
 			<MemoryRouter>
 				<MilestonesPage
-					tasks={tasks}
+					states={states}
 					statuses={["To Do", "In Progress", "Done"]}
 					milestoneEntities={milestoneEntities}
 					archivedMilestones={[]}
-					onEditTask={() => {}}
+					onEditState={() => {}}
 				/>
 			</MemoryRouter>,
 		);
@@ -155,16 +155,16 @@ describe("Web milestones page search", () => {
 		expect(filteredText).toContain("Setup authentication flow");
 		expect(filteredText).not.toContain("Deploy pipeline");
 		expect(filteredText).not.toContain("Ship docs site");
-		expect(filteredText).toContain("No tasks");
+		expect(filteredText).toContain("No states");
 	});
 
-	it("keeps unassigned section visible during search even when no unassigned tasks match", () => {
+	it("keeps unassigned section visible during search even when no unassigned states match", () => {
 		const container = renderPage();
 
-		setSearchValue(container, "task-404");
+		setSearchValue(container, "state-404");
 		const filteredText = container.textContent ?? "";
-		expect(filteredText).toContain("Unassigned tasks");
-		expect(filteredText).toContain("No matching unassigned tasks.");
+		expect(filteredText).toContain("Unassigned states");
+		expect(filteredText).toContain("No matching unassigned states.");
 		expect(filteredText).not.toContain("Draft release notes");
 
 		const clearSearchButton = container.querySelector("button[aria-label='Clear milestone search']");
@@ -182,9 +182,9 @@ describe("Web milestones page search", () => {
 
 		setSearchValue(container, "zzzz-no-match");
 		const noMatchText = container.textContent ?? "";
-		expect(noMatchText).toContain('No milestones or tasks match "zzzz-no-match".');
+		expect(noMatchText).toContain('No milestones or states match "zzzz-no-match".');
 		expect(noMatchText).toContain("Release 1");
 		expect(noMatchText).toContain("Release 2");
-		expect(noMatchText).toContain("Unassigned tasks");
+		expect(noMatchText).toContain("Unassigned states");
 	});
 });

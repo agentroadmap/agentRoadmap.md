@@ -2,17 +2,17 @@ import { stdout as output } from "node:process";
 import type { BoxInterface } from "neo-neo-bblessed";
 import { box, scrollablebox } from "neo-neo-bblessed";
 import type { Core } from "../index.ts";
-import type { Sequence, Task } from "../types/index.ts";
-import { createTaskPopup } from "./task-viewer-with-search.ts";
+import type { Sequence, State } from "../types/index.ts";
+import { createStatePopup } from "./state-viewer-with-search.ts";
 import { createScreen } from "./tui.ts";
 
 /**
  * Render a simple read-only TUI for sequences.
- * - Vertical layout: each sequence has a header and its tasks listed below.
+ * - Vertical layout: each sequence has a header and its states listed below.
  * - Exit with 'q' or 'Esc'.
  */
 export async function runSequencesView(
-	data: { unsequenced: Task[]; sequences: Sequence[] },
+	data: { unsequenced: State[]; sequences: Sequence[] },
 	core?: Core,
 ): Promise<void> {
 	// Build content string first so we can also support headless environments (CI/tests)
@@ -24,14 +24,14 @@ export async function runSequencesView(
 	}
 	for (const seq of data.sequences) {
 		lines.push(`Sequence ${seq.index}:`);
-		for (const t of seq.tasks) {
+		for (const t of seq.states) {
 			lines.push(`  ${t.id} - ${t.title}`);
 		}
 		lines.push("");
 	}
 
 	// Headless/CI fallback: when not a TTY or explicitly requested, just print text content
-	const forceHeadless = process.env.BACKLOG_HEADLESS === "1" || process.env.CI === "1" || process.env.CI === "true";
+	const forceHeadless = process.env.ROADMAP_HEADLESS === "1" || process.env.CI === "1" || process.env.CI === "true";
 	if (output.isTTY === false || forceHeadless) {
 		console.log(lines.join("\n"));
 		return;
@@ -58,16 +58,16 @@ export async function runSequencesView(
 		},
 	});
 
-	// Build bordered blocks for unsequenced and sequences, and individual task lines (for selection)
+	// Build bordered blocks for unsequenced and sequences, and individual state lines (for selection)
 	let y = 0;
-	type TaskLine = {
+	type StateLine = {
 		node: BoxInterface;
 		globalIndex: number;
 		seqIdx: number;
-		taskIdx: number;
+		stateIdx: number;
 		absTop: number; // absolute top inside container
 	};
-	const taskLines: TaskLine[] = [];
+	const stateLines: StateLine[] = [];
 	// Keep references to sequence blocks for visual indicator during move mode
 	const seqBlocks: { node: BoxInterface; index: number; top: number; height: number }[] = [];
 	let global = 0;
@@ -89,8 +89,8 @@ export async function runSequencesView(
 		seqBlocks.push({ node: block, index: -1, top: y, height: h });
 		for (let t = 0; t < data.unsequenced.length; t++) {
 			const lineTop = t + 1;
-			const task = data.unsequenced[t];
-			if (!task) continue;
+			const state = data.unsequenced[t];
+			if (!state) continue;
 			const node = box({
 				parent: block,
 				top: lineTop,
@@ -98,9 +98,9 @@ export async function runSequencesView(
 				right: 1,
 				height: 1,
 				tags: true,
-				content: `  ${task.id} - ${task.title}`,
+				content: `  ${state.id} - ${state.title}`,
 			});
-			taskLines.push({ node, globalIndex: global++, seqIdx: -1, taskIdx: t, absTop: y + lineTop });
+			stateLines.push({ node, globalIndex: global++, seqIdx: -1, stateIdx: t, absTop: y + lineTop });
 		}
 		y += h + 1;
 	}
@@ -108,7 +108,7 @@ export async function runSequencesView(
 	for (let s = 0; s < data.sequences.length; s++) {
 		const seq = data.sequences[s];
 		if (!seq) continue;
-		const tasksSorted = [...seq.tasks].sort((a, b) => {
+		const statesSorted = [...seq.states].sort((a, b) => {
 			const ao = a.ordinal ?? Number.MAX_SAFE_INTEGER;
 			const bo = b.ordinal ?? Number.MAX_SAFE_INTEGER;
 			if (ao !== bo) return ao - bo;
@@ -117,7 +117,7 @@ export async function runSequencesView(
 		// Height calculation:
 		// - 2 lines for border
 		// - +1 top padding line, +1 bottom padding line so content doesn't overlap borders
-		const h = Math.max(4, tasksSorted.length + 4);
+		const h = Math.max(4, statesSorted.length + 4);
 		const block = box({
 			parent: container,
 			top: y,
@@ -132,11 +132,11 @@ export async function runSequencesView(
 
 		seqBlocks.push({ node: block, index: seq.index, top: y, height: h });
 
-		for (let t = 0; t < tasksSorted.length; t++) {
+		for (let t = 0; t < statesSorted.length; t++) {
 			// Render inside bordered content area
 			const lineTop = t + 1;
-			const task = tasksSorted[t];
-			if (!task) continue;
+			const state = statesSorted[t];
+			if (!state) continue;
 			const node = box({
 				parent: block,
 				top: lineTop,
@@ -144,9 +144,9 @@ export async function runSequencesView(
 				right: 1,
 				height: 1,
 				tags: true,
-				content: `  ${task.id} - ${task.title}`,
+				content: `  ${state.id} - ${state.title}`,
 			});
-			taskLines.push({ node, globalIndex: global++, seqIdx: s, taskIdx: t, absTop: y + lineTop });
+			stateLines.push({ node, globalIndex: global++, seqIdx: s, stateIdx: t, absTop: y + lineTop });
 		}
 
 		y += h + 1; // 1 line gap between blocks
@@ -235,13 +235,13 @@ export async function runSequencesView(
 		return ` Move mode: ↑/↓ choose target · Enter apply · Esc cancel${suffix} `;
 	}
 	function refreshHighlight() {
-		for (const tl of taskLines) {
+		for (const tl of stateLines) {
 			const seq = data.sequences[tl.seqIdx];
 			const isUnseq = tl.seqIdx === -1;
-			const task = isUnseq ? data.unsequenced[tl.taskIdx] : seq?.tasks[tl.taskIdx];
-			if (!task) continue;
+			const state = isUnseq ? data.unsequenced[tl.stateIdx] : seq?.states[tl.stateIdx];
+			if (!state) continue;
 			const prefix = moveMode && tl.globalIndex === selected ? "->" : "  ";
-			const text = `${prefix} ${task.id} - ${task.title}`;
+			const text = `${prefix} ${state.id} - ${state.title}`;
 			if (tl.globalIndex === selected && !moveMode) {
 				// Normal selection highlight when not in move mode
 				tl.node.setContent(`{inverse}${text}{/inverse}`);
@@ -250,7 +250,7 @@ export async function runSequencesView(
 			}
 		}
 		// Ensure selected line is in view
-		const tl = taskLines.find((t) => t.globalIndex === selected);
+		const tl = stateLines.find((t) => t.globalIndex === selected);
 		if (tl) {
 			const viewTop = container.getScroll();
 			const viewHeight = typeof container.height === "number" ? (container.height as number) : 0;
@@ -300,22 +300,22 @@ export async function runSequencesView(
 			refreshMoveIndicators();
 			return;
 		}
-		if (taskLines.length === 0) return;
-		selected = Math.max(0, Math.min(taskLines.length - 1, selected + delta));
+		if (stateLines.length === 0) return;
+		selected = Math.max(0, Math.min(stateLines.length - 1, selected + delta));
 		refreshHighlight();
 	}
 
 	async function openDetail() {
 		if (!core) return;
-		const item = taskLines.find((t) => t.globalIndex === selected);
+		const item = stateLines.find((t) => t.globalIndex === selected);
 		if (!item) return;
 		const seq = data.sequences[item.seqIdx];
-		const task = item.seqIdx === -1 ? data.unsequenced[item.taskIdx] : seq?.tasks[item.taskIdx];
-		if (!task) return;
+		const state = item.seqIdx === -1 ? data.unsequenced[item.stateIdx] : seq?.states[item.stateIdx];
+		if (!state) return;
 		if (popupOpen) return;
 		popupOpen = true;
 
-		const popup = await createTaskPopup(screen, task);
+		const popup = await createStatePopup(screen, state);
 		if (!popup) {
 			popupOpen = false;
 			return;
@@ -350,8 +350,8 @@ export async function runSequencesView(
 	screen.key(["m", "M"], () => {
 		if (popupOpen) return;
 		moveMode = !moveMode;
-		// Default target is the selected task's current sequence
-		const item = taskLines.find((t) => t.globalIndex === selected);
+		// Default target is the selected state's current sequence
+		const item = stateLines.find((t) => t.globalIndex === selected);
 		if (item) {
 			if (item.seqIdx === -1) {
 				// If unsequenced, select Unsequenced target when available, else top-between
@@ -383,32 +383,32 @@ export async function runSequencesView(
 			return;
 		}
 		if (!core) return;
-		const item = taskLines.find((t) => t.globalIndex === selected);
+		const item = stateLines.find((t) => t.globalIndex === selected);
 		if (!item) return;
 		const seq2 = data.sequences[item.seqIdx];
-		const task = item.seqIdx === -1 ? data.unsequenced[item.taskIdx] : seq2?.tasks[item.taskIdx];
-		if (!task) return;
+		const state = item.seqIdx === -1 ? data.unsequenced[item.stateIdx] : seq2?.states[item.stateIdx];
+		if (!state) return;
 		// Persist changes based on target
-		const allTasks = await core.queryTasks();
+		const allStates = await core.queryStates();
 		const tgt = moveTargets[targetPos];
 		if (tgt?.kind === "unsequenced") {
 			const { planMoveToUnsequenced } = await import("../core/sequences.ts");
-			const res = planMoveToUnsequenced(allTasks, task.id);
+			const res = planMoveToUnsequenced(allStates, state.id);
 			if (!res.ok) {
 				footer.setContent(` ${res.error} · Esc cancel `);
 				screen.render();
 				return;
 			}
-			await core.updateTasksBulk(res.changed, `Move ${task.id} to Unsequenced`);
+			await core.updateStatesBulk(res.changed, `Move ${state.id} to Unsequenced`);
 		} else if (tgt?.kind === "sequence") {
 			const { planMoveToSequence } = await import("../core/sequences.ts");
-			const changed = planMoveToSequence(allTasks, data.sequences, task.id, tgt.seqIndex);
-			if (changed.length > 0) await core.updateTasksBulk(changed, `Update dependencies/order for move of ${task.id}`);
+			const changed = planMoveToSequence(allStates, data.sequences, state.id, tgt.seqIndex);
+			if (changed.length > 0) await core.updateStatesBulk(changed, `Update dependencies/order for move of ${state.id}`);
 		} else if (tgt?.kind === "between") {
 			const { adjustDependenciesForInsertBetween } = await import("../core/sequences.ts");
-			const updated = adjustDependenciesForInsertBetween(allTasks, data.sequences, task.id, tgt.k);
-			const byIdOrig = new Map(allTasks.map((t) => [t.id, t]));
-			const changed: Task[] = [];
+			const updated = adjustDependenciesForInsertBetween(allStates, data.sequences, state.id, tgt.k);
+			const byIdOrig = new Map(allStates.map((t) => [t.id, t]));
+			const changed: State[] = [];
 			for (const u of updated) {
 				const orig = byIdOrig.get(u.id);
 				if (!orig) continue;
@@ -417,12 +417,12 @@ export async function runSequencesView(
 				if (depsChanged || ordChanged) changed.push(u);
 			}
 			if (changed.length > 0) {
-				await core.updateTasksBulk(changed, `Insert new sequence via drop between for ${task.id}`);
+				await core.updateStatesBulk(changed, `Insert new sequence via drop between for ${state.id}`);
 			}
 		}
 		// Reload and rerender
-		const tasksNew = await core.queryTasks();
-		const active = tasksNew.filter((t) => (t.status || "").toLowerCase() !== "done");
+		const statesNew = await core.queryStates();
+		const active = statesNew.filter((t) => (t.status || "").toLowerCase() !== "done");
 		const { computeSequences: recompute } = await import("../core/sequences.ts");
 		const next = recompute(active);
 		screen.destroy();

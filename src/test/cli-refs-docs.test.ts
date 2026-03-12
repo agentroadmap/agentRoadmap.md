@@ -31,9 +31,9 @@ describe("CLI --ref and --doc flags", () => {
 		} catch {}
 	});
 
-	describe("task create with --ref flag", () => {
-		it("creates task with single reference", async () => {
-			const result = await $`bun ${cliPath} task create "Feature" --ref https://github.com/issue/123 --plain`
+	describe("state create with --ref flag", () => {
+		it("creates state with single reference", async () => {
+			const result = await $`bun ${cliPath} state create "Feature" --ref https://github.com/issue/123 --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -42,9 +42,9 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("References: https://github.com/issue/123");
 		});
 
-		it("creates task with multiple references", async () => {
+		it("creates state with multiple references", async () => {
 			const result =
-				await $`bun ${cliPath} task create "Feature" --ref https://github.com/issue/123 --ref src/api.ts --plain`
+				await $`bun ${cliPath} state create "Feature" --ref https://github.com/issue/123 --ref src/api.ts --plain`
 					.cwd(TEST_DIR)
 					.quiet();
 
@@ -53,8 +53,8 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("References: https://github.com/issue/123, src/api.ts");
 		});
 
-		it("creates task with comma-separated references", async () => {
-			const result = await $`bun ${cliPath} task create "Feature" --ref "file1.ts,file2.ts" --plain`
+		it("creates state with comma-separated references", async () => {
+			const result = await $`bun ${cliPath} state create "Feature" --ref "file1.ts,file2.ts" --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -64,9 +64,9 @@ describe("CLI --ref and --doc flags", () => {
 		});
 	});
 
-	describe("task create with --doc flag", () => {
-		it("creates task with single documentation", async () => {
-			const result = await $`bun ${cliPath} task create "Feature" --doc https://design-docs.example.com --plain`
+	describe("state create with --doc flag", () => {
+		it("creates state with single documentation", async () => {
+			const result = await $`bun ${cliPath} state create "Feature" --doc https://design-docs.example.com --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -75,9 +75,9 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("Documentation: https://design-docs.example.com");
 		});
 
-		it("creates task with multiple documentation entries", async () => {
+		it("creates state with multiple documentation entries", async () => {
 			const result =
-				await $`bun ${cliPath} task create "Feature" --doc https://design-docs.example.com --doc docs/spec.md --plain`
+				await $`bun ${cliPath} state create "Feature" --doc https://design-docs.example.com --doc docs/spec.md --plain`
 					.cwd(TEST_DIR)
 					.quiet();
 
@@ -86,8 +86,8 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("Documentation: https://design-docs.example.com, docs/spec.md");
 		});
 
-		it("creates task with comma-separated documentation", async () => {
-			const result = await $`bun ${cliPath} task create "Feature" --doc "doc1.md,doc2.md" --plain`
+		it("creates state with comma-separated documentation", async () => {
+			const result = await $`bun ${cliPath} state create "Feature" --doc "doc1.md,doc2.md" --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -97,10 +97,10 @@ describe("CLI --ref and --doc flags", () => {
 		});
 	});
 
-	describe("task create with both --ref and --doc flags", () => {
-		it("creates task with both references and documentation", async () => {
+	describe("state create with both --ref and --doc flags", () => {
+		it("creates state with both references and documentation", async () => {
 			const result =
-				await $`bun ${cliPath} task create "Feature" --ref src/api.ts --doc https://design-docs.example.com --plain`
+				await $`bun ${cliPath} state create "Feature" --ref src/api.ts --doc https://design-docs.example.com --plain`
 					.cwd(TEST_DIR)
 					.quiet();
 
@@ -111,11 +111,11 @@ describe("CLI --ref and --doc flags", () => {
 		});
 	});
 
-	describe("task edit with --ref flag", () => {
-		it("sets references on existing task", async () => {
-			await $`bun ${cliPath} task create "Feature"`.cwd(TEST_DIR).quiet();
+	describe("state edit with --ref flag", () => {
+		it("sets references on existing state", async () => {
+			await $`bun ${cliPath} state create "Feature"`.cwd(TEST_DIR).quiet();
 
-			const result = await $`bun ${cliPath} task edit 1 --ref https://github.com/issue/456 --plain`
+			const result = await $`bun ${cliPath} state edit 1 --ref https://github.com/issue/456 --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -124,10 +124,10 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("References: https://github.com/issue/456");
 		});
 
-		it("sets multiple references on existing task", async () => {
-			await $`bun ${cliPath} task create "Feature"`.cwd(TEST_DIR).quiet();
+		it("sets multiple references on existing state", async () => {
+			await $`bun ${cliPath} state create "Feature"`.cwd(TEST_DIR).quiet();
 
-			const result = await $`bun ${cliPath} task edit 1 --ref file1.ts --ref file2.ts --plain`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${cliPath} state edit 1 --ref file1.ts --ref file2.ts --plain`.cwd(TEST_DIR).quiet();
 
 			expect(result.exitCode).toBe(0);
 			const out = result.stdout.toString();
@@ -135,11 +135,11 @@ describe("CLI --ref and --doc flags", () => {
 		});
 	});
 
-	describe("task edit with --doc flag", () => {
-		it("sets documentation on existing task", async () => {
-			await $`bun ${cliPath} task create "Feature"`.cwd(TEST_DIR).quiet();
+	describe("state edit with --doc flag", () => {
+		it("sets documentation on existing state", async () => {
+			await $`bun ${cliPath} state create "Feature"`.cwd(TEST_DIR).quiet();
 
-			const result = await $`bun ${cliPath} task edit 1 --doc https://api-docs.example.com --plain`
+			const result = await $`bun ${cliPath} state edit 1 --doc https://api-docs.example.com --plain`
 				.cwd(TEST_DIR)
 				.quiet();
 
@@ -148,10 +148,10 @@ describe("CLI --ref and --doc flags", () => {
 			expect(out).toContain("Documentation: https://api-docs.example.com");
 		});
 
-		it("sets multiple documentation entries on existing task", async () => {
-			await $`bun ${cliPath} task create "Feature"`.cwd(TEST_DIR).quiet();
+		it("sets multiple documentation entries on existing state", async () => {
+			await $`bun ${cliPath} state create "Feature"`.cwd(TEST_DIR).quiet();
 
-			const result = await $`bun ${cliPath} task edit 1 --doc doc1.md --doc doc2.md --plain`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${cliPath} state edit 1 --doc doc1.md --doc doc2.md --plain`.cwd(TEST_DIR).quiet();
 
 			expect(result.exitCode).toBe(0);
 			const out = result.stdout.toString();
@@ -160,22 +160,22 @@ describe("CLI --ref and --doc flags", () => {
 	});
 
 	describe("persistence in markdown files", () => {
-		it("persists references in task markdown file", async () => {
-			await $`bun ${cliPath} task create "Feature" --ref https://example.com --ref src/index.ts`.cwd(TEST_DIR).quiet();
+		it("persists references in state markdown file", async () => {
+			await $`bun ${cliPath} state create "Feature" --ref https://example.com --ref src/index.ts`.cwd(TEST_DIR).quiet();
 
-			const taskFile = await Bun.file(join(TEST_DIR, "backlog/tasks/task-1 - Feature.md")).text();
-			expect(taskFile).toContain("references:");
-			expect(taskFile).toContain("https://example.com");
-			expect(taskFile).toContain("src/index.ts");
+			const stateFile = await Bun.file(join(TEST_DIR, "roadmap/nodes/state-1 - Feature.md")).text();
+			expect(stateFile).toContain("references:");
+			expect(stateFile).toContain("https://example.com");
+			expect(stateFile).toContain("src/index.ts");
 		});
 
-		it("persists documentation in task markdown file", async () => {
-			await $`bun ${cliPath} task create "Feature" --doc https://docs.example.com --doc spec.md`.cwd(TEST_DIR).quiet();
+		it("persists documentation in state markdown file", async () => {
+			await $`bun ${cliPath} state create "Feature" --doc https://docs.example.com --doc spec.md`.cwd(TEST_DIR).quiet();
 
-			const taskFile = await Bun.file(join(TEST_DIR, "backlog/tasks/task-1 - Feature.md")).text();
-			expect(taskFile).toContain("documentation:");
-			expect(taskFile).toContain("https://docs.example.com");
-			expect(taskFile).toContain("spec.md");
+			const stateFile = await Bun.file(join(TEST_DIR, "roadmap/nodes/state-1 - Feature.md")).text();
+			expect(stateFile).toContain("documentation:");
+			expect(stateFile).toContain("https://docs.example.com");
+			expect(stateFile).toContain("spec.md");
 		});
 	});
 });

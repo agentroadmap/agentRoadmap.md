@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { apiClient } from '../lib/api';
-import { type Task } from '../../types';
+import { type State } from '../../types';
 
 interface DraftsListProps {
-  onEditTask: (task: Task) => void;
+  onEditState: (state: State) => void;
   onNewDraft: () => void;
 }
 
-const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
-  const [drafts, setDrafts] = useState<Task[]>([]);
+const DraftsList: React.FC<DraftsListProps> = ({ onEditState, onNewDraft }) => {
+  const [drafts, setDrafts] = useState<State[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,11 +34,11 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
         throw new Error(`Failed to load drafts: ${response.statusText}`);
       }
       const draftsData = await response.json();
-      // Sort drafts by ID descending (newest first) - same as TaskList
+      // Sort drafts by ID descending (newest first) - same as StateList
       const sortedDrafts = [...draftsData].sort((a, b) => {
-        // Extract numeric part from task IDs (task-1, task-2, etc.)
-        const idA = parseInt(a.id.replace('task-', ''), 10);
-        const idB = parseInt(b.id.replace('task-', ''), 10);
+        // Extract numeric part from state IDs (state-1, state-2, etc.)
+        const idA = parseInt(a.id.replace('state-', ''), 10);
+        const idB = parseInt(b.id.replace('state-', ''), 10);
         return idB - idA; // Highest ID first (newest)
       });
       setDrafts(sortedDrafts);
@@ -105,7 +105,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
   return (
     <div className="container mx-auto px-4 py-8 transition-colors duration-200">
       <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft Tasks</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Draft States</h1>
           <div className="flex items-center space-x-4">
             <div className="text-sm text-gray-600 dark:text-gray-300">
               {drafts.length} draft{drafts.length !== 1 ? 's' : ''}
@@ -125,7 +125,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">No drafts</h3>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Draft tasks will appear here before they're promoted to the main backlog.</p>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Draft states will appear here before they're promoted to the main roadmap.</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -135,7 +135,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
                 className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
               >
                 <div className="flex items-start justify-between">
-                  <div className="flex-1 cursor-pointer" onClick={() => onEditTask(draft)}>
+                  <div className="flex-1 cursor-pointer" onClick={() => onEditState(draft)}>
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white">{draft.title}</h3>
                       {draft.priority && (
@@ -181,7 +181,7 @@ const DraftsList: React.FC<DraftsListProps> = ({ onEditTask, onNewDraft }) => {
                       }}
                       className="inline-flex items-center px-3 py-1.5 bg-green-500 text-white text-sm font-medium rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-colors duration-200"
                     >
-                      Promote to Task
+                      Promote to State
                     </button>
                   </div>
                 </div>

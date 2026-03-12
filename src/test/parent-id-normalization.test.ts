@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
 import { Core } from "../index.ts";
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -15,7 +15,7 @@ async function initGitRepo(dir: string) {
 	await $`git config user.email test@example.com`.cwd(dir).quiet();
 }
 
-describe("CLI parent task id normalization", () => {
+describe("CLI parent state id normalization", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-parent-normalization");
 		await mkdir(TEST_DIR, { recursive: true });
@@ -30,12 +30,12 @@ describe("CLI parent task id normalization", () => {
 		}
 	});
 
-	it("should normalize parent task id when creating subtasks", async () => {
+	it("should normalize parent state id when creating substates", async () => {
 		const core = new Core(TEST_DIR);
 		await core.initializeProject("Normalization Test", true);
 
-		const parent: Task = {
-			id: "task-4",
+		const parent: State = {
+			id: "state-4",
 			title: "Parent",
 			status: "To Do",
 			assignee: [],
@@ -43,11 +43,11 @@ describe("CLI parent task id normalization", () => {
 			labels: [],
 			dependencies: [],
 		};
-		await core.createTask(parent, true);
+		await core.createState(parent, true);
 
-		await $`bun run ${CLI_PATH} task create Child --parent 4`.cwd(TEST_DIR).quiet();
+		await $`bun run ${CLI_PATH} state create Child --parent 4`.cwd(TEST_DIR).quiet();
 
-		const child = await core.filesystem.loadTask("task-4.1");
-		expect(child?.parentTaskId).toBe("TASK-4");
+		const child = await core.filesystem.loadState("state-4.1");
+		expect(child?.parentStateId).toBe("STATE-4");
 	});
 });

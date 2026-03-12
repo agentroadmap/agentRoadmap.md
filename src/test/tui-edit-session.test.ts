@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
-import type { BacklogConfig, Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
-function createMockScreen(): Parameters<Core["editTaskInTui"]>[1] {
+function createMockScreen(): Parameters<Core["editStateInTui"]>[1] {
 	return {
 		program: {
 			disableMouse: () => {},
@@ -30,10 +30,10 @@ function createMockScreen(): Parameters<Core["editTaskInTui"]>[1] {
 	};
 }
 
-describe("Core.editTaskInTui", () => {
+describe("Core.editStateInTui", () => {
 	let testDir: string;
 	let core: Core;
-	let taskId: string;
+	let stateId: string;
 	let originalEditor: string | undefined;
 	const screen = createMockScreen();
 
@@ -42,7 +42,7 @@ describe("Core.editTaskInTui", () => {
 		if (!config) {
 			throw new Error("Expected config to be initialized");
 		}
-		const updated: BacklogConfig = {
+		const updated: RoadmapConfig = {
 			...config,
 			defaultEditor: editorCommand,
 		};
@@ -64,9 +64,9 @@ describe("Core.editTaskInTui", () => {
 		core = new Core(testDir, { enableWatchers: true });
 		await core.initializeProject("TUI Edit Session Test");
 
-		const task: Task = {
-			id: "task-1",
-			title: "Editor Flow Task",
+		const state: State = {
+			id: "state-1",
+			title: "Editor Flow State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2026-02-11 20:00",
@@ -74,8 +74,8 @@ describe("Core.editTaskInTui", () => {
 			dependencies: [],
 			rawContent: "## Description\n\nOriginal body",
 		};
-		await core.createTask(task, false);
-		taskId = task.id;
+		await core.createState(state, false);
+		stateId = state.id;
 	});
 
 	afterEach(async () => {
@@ -91,15 +91,15 @@ describe("Core.editTaskInTui", () => {
 		const noopScript = await createEditorScript("noop-editor.js", "process.exit(0);\n");
 		await setEditor(`node ${noopScript}`);
 
-		const result = await core.editTaskInTui(taskId, screen);
+		const result = await core.editStateInTui(stateId, screen);
 		expect(result.changed).toBe(false);
 		expect(result.reason).toBeUndefined();
 
-		const reloaded = await core.filesystem.loadTask(taskId);
+		const reloaded = await core.filesystem.loadState(stateId);
 		expect(reloaded?.updatedDate).toBeUndefined();
 	});
 
-	it("updates updated_date when editor changes task content", async () => {
+	it("updates updated_date when editor changes state content", async () => {
 		const editScript = await createEditorScript(
 			"append-editor.js",
 			`import { appendFileSync } from "node:fs";
@@ -112,30 +112,30 @@ process.exit(0);
 		);
 		await setEditor(`node ${editScript}`);
 
-		const result = await core.editTaskInTui(taskId, screen);
+		const result = await core.editStateInTui(stateId, screen);
 		expect(result.changed).toBe(true);
 		expect(result.reason).toBeUndefined();
-		expect(result.task).toBeTruthy();
-		expect(result.task?.updatedDate).toBeTruthy();
+		expect(result.state).toBeTruthy();
+		expect(result.state?.updatedDate).toBeTruthy();
 
-		const taskContent = await core.getTaskContent(taskId);
-		expect(taskContent).toContain("updated_date:");
-		expect(taskContent).toContain("Edited from test");
+		const stateContent = await core.getStateContent(stateId);
+		expect(stateContent).toContain("updated_date:");
+		expect(stateContent).toContain("Edited from test");
 	});
 
 	it("returns editor_failed without mutating metadata when editor exits non-zero", async () => {
 		const failScript = await createEditorScript("fail-editor.js", "process.exit(2);\n");
 		await setEditor(`node ${failScript}`);
 
-		const beforeContent = await core.getTaskContent(taskId);
-		const result = await core.editTaskInTui(taskId, screen);
-		const afterContent = await core.getTaskContent(taskId);
+		const beforeContent = await core.getStateContent(stateId);
+		const result = await core.editStateInTui(stateId, screen);
+		const afterContent = await core.getStateContent(stateId);
 
 		expect(result.changed).toBe(false);
 		expect(result.reason).toBe("editor_failed");
 		expect(afterContent).toBe(beforeContent);
 
-		const reloaded = await core.filesystem.loadTask(taskId);
+		const reloaded = await core.filesystem.loadState(stateId);
 		expect(reloaded?.updatedDate).toBeUndefined();
 	});
 });

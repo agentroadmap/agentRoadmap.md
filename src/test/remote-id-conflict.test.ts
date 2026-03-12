@@ -34,10 +34,10 @@ describe("next id across remote branches", () => {
 		await $`git push -u origin main`.cwd(LOCAL_DIR).quiet();
 
 		await $`git checkout -b feature`.cwd(LOCAL_DIR).quiet();
-		await core.createTask(
+		await core.createState(
 			{
-				id: "task-1",
-				title: "Remote Task",
+				id: "state-1",
+				title: "Remote State",
 				status: "To Do",
 				assignee: [],
 				createdDate: "2025-06-08",
@@ -59,11 +59,11 @@ describe("next id across remote branches", () => {
 		}
 	});
 
-	it("uses id after highest remote task", async () => {
-		const result = await $`bun run ${CLI_PATH} task create "Local Task"`.cwd(LOCAL_DIR).quiet();
-		expect(result.stdout.toString()).toContain("Created task task-2");
+	it("uses id after highest remote state", async () => {
+		const result = await $`bun run ${CLI_PATH} state create "Local State"`.cwd(LOCAL_DIR).quiet();
+		expect(result.stdout.toString()).toContain("Created state state-2");
 		const core = new Core(LOCAL_DIR);
-		const task = await core.filesystem.loadTask("task-2");
-		expect(task).not.toBeNull();
+		const state = await core.filesystem.loadState("state-2");
+		expect(state).not.toBeNull();
 	});
 });

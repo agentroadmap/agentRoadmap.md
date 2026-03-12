@@ -1,38 +1,38 @@
 
-<!-- BACKLOG.MD MCP GUIDELINES START -->
+<!-- ROADMAP.MD MCP GUIDELINES START -->
 
 <CRITICAL_INSTRUCTION>
 
-## BACKLOG WORKFLOW INSTRUCTIONS
+## ROADMAP WORKFLOW INSTRUCTIONS
 
-This project uses Backlog.md MCP for all task and project management activities.
+This project uses agentRoadmap.md MCP for all state and project management activities.
 
 **CRITICAL GUIDANCE**
 
-- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
-- If your client only supports tools or the above request fails, call `backlog.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
+- If your client supports MCP resources, read `roadmap://workflow/overview` to understand when and how to use Roadmap for this project.
+- If your client only supports tools or the above request fails, call `roadmap.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
 
 - **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
-- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
-- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+- **Already familiar?** You should have the overview cached ("## agentRoadmap.md Overview (MCP)")
+- **When to read it**: BEFORE creating states, or when you're unsure whether to track work
 
 These guides cover:
-- Decision framework for when to create tasks
+- Decision framework for when to create states
 - Search-first workflow to avoid duplicates
-- Links to detailed guides for task creation, execution, and finalization
+- Links to detailed guides for state creation, execution, and finalization
 - MCP tools reference
 
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
 
 </CRITICAL_INSTRUCTION>
 
-<!-- BACKLOG.MD MCP GUIDELINES END -->
+<!-- ROADMAP.MD MCP GUIDELINES END -->
 
-When you're working on a task, you should assign it yourself: -a @{your-name}
+When you're working on a state, you should assign it yourself: -a @{your-name}
 
 In addition to the rules above, please consider the following:
-At the end of every task implementation, try to take a moment to see if you can simplify it. 
-When you are done implementing, you know much more about a task than when you started.
+At the end of every state implementation, try to take a moment to see if you can simplify it. 
+When you are done implementing, you know much more about a state than when you started.
 At this point you can better judge retrospectively what can be the simplest architecture to solve the problem.
 If you can simplify the code, do it.
 
@@ -69,10 +69,10 @@ If you can simplify the code, do it.
 
 ## Core Structure
 
-- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g backlog.md`)
+- **CLI Tool**: Built with Bun and TypeScript as a global npm package (`npm i -g roadmap.md`)
 - **Source Code**: Located in `/src` directory with modular TypeScript structure
-- **Task Management**: Uses markdown files in `backlog/` directory structure
-- **Workflow**: Git-integrated with task IDs referenced in commits and PRs
+- **State Management**: Uses markdown files in `roadmap/` directory structure
+- **Workflow**: Git-integrated with state IDs referenced in commits and PRs
 
 ## Code Standards
 
@@ -87,7 +87,7 @@ are found, the commit will be blocked until fixed.
 
 ## Git Workflow
 
-- **Branching**: Use feature branches when working on tasks (e.g. `tasks/back-123-feature-name`)
-- **Committing**: Use the following format: `BACK-123 - Title of the task`
-- **PR titles**: Use `{taskId} - {taskTitle}` (e.g. `BACK-123 - Title of the task`)
+- **Branching**: Use feature branches when working on states (e.g. `states/back-123-feature-name`)
+- **Committing**: Use the following format: `BACK-123 - Title of the state`
+- **PR titles**: Use `{stateId} - {stateTitle}` (e.g. `BACK-123 - Title of the state`)
 - **Github CLI**: Use `gh` whenever possible for PRs and issues

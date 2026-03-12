@@ -40,10 +40,10 @@ export function parseSequenceCreateMarkdown(markdown: string) {
 	}
 
 	// Extract sequences
-	const sequences: Array<{ index: number; tasks: Array<{ id: string; title: string; status: string }> }> = [];
+	const sequences: Array<{ index: number; states: Array<{ id: string; title: string; status: string }> }> = [];
 	interface SequenceType {
 		index: number;
-		tasks: Array<{ id: string; title: string; status: string }>;
+		states: Array<{ id: string; title: string; status: string }>;
 	}
 	let currentSequence: SequenceType | null = null;
 
@@ -61,18 +61,18 @@ export function parseSequenceCreateMarkdown(markdown: string) {
 			if (!indexStr) continue;
 			currentSequence = {
 				index: Number.parseInt(indexStr, 10),
-				tasks: [],
+				states: [],
 			};
 			continue;
 		}
 
-		// Match task lines like "- **task-1** - Foundation Task (To Do)"
+		// Match state lines like "- **state-1** - Foundation State (To Do)"
 		if (currentSequence && line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/)) {
-			const taskMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
-			if (taskMatch) {
-				const [, id, title, status] = taskMatch;
+			const stateMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
+			if (stateMatch) {
+				const [, id, title, status] = stateMatch;
 				if (id && title && status) {
-					currentSequence.tasks.push({ id, title, status });
+					currentSequence.states.push({ id, title, status });
 				}
 			}
 		}
@@ -82,25 +82,25 @@ export function parseSequenceCreateMarkdown(markdown: string) {
 		sequences.push(currentSequence);
 	}
 
-	// Extract unsequenced tasks
+	// Extract unsequenced states
 	const unsequenced: Array<{ id: string; title: string; status: string }> = [];
 	let inUnsequenced = false;
 
 	for (const line of lines) {
-		if (line.trim() === "## Unsequenced Tasks") {
+		if (line.trim() === "## Unsequenced States") {
 			inUnsequenced = true;
 			continue;
 		}
 		if (inUnsequenced && line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/)) {
-			const taskMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
-			if (taskMatch) {
-				const [, id, title, status] = taskMatch;
+			const stateMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
+			if (stateMatch) {
+				const [, id, title, status] = stateMatch;
 				if (id && title && status) {
 					unsequenced.push({ id, title, status });
 				}
 			}
 		}
-		if (inUnsequenced && line && line.startsWith("## ") && line !== "## Unsequenced Tasks") {
+		if (inUnsequenced && line && line.startsWith("## ") && line !== "## Unsequenced States") {
 			inUnsequenced = false;
 		}
 	}
@@ -109,10 +109,10 @@ export function parseSequenceCreateMarkdown(markdown: string) {
 		sequences,
 		unsequenced,
 		metadata: {
-			totalTasks: metadata["Total Tasks"] || 0,
-			filteredTasks: metadata["Filtered Tasks"] || 0,
+			totalStates: metadata["Total States"] || 0,
+			filteredStates: metadata["Filtered States"] || 0,
 			sequenceCount: metadata.Sequences || 0,
-			unsequencedCount: metadata["Unsequenced Tasks"] || 0,
+			unsequencedCount: metadata["Unsequenced States"] || 0,
 			includeCompleted: metadata["Include Completed"] || false,
 			filterStatus: metadata["Filter Status"] || null,
 		},
@@ -151,18 +151,18 @@ export function parseSequencePlanMarkdown(markdown: string) {
 	const phases: Array<{
 		phase: number;
 		name: string;
-		tasks: Array<{ id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] }>;
+		states: Array<{ id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] }>;
 		dependsOn?: number[];
 	}> = [];
 
 	interface PhaseType {
 		phase: number;
 		name: string;
-		tasks: Array<{ id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] }>;
+		states: Array<{ id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] }>;
 		dependsOn?: number[];
 	}
 	let currentPhase: PhaseType | null = null;
-	let inPhaseTasks = false;
+	let inPhaseStates = false;
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
@@ -180,10 +180,10 @@ export function parseSequencePlanMarkdown(markdown: string) {
 			currentPhase = {
 				phase: Number.parseInt(phaseNum, 10),
 				name: phaseName,
-				tasks: [],
+				states: [],
 				dependsOn: [],
 			};
-			inPhaseTasks = false;
+			inPhaseStates = false;
 			continue;
 		}
 
@@ -196,19 +196,19 @@ export function parseSequencePlanMarkdown(markdown: string) {
 			}
 		}
 
-		// Mark when we enter the tasks section
-		if (currentPhase && line && line.trim() === "**Tasks:**") {
-			inPhaseTasks = true;
+		// Mark when we enter the states section
+		if (currentPhase && line && line.trim() === "**States:**") {
+			inPhaseStates = true;
 			continue;
 		}
 
-		// Match task lines like "- **task-1** - Foundation Task (To Do)"
-		if (currentPhase && inPhaseTasks && line && line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)(.*)$/)) {
-			const taskMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)(.*)$/);
-			if (taskMatch) {
-				const [, id, title, status, extra] = taskMatch;
+		// Match state lines like "- **state-1** - Foundation State (To Do)"
+		if (currentPhase && inPhaseStates && line && line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)(.*)$/)) {
+			const stateMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)(.*)$/);
+			if (stateMatch) {
+				const [, id, title, status, extra] = stateMatch;
 				if (!id || !title || !status) continue;
-				const task: { id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] } = {
+				const state: { id: string; title: string; status: string; assignee?: string[]; dependencies?: string[] } = {
 					id,
 					title,
 					status,
@@ -218,21 +218,21 @@ export function parseSequencePlanMarkdown(markdown: string) {
 				if (extra) {
 					const assigneeMatch = extra.match(/\((.+?)\)/);
 					if (assigneeMatch?.[1]) {
-						task.assignee = assigneeMatch[1].split(", ");
+						state.assignee = assigneeMatch[1].split(", ");
 					}
 				}
 
-				currentPhase.tasks.push(task);
+				currentPhase.states.push(state);
 			}
 		}
 
 		// Check for dependency lines
-		if (currentPhase && inPhaseTasks && line && line.match(/^\s+- Dependencies: (.+)$/)) {
+		if (currentPhase && inPhaseStates && line && line.match(/^\s+- Dependencies: (.+)$/)) {
 			const depMatch = line.match(/^\s+- Dependencies: (.+)$/);
-			if (depMatch?.[1] && currentPhase.tasks.length > 0) {
-				const lastTask = currentPhase.tasks[currentPhase.tasks.length - 1];
-				if (lastTask) {
-					lastTask.dependencies = depMatch[1].split(", ");
+			if (depMatch?.[1] && currentPhase.states.length > 0) {
+				const lastState = currentPhase.states[currentPhase.states.length - 1];
+				if (lastState) {
+					lastState.dependencies = depMatch[1].split(", ");
 				}
 			}
 		}
@@ -242,7 +242,7 @@ export function parseSequencePlanMarkdown(markdown: string) {
 		phases.push(currentPhase);
 	}
 
-	// Extract unsequenced tasks
+	// Extract unsequenced states
 	const unsequenced: Array<{ id: string; title: string; status: string; reason: string }> = [];
 	let inUnsequenced = false;
 
@@ -250,14 +250,14 @@ export function parseSequencePlanMarkdown(markdown: string) {
 		const line = lines[i];
 		if (!line) continue;
 
-		if (line.trim() === "## Unsequenced Tasks") {
+		if (line.trim() === "## Unsequenced States") {
 			inUnsequenced = true;
 			continue;
 		}
 		if (inUnsequenced && line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/)) {
-			const taskMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
-			if (taskMatch) {
-				const [, id, title, status] = taskMatch;
+			const stateMatch = line.match(/^- \*\*(.+?)\*\* - (.+?) \((.+?)\)$/);
+			if (stateMatch) {
+				const [, id, title, status] = stateMatch;
 				if (!id || !title || !status) continue;
 				const nextLine = lines[i + 1];
 				let reason = "";
@@ -270,7 +270,7 @@ export function parseSequencePlanMarkdown(markdown: string) {
 				unsequenced.push({ id, title, status, reason });
 			}
 		}
-		if (inUnsequenced && line && line.startsWith("## ") && line !== "## Unsequenced Tasks") {
+		if (inUnsequenced && line && line.startsWith("## ") && line !== "## Unsequenced States") {
 			inUnsequenced = false;
 		}
 	}
@@ -280,8 +280,8 @@ export function parseSequencePlanMarkdown(markdown: string) {
 		unsequenced,
 		summary: {
 			totalPhases: summary["Total Phases"] || 0,
-			totalTasksInPlan: summary["Tasks in Plan"] || 0,
-			unsequencedTasks: summary["Unsequenced Tasks"] || 0,
+			totalStatesInPlan: summary["States in Plan"] || 0,
+			unsequencedStates: summary["Unsequenced States"] || 0,
 			canStartImmediately: summary["Can Start Immediately"] || 0,
 		},
 	};
@@ -307,7 +307,7 @@ export function parseProjectOverviewMarkdown(markdown: string) {
 
 	// Extract recent activity and project health data
 	const recentActivity = { created: [], updated: [] };
-	const projectHealth = { averageTaskAge: 0, staleTasks: [], blockedTasks: [] };
+	const projectHealth = { averageStateAge: 0, staleStates: [], blockedStates: [] };
 
 	for (const line of lines) {
 		// Project Statistics section
@@ -380,10 +380,10 @@ export function parseProjectOverviewMarkdown(markdown: string) {
 		statistics: {
 			statusCounts,
 			priorityCounts,
-			totalTasks: statistics["Total Tasks"] || 0,
-			completedTasks: statistics["Completed Tasks"] || 0,
+			totalStates: statistics["Total States"] || 0,
+			completedStates: statistics["Completed States"] || 0,
 			completionPercentage: statistics["Completion Rate"] || 0,
-			draftCount: statistics["Draft Tasks"] || 0,
+			draftCount: statistics["Draft States"] || 0,
 			recentActivity,
 			projectHealth,
 		},

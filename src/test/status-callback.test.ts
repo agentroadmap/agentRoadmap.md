@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { executeStatusCallback } from "../utils/status-callback.ts";
 
 describe("Status Change Callbacks", () => {
@@ -11,28 +11,28 @@ describe("Status Change Callbacks", () => {
 
 		test("executes command with environment variables", async () => {
 			const result = await executeStatusCallback({
-				command: 'echo "Task: $TASK_ID, Old: $OLD_STATUS, New: $NEW_STATUS, Title: $TASK_TITLE"',
-				taskId: "task-123",
+				command: 'echo "State: $STATE_ID, Old: $OLD_STATUS, New: $NEW_STATUS, Title: $STATE_TITLE"',
+				stateId: "state-123",
 				oldStatus: "To Do",
 				newStatus: "In Progress",
-				taskTitle: "Test Task",
+				stateTitle: "Test State",
 				cwd: testCwd,
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.output).toContain("Task: task-123");
+			expect(result.output).toContain("State: state-123");
 			expect(result.output).toContain("Old: To Do");
 			expect(result.output).toContain("New: In Progress");
-			expect(result.output).toContain("Title: Test Task");
+			expect(result.output).toContain("Title: Test State");
 		});
 
 		test("returns success false for failing command", async () => {
 			const result = await executeStatusCallback({
 				command: "exit 1",
-				taskId: "task-123",
+				stateId: "state-123",
 				oldStatus: "To Do",
 				newStatus: "Done",
-				taskTitle: "Test Task",
+				stateTitle: "Test State",
 				cwd: testCwd,
 			});
 
@@ -43,10 +43,10 @@ describe("Status Change Callbacks", () => {
 		test("returns error for empty command", async () => {
 			const result = await executeStatusCallback({
 				command: "",
-				taskId: "task-123",
+				stateId: "state-123",
 				oldStatus: "To Do",
 				newStatus: "Done",
-				taskTitle: "Test Task",
+				stateTitle: "Test State",
 				cwd: testCwd,
 			});
 
@@ -57,10 +57,10 @@ describe("Status Change Callbacks", () => {
 		test("captures stderr on failure", async () => {
 			const result = await executeStatusCallback({
 				command: 'echo "error message" >&2 && exit 1',
-				taskId: "task-123",
+				stateId: "state-123",
 				oldStatus: "To Do",
 				newStatus: "Done",
-				taskTitle: "Test Task",
+				stateTitle: "Test State",
 				cwd: testCwd,
 			});
 
@@ -70,28 +70,28 @@ describe("Status Change Callbacks", () => {
 
 		test("handles special characters in variables", async () => {
 			const result = await executeStatusCallback({
-				command: 'echo "$TASK_TITLE"',
-				taskId: "task-123",
+				command: 'echo "$STATE_TITLE"',
+				stateId: "state-123",
 				oldStatus: "To Do",
 				newStatus: "Done",
-				taskTitle: 'Task with "quotes" and $pecial chars',
+				stateTitle: 'State with "quotes" and $pecial chars',
 				cwd: testCwd,
 			});
 
 			expect(result.success).toBe(true);
-			expect(result.output).toContain('Task with "quotes" and $pecial chars');
+			expect(result.output).toContain('State with "quotes" and $pecial chars');
 		});
 	});
 
-	describe("Core.updateTaskFromInput with callbacks", () => {
+	describe("Core.updateStateFromInput with callbacks", () => {
 		let testDir: string;
 		let core: Core;
 		let callbackOutputFile: string;
 
 		beforeEach(async () => {
-			testDir = join(tmpdir(), `backlog-callback-test-${Date.now()}`);
+			testDir = join(tmpdir(), `roadmap-callback-test-${Date.now()}`);
 			await mkdir(testDir, { recursive: true });
-			await mkdir(join(testDir, "backlog", "tasks"), { recursive: true });
+			await mkdir(join(testDir, "roadmap", "nodes"), { recursive: true });
 
 			callbackOutputFile = join(testDir, "callback-output.txt");
 
@@ -116,17 +116,17 @@ statuses:
 labels: []
 milestones: []
 dateFormat: yyyy-mm-dd
-onStatusChange: 'echo "$TASK_ID:$OLD_STATUS->$NEW_STATUS" > ${callbackOutputFile}'
+onStatusChange: 'echo "$STATE_ID:$OLD_STATUS->$NEW_STATUS" > ${callbackOutputFile}'
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
 			// Verify config was written correctly
-			const writtenConfig = await Bun.file(join(testDir, "backlog", "config.yml")).text();
+			const writtenConfig = await Bun.file(join(testDir, "roadmap", "config.yml")).text();
 			expect(writtenConfig).toContain("onStatusChange");
 
-			// Create a task
-			const { task } = await core.createTaskFromInput({
-				title: "Test Callback Task",
+			// Create a state
+			const { state } = await core.createStateFromInput({
+				title: "Test Callback State",
 				status: "To Do",
 			});
 
@@ -134,17 +134,17 @@ onStatusChange: 'echo "$TASK_ID:$OLD_STATUS->$NEW_STATUS" > ${callbackOutputFile
 			core.fs.invalidateConfigCache();
 
 			// Update status
-			await core.updateTaskFromInput(task.id, { status: "In Progress" });
+			await core.updateStateFromInput(state.id, { status: "In Progress" });
 
 			// Wait a bit for async callback
 			await new Promise((resolve) => setTimeout(resolve, 200));
 
 			// Check callback was executed
 			const output = await Bun.file(callbackOutputFile).text();
-			expect(output.trim()).toBe(`${task.id}:To Do->In Progress`);
+			expect(output.trim()).toBe(`${state.id}:To Do->In Progress`);
 		});
 
-		test("per-task callback overrides global callback", async () => {
+		test("per-state callback overrides global callback", async () => {
 			// Create config with global onStatusChange
 			const configContent = `projectName: Test
 statuses:
@@ -156,31 +156,31 @@ milestones: []
 dateFormat: yyyy-mm-dd
 onStatusChange: 'echo "global" > ${callbackOutputFile}'
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
-			// Create a task with per-task callback
-			const taskContent = `---
-id: task-1
-title: Task with custom callback
+			// Create a state with per-state callback
+			const stateContent = `---
+id: state-1
+title: State with custom callback
 status: To Do
 assignee: []
 created_date: 2025-01-01
 labels: []
 dependencies: []
-onStatusChange: 'echo "per-task:$NEW_STATUS" > ${callbackOutputFile}'
+onStatusChange: 'echo "per-state:$NEW_STATUS" > ${callbackOutputFile}'
 ---
 `;
-			await writeFile(join(testDir, "backlog", "tasks", "task-1 - Task with custom callback.md"), taskContent);
+			await writeFile(join(testDir, "roadmap", "states", "state-1 - State with custom callback.md"), stateContent);
 
 			// Update status
-			await core.updateTaskFromInput("task-1", { status: "Done" });
+			await core.updateStateFromInput("state-1", { status: "Done" });
 
 			// Wait a bit for async callback
 			await new Promise((resolve) => setTimeout(resolve, 100));
 
-			// Check per-task callback was executed (not global)
+			// Check per-state callback was executed (not global)
 			const output = await Bun.file(callbackOutputFile).text();
-			expect(output.trim()).toBe("per-task:Done");
+			expect(output.trim()).toBe("per-state:Done");
 		});
 
 		test("no callback when status unchanged", async () => {
@@ -195,16 +195,16 @@ milestones: []
 dateFormat: yyyy-mm-dd
 onStatusChange: 'echo "callback-ran" > ${callbackOutputFile}'
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
-			// Create a task
-			const { task } = await core.createTaskFromInput({
-				title: "Test No Callback Task",
+			// Create a state
+			const { state } = await core.createStateFromInput({
+				title: "Test No Callback State",
 				status: "To Do",
 			});
 
 			// Update something other than status
-			await core.updateTaskFromInput(task.id, { title: "Updated Title" });
+			await core.updateStateFromInput(state.id, { title: "Updated Title" });
 
 			// Wait a bit
 			await new Promise((resolve) => setTimeout(resolve, 100));
@@ -225,16 +225,16 @@ labels: []
 milestones: []
 dateFormat: yyyy-mm-dd
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
-			// Create a task
-			const { task } = await core.createTaskFromInput({
-				title: "Test No Config Task",
+			// Create a state
+			const { state } = await core.createStateFromInput({
+				title: "Test No Config State",
 				status: "To Do",
 			});
 
 			// Update status - should not fail even without callback
-			const result = await core.updateTaskFromInput(task.id, { status: "In Progress" });
+			const result = await core.updateStateFromInput(state.id, { status: "In Progress" });
 			expect(result.status).toBe("In Progress");
 		});
 
@@ -250,20 +250,20 @@ milestones: []
 dateFormat: yyyy-mm-dd
 onStatusChange: 'exit 1'
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
-			// Create a task
-			const { task } = await core.createTaskFromInput({
-				title: "Test Failing Callback Task",
+			// Create a state
+			const { state } = await core.createStateFromInput({
+				title: "Test Failing Callback State",
 				status: "To Do",
 			});
 
 			// Update status - should succeed even if callback fails
-			const result = await core.updateTaskFromInput(task.id, { status: "Done" });
+			const result = await core.updateStateFromInput(state.id, { status: "Done" });
 			expect(result.status).toBe("Done");
 		});
 
-		test("triggers callback when reorderTask changes status", async () => {
+		test("triggers callback when reorderState changes status", async () => {
 			// Create config with onStatusChange
 			const configContent = `projectName: Test
 statuses:
@@ -273,12 +273,12 @@ statuses:
 labels: []
 milestones: []
 dateFormat: yyyy-mm-dd
-onStatusChange: 'echo "$TASK_ID:$OLD_STATUS->$NEW_STATUS" >> ${callbackOutputFile}'
+onStatusChange: 'echo "$STATE_ID:$OLD_STATUS->$NEW_STATUS" >> ${callbackOutputFile}'
 `;
-			await writeFile(join(testDir, "backlog", "config.yml"), configContent);
+			await writeFile(join(testDir, "roadmap", "config.yml"), configContent);
 
-			// Create a task in "To Do"
-			const { task } = await core.createTaskFromInput({
+			// Create a state in "To Do"
+			const { state } = await core.createStateFromInput({
 				title: "Reorder Callback Test",
 				status: "To Do",
 			});
@@ -286,11 +286,11 @@ onStatusChange: 'echo "$TASK_ID:$OLD_STATUS->$NEW_STATUS" >> ${callbackOutputFil
 			// Invalidate config cache
 			core.fs.invalidateConfigCache();
 
-			// Reorder task to "In Progress" column (simulating board drag)
-			await core.reorderTask({
-				taskId: task.id,
+			// Reorder state to "In Progress" column (simulating board drag)
+			await core.reorderState({
+				stateId: state.id,
 				targetStatus: "In Progress",
-				orderedTaskIds: [task.id],
+				orderedStateIds: [state.id],
 			});
 
 			// Wait for callback
@@ -298,7 +298,7 @@ onStatusChange: 'echo "$TASK_ID:$OLD_STATUS->$NEW_STATUS" >> ${callbackOutputFil
 
 			// Check callback was executed
 			const output = await Bun.file(callbackOutputFile).text();
-			expect(output.trim()).toBe(`${task.id}:To Do->In Progress`);
+			expect(output.trim()).toBe(`${state.id}:To Do->In Progress`);
 		});
 	});
 });

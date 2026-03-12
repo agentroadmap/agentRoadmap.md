@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { AcceptanceCriteriaManager } from "../markdown/structured-sections.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
@@ -30,9 +30,9 @@ describe("Acceptance Criteria CLI", () => {
 		}
 	});
 
-	describe("task create with acceptance criteria", () => {
-		it("should create task with single acceptance criterion using -ac", async () => {
-			const result = await $`bun ${CLI_PATH} task create "Test Task" --ac "Must work correctly"`.cwd(TEST_DIR).quiet();
+	describe("state create with acceptance criteria", () => {
+		it("should create state with single acceptance criterion using -ac", async () => {
+			const result = await $`bun ${CLI_PATH} state create "Test State" --ac "Must work correctly"`.cwd(TEST_DIR).quiet();
 			if (result.exitCode !== 0) {
 				console.error("STDOUT:", result.stdout.toString());
 				console.error("STDERR:", result.stderr.toString());
@@ -40,113 +40,113 @@ describe("Acceptance Criteria CLI", () => {
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 Must work correctly");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 Must work correctly");
 		});
 
-		it("should create task with multiple criteria using multiple --ac flags", async () => {
+		it("should create state with multiple criteria using multiple --ac flags", async () => {
 			const result =
-				await $`bun ${CLI_PATH} task create "Test Task" --ac "Criterion 1" --ac "Criterion 2" --ac "Criterion 3"`
+				await $`bun ${CLI_PATH} state create "Test State" --ac "Criterion 1" --ac "Criterion 2" --ac "Criterion 3"`
 					.cwd(TEST_DIR)
 					.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("- [ ] #1 Criterion 1");
-			expect(task?.rawContent).toContain("- [ ] #2 Criterion 2");
-			expect(task?.rawContent).toContain("- [ ] #3 Criterion 3");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("- [ ] #1 Criterion 1");
+			expect(state?.rawContent).toContain("- [ ] #2 Criterion 2");
+			expect(state?.rawContent).toContain("- [ ] #3 Criterion 3");
 		});
 
 		it("should treat comma-separated text as single criterion", async () => {
-			const result = await $`bun ${CLI_PATH} task create "Test Task" --ac "Criterion 1, Criterion 2, Criterion 3"`
+			const result = await $`bun ${CLI_PATH} state create "Test State" --ac "Criterion 1, Criterion 2, Criterion 3"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
 			// Should create single criterion with commas intact
-			expect(task?.rawContent).toContain("- [ ] #1 Criterion 1, Criterion 2, Criterion 3");
+			expect(state?.rawContent).toContain("- [ ] #1 Criterion 1, Criterion 2, Criterion 3");
 			// Should NOT create multiple criteria
-			expect(task?.rawContent).not.toContain("- [ ] #2");
+			expect(state?.rawContent).not.toContain("- [ ] #2");
 		});
 
-		it("should create task with criteria using --acceptance-criteria", async () => {
-			const result = await $`bun ${CLI_PATH} task create "Test Task" --acceptance-criteria "Full flag test"`
+		it("should create state with criteria using --acceptance-criteria", async () => {
+			const result = await $`bun ${CLI_PATH} state create "Test State" --acceptance-criteria "Full flag test"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 Full flag test");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 Full flag test");
 		});
 
-		it("should create task with both description and acceptance criteria", async () => {
+		it("should create state with both description and acceptance criteria", async () => {
 			const result =
-				await $`bun ${CLI_PATH} task create "Test Task" -d "Task description" --ac "Must pass tests" --ac "Must be documented"`
+				await $`bun ${CLI_PATH} state create "Test State" -d "State description" --ac "Must pass tests" --ac "Must be documented"`
 					.cwd(TEST_DIR)
 					.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("## Description");
-			expect(task?.rawContent).toContain("Task description");
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 Must pass tests");
-			expect(task?.rawContent).toContain("- [ ] #2 Must be documented");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("## Description");
+			expect(state?.rawContent).toContain("State description");
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 Must pass tests");
+			expect(state?.rawContent).toContain("- [ ] #2 Must be documented");
 		});
 	});
 
-	describe("task edit with acceptance criteria", () => {
+	describe("state edit with acceptance criteria", () => {
 		beforeEach(async () => {
 			const core = new Core(TEST_DIR);
-			await core.createTask(
+			await core.createState(
 				{
-					id: "task-1",
-					title: "Existing Task",
+					id: "state-1",
+					title: "Existing State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-06-19",
 					labels: [],
 					dependencies: [],
-					rawContent: "## Description\n\nExisting task description",
+					rawContent: "## Description\n\nExisting state description",
 				},
 				false,
 			);
 		});
 
-		it("should add acceptance criteria to existing task", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --ac "New criterion 1" --ac "New criterion 2"`
+		it("should add acceptance criteria to existing state", async () => {
+			const result = await $`bun ${CLI_PATH} state edit 1 --ac "New criterion 1" --ac "New criterion 2"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("## Description");
-			expect(task?.rawContent).toContain("Existing task description");
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 New criterion 1");
-			expect(task?.rawContent).toContain("- [ ] #2 New criterion 2");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("## Description");
+			expect(state?.rawContent).toContain("Existing state description");
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 New criterion 1");
+			expect(state?.rawContent).toContain("- [ ] #2 New criterion 2");
 		});
 
 		it("consolidates duplicate Acceptance Criteria sections with markers into one", async () => {
 			const core = new Core(TEST_DIR);
-			await core.createTask(
+			await core.createState(
 				{
-					id: "task-9",
-					title: "Dup AC Task",
+					id: "state-9",
+					title: "Dup AC State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-06-19",
@@ -159,12 +159,12 @@ describe("Acceptance Criteria CLI", () => {
 			);
 
 			// Add a new criterion via CLI; this triggers consolidation
-			const result = await $`bun ${CLI_PATH} task edit 9 --ac "New C"`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 9 --ac "New C"`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
-			const task = await core.filesystem.loadTask("task-9");
-			expect(task).not.toBeNull();
-			const body = task?.rawContent || "";
+			const state = await core.filesystem.loadState("state-9");
+			expect(state).not.toBeNull();
+			const body = state?.rawContent || "";
 			// Only one header and one marker pair should remain
 			expect((body.match(/## Acceptance Criteria/g) || []).length).toBe(1);
 			expect((body.match(/<!-- AC:BEGIN -->/g) || []).length).toBe(1);
@@ -177,10 +177,10 @@ describe("Acceptance Criteria CLI", () => {
 
 		it("consolidates legacy and marked AC sections to a single marked section", async () => {
 			const core = new Core(TEST_DIR);
-			await core.createTask(
+			await core.createState(
 				{
-					id: "task-10",
-					title: "Mixed AC Task",
+					id: "state-10",
+					title: "Mixed AC State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-06-19",
@@ -192,12 +192,12 @@ describe("Acceptance Criteria CLI", () => {
 				false,
 			);
 
-			const result = await $`bun ${CLI_PATH} task edit 10 --ac "Marked 2"`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 10 --ac "Marked 2"`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
-			const task = await core.filesystem.loadTask("task-10");
-			expect(task).not.toBeNull();
-			const body = task?.rawContent || "";
+			const state = await core.filesystem.loadState("state-10");
+			expect(state).not.toBeNull();
+			const body = state?.rawContent || "";
 			expect((body.match(/## Acceptance Criteria/g) || []).length).toBe(1);
 			expect((body.match(/<!-- AC:BEGIN -->/g) || []).length).toBe(1);
 			expect((body.match(/<!-- AC:END -->/g) || []).length).toBe(1);
@@ -211,75 +211,75 @@ describe("Acceptance Criteria CLI", () => {
 
 		it("should add to existing acceptance criteria", async () => {
 			// First add some criteria via CLI to avoid direct body mutation
-			const res = await $`bun ${CLI_PATH} task edit 1 --ac "Old criterion 1" --ac "Old criterion 2"`
+			const res = await $`bun ${CLI_PATH} state edit 1 --ac "Old criterion 1" --ac "Old criterion 2"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(res.exitCode).toBe(0);
 
 			// Now add new criterion
-			const result = await $`bun ${CLI_PATH} task edit 1 --ac "New criterion"`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 1 --ac "New criterion"`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 Old criterion 1");
-			expect(task?.rawContent).toContain("- [ ] #2 Old criterion 2");
-			expect(task?.rawContent).toContain("- [ ] #3 New criterion");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 Old criterion 1");
+			expect(state?.rawContent).toContain("- [ ] #2 Old criterion 2");
+			expect(state?.rawContent).toContain("- [ ] #3 New criterion");
 		});
 
 		it("should update title and add acceptance criteria together", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 -t "Updated Title" --ac "Must be updated" --ac "Must work"`
+			const result = await $`bun ${CLI_PATH} state edit 1 -t "Updated Title" --ac "Must be updated" --ac "Must work"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.title).toBe("Updated Title");
-			expect(task?.rawContent).toContain("## Acceptance Criteria");
-			expect(task?.rawContent).toContain("- [ ] #1 Must be updated");
-			expect(task?.rawContent).toContain("- [ ] #2 Must work");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.title).toBe("Updated Title");
+			expect(state?.rawContent).toContain("## Acceptance Criteria");
+			expect(state?.rawContent).toContain("- [ ] #1 Must be updated");
+			expect(state?.rawContent).toContain("- [ ] #2 Must work");
 		});
 	});
 
 	describe("acceptance criteria parsing", () => {
 		it("should handle empty criteria gracefully", async () => {
 			// Skip the --ac flag entirely when empty, as the shell API doesn't handle empty strings the same way
-			const result = await $`bun ${CLI_PATH} task create "Test Task"`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state create "Test State"`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
 			// Should not add acceptance criteria section for empty input
-			expect(task?.rawContent).not.toContain("## Acceptance Criteria");
+			expect(state?.rawContent).not.toContain("## Acceptance Criteria");
 		});
 
 		it("should trim whitespace from criteria", async () => {
 			const result =
-				await $`bun ${CLI_PATH} task create "Test Task" --ac "  Criterion with spaces  " --ac "  Another one  "`
+				await $`bun ${CLI_PATH} state create "Test State" --ac "  Criterion with spaces  " --ac "  Another one  "`
 					.cwd(TEST_DIR)
 					.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task).not.toBeNull();
-			expect(task?.rawContent).toContain("- [ ] #1 Criterion with spaces");
-			expect(task?.rawContent).toContain("- [ ] #2 Another one");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state).not.toBeNull();
+			expect(state?.rawContent).toContain("- [ ] #1 Criterion with spaces");
+			expect(state?.rawContent).toContain("- [ ] #2 Another one");
 		});
 	});
 
 	describe("new AC management features", () => {
 		beforeEach(async () => {
 			const core = new Core(TEST_DIR);
-			await core.createTask(
+			await core.createState(
 				{
-					id: "task-1",
-					title: "Test Task",
+					id: "state-1",
+					title: "Test State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-06-19",
@@ -287,7 +287,7 @@ describe("Acceptance Criteria CLI", () => {
 					dependencies: [],
 					rawContent: `## Description
 
-Test task with acceptance criteria
+Test state with acceptance criteria
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
@@ -301,86 +301,86 @@ Test task with acceptance criteria
 		});
 
 		it("should add new acceptance criteria with --ac", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --ac "Fourth criterion" --ac "Fifth criterion"`
+			const result = await $`bun ${CLI_PATH} state edit 1 --ac "Fourth criterion" --ac "Fifth criterion"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task?.rawContent).toContain("- [ ] #1 First criterion");
-			expect(task?.rawContent).toContain("- [ ] #2 Second criterion");
-			expect(task?.rawContent).toContain("- [ ] #3 Third criterion");
-			expect(task?.rawContent).toContain("- [ ] #4 Fourth criterion");
-			expect(task?.rawContent).toContain("- [ ] #5 Fifth criterion");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state?.rawContent).toContain("- [ ] #1 First criterion");
+			expect(state?.rawContent).toContain("- [ ] #2 Second criterion");
+			expect(state?.rawContent).toContain("- [ ] #3 Third criterion");
+			expect(state?.rawContent).toContain("- [ ] #4 Fourth criterion");
+			expect(state?.rawContent).toContain("- [ ] #5 Fifth criterion");
 		});
 
 		it("should remove acceptance criterion by index with --remove-ac", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --remove-ac 2`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 1 --remove-ac 2`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task?.rawContent).toContain("- [ ] #1 First criterion");
-			expect(task?.rawContent).not.toContain("Second criterion");
-			expect(task?.rawContent).toContain("- [ ] #2 Third criterion"); // Renumbered
+			const state = await core.filesystem.loadState("state-1");
+			expect(state?.rawContent).toContain("- [ ] #1 First criterion");
+			expect(state?.rawContent).not.toContain("Second criterion");
+			expect(state?.rawContent).toContain("- [ ] #2 Third criterion"); // Renumbered
 		});
 
 		it("removes acceptance criteria section after deleting all items", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --remove-ac 1 --remove-ac 2 --remove-ac 3`
+			const result = await $`bun ${CLI_PATH} state edit 1 --remove-ac 1 --remove-ac 2 --remove-ac 3`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			const body = task?.rawContent || "";
+			const state = await core.filesystem.loadState("state-1");
+			const body = state?.rawContent || "";
 			expect(body).not.toContain("## Acceptance Criteria");
 			expect(body).not.toContain("<!-- AC:BEGIN -->");
 			expect(body).not.toContain("<!-- AC:END -->");
 		});
 
 		it("should check acceptance criterion by index with --check-ac", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --check-ac 2`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 1 --check-ac 2`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task?.rawContent).toContain("- [ ] #1 First criterion");
-			expect(task?.rawContent).toContain("- [x] #2 Second criterion");
-			expect(task?.rawContent).toContain("- [ ] #3 Third criterion");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state?.rawContent).toContain("- [ ] #1 First criterion");
+			expect(state?.rawContent).toContain("- [x] #2 Second criterion");
+			expect(state?.rawContent).toContain("- [ ] #3 Third criterion");
 		});
 
 		it("should uncheck acceptance criterion by index with --uncheck-ac", async () => {
 			// First check a criterion
-			await $`bun ${CLI_PATH} task edit 1 --check-ac 1`.cwd(TEST_DIR).quiet();
+			await $`bun ${CLI_PATH} state edit 1 --check-ac 1`.cwd(TEST_DIR).quiet();
 
 			// Then uncheck it
-			const result = await $`bun ${CLI_PATH} task edit 1 --uncheck-ac 1`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 1 --uncheck-ac 1`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task?.rawContent).toContain("- [ ] #1 First criterion");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state?.rawContent).toContain("- [ ] #1 First criterion");
 		});
 
 		it("should handle multiple operations in one command", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --check-ac 1 --remove-ac 2 --ac "New criterion"`
+			const result = await $`bun ${CLI_PATH} state edit 1 --check-ac 1 --remove-ac 2 --ac "New criterion"`
 				.cwd(TEST_DIR)
 				.quiet();
 			expect(result.exitCode).toBe(0);
 
 			const core = new Core(TEST_DIR);
-			const task = await core.filesystem.loadTask("task-1");
-			expect(task?.rawContent).toContain("- [x] #1 First criterion");
-			expect(task?.rawContent).not.toContain("Second criterion");
-			expect(task?.rawContent).toContain("- [ ] #2 Third criterion"); // Renumbered
-			expect(task?.rawContent).toContain("- [ ] #3 New criterion");
+			const state = await core.filesystem.loadState("state-1");
+			expect(state?.rawContent).toContain("- [x] #1 First criterion");
+			expect(state?.rawContent).not.toContain("Second criterion");
+			expect(state?.rawContent).toContain("- [ ] #2 Third criterion"); // Renumbered
+			expect(state?.rawContent).toContain("- [ ] #3 New criterion");
 		});
 
 		it("should error on invalid index for --remove-ac", async () => {
 			try {
-				await $`bun ${CLI_PATH} task edit 1 --remove-ac 10`.cwd(TEST_DIR).quiet();
+				await $`bun ${CLI_PATH} state edit 1 --remove-ac 10`.cwd(TEST_DIR).quiet();
 				expect(true).toBe(false); // Should not reach here
 			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
@@ -392,7 +392,7 @@ Test task with acceptance criteria
 
 		it("should error on invalid index for --check-ac", async () => {
 			try {
-				await $`bun ${CLI_PATH} task edit 1 --check-ac 10`.cwd(TEST_DIR).quiet();
+				await $`bun ${CLI_PATH} state edit 1 --check-ac 10`.cwd(TEST_DIR).quiet();
 				expect(true).toBe(false); // Should not reach here
 			} catch (error: unknown) {
 				const e = error as { exitCode?: number; stderr?: unknown };
@@ -403,19 +403,19 @@ Test task with acceptance criteria
 		});
 
 		it("should error on non-numeric index", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --remove-ac abc`.cwd(TEST_DIR).quiet().nothrow();
+			const result = await $`bun ${CLI_PATH} state edit 1 --remove-ac abc`.cwd(TEST_DIR).quiet().nothrow();
 			expect(result.exitCode).not.toBe(0);
 			expect(result.stderr.toString()).toContain("Invalid index");
 		});
 
 		it("should error on zero index", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --remove-ac 0`.cwd(TEST_DIR).quiet().nothrow();
+			const result = await $`bun ${CLI_PATH} state edit 1 --remove-ac 0`.cwd(TEST_DIR).quiet().nothrow();
 			expect(result.exitCode).not.toBe(0);
 			expect(result.stderr.toString()).toContain("Invalid index");
 		});
 
 		it("should error on negative index", async () => {
-			const result = await $`bun ${CLI_PATH} task edit 1 --remove-ac=-1`.cwd(TEST_DIR).quiet().nothrow();
+			const result = await $`bun ${CLI_PATH} state edit 1 --remove-ac=-1`.cwd(TEST_DIR).quiet().nothrow();
 			expect(result.exitCode).not.toBe(0);
 			expect(result.stderr.toString()).toContain("Invalid index");
 		});
@@ -424,10 +424,10 @@ Test task with acceptance criteria
 	describe("stable format migration", () => {
 		it("should convert old format to stable format when editing", async () => {
 			const core = new Core(TEST_DIR);
-			await core.createTask(
+			await core.createState(
 				{
-					id: "task-2",
-					title: "Old Format Task",
+					id: "state-2",
+					title: "Old Format State",
 					status: "To Do",
 					assignee: [],
 					createdDate: "2025-06-19",
@@ -443,15 +443,15 @@ Test task with acceptance criteria
 				false,
 			);
 
-			const result = await $`bun ${CLI_PATH} task edit 2 --ac "New criterion"`.cwd(TEST_DIR).quiet();
+			const result = await $`bun ${CLI_PATH} state edit 2 --ac "New criterion"`.cwd(TEST_DIR).quiet();
 			expect(result.exitCode).toBe(0);
 
-			const task = await core.filesystem.loadTask("task-2");
-			expect(task?.rawContent).toContain("<!-- AC:BEGIN -->");
-			expect(task?.rawContent).toContain("- [ ] #1 Old format criterion 1");
-			expect(task?.rawContent).toContain("- [x] #2 Old format criterion 2");
-			expect(task?.rawContent).toContain("- [ ] #3 New criterion");
-			expect(task?.rawContent).toContain("<!-- AC:END -->");
+			const state = await core.filesystem.loadState("state-2");
+			expect(state?.rawContent).toContain("<!-- AC:BEGIN -->");
+			expect(state?.rawContent).toContain("- [ ] #1 Old format criterion 1");
+			expect(state?.rawContent).toContain("- [x] #2 Old format criterion 2");
+			expect(state?.rawContent).toContain("- [ ] #3 New criterion");
+			expect(state?.rawContent).toContain("<!-- AC:END -->");
 		});
 	});
 });
@@ -547,103 +547,103 @@ describe("AcceptanceCriteriaManager unit tests", () => {
 	});
 
 	describe("Multi-value CLI operations", () => {
-		it("should support multiple --ac flags in task create", async () => {
+		it("should support multiple --ac flags in state create", async () => {
 			const result =
-				await $`bun run ${CLI_PATH_UNIT} task create "Multi AC Test" --ac "First" --ac "Second" --ac "Third"`.cwd(
+				await $`bun run ${CLI_PATH_UNIT} state create "Multi AC Test" --ac "First" --ac "Second" --ac "Third"`.cwd(
 					TEST_DIR_UNIT,
 				);
 			expect(result.exitCode).toBe(0);
 
-			// Parse task ID from output
-			const taskId = result.stdout.toString().match(/Created task (TASK-\d+)/)?.[1];
-			expect(taskId).toBeTruthy();
+			// Parse state ID from output
+			const stateId = result.stdout.toString().match(/Created state (STATE-\d+)/)?.[1];
+			expect(stateId).toBeTruthy();
 
 			// Verify ACs were created
-			const taskResult = await $`bun run ${CLI_PATH_UNIT} task ${taskId} --plain`.cwd(TEST_DIR_UNIT);
-			expect(taskResult.stdout.toString()).toContain("- [ ] #1 First");
-			expect(taskResult.stdout.toString()).toContain("- [ ] #2 Second");
-			expect(taskResult.stdout.toString()).toContain("- [ ] #3 Third");
+			const stateResult = await $`bun run ${CLI_PATH_UNIT} state ${stateId} --plain`.cwd(TEST_DIR_UNIT);
+			expect(stateResult.stdout.toString()).toContain("- [ ] #1 First");
+			expect(stateResult.stdout.toString()).toContain("- [ ] #2 Second");
+			expect(stateResult.stdout.toString()).toContain("- [ ] #3 Third");
 		});
 
 		it("should support multiple --check-ac flags in single command", async () => {
-			// Create task with multiple ACs
+			// Create state with multiple ACs
 			const createResult =
-				await $`bun run ${CLI_PATH_UNIT} task create "Check Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth"`.cwd(
+				await $`bun run ${CLI_PATH_UNIT} state create "Check Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth"`.cwd(
 					TEST_DIR_UNIT,
 				);
-			const taskId = createResult.stdout.toString().match(/Created task (TASK-\d+)/)?.[1];
+			const stateId = createResult.stdout.toString().match(/Created state (STATE-\d+)/)?.[1];
 
 			// Check multiple ACs at once
-			const checkResult = await $`bun run ${CLI_PATH_UNIT} task edit ${taskId} --check-ac 1 --check-ac 3`.cwd(
+			const checkResult = await $`bun run ${CLI_PATH_UNIT} state edit ${stateId} --check-ac 1 --check-ac 3`.cwd(
 				TEST_DIR_UNIT,
 			);
 			expect(checkResult.exitCode).toBe(0);
 
 			// Verify correct ACs were checked
-			const taskResult = await $`bun run ${CLI_PATH_UNIT} task ${taskId} --plain`.cwd(TEST_DIR_UNIT);
-			expect(taskResult.stdout.toString()).toContain("- [x] #1 First");
-			expect(taskResult.stdout.toString()).toContain("- [ ] #2 Second");
-			expect(taskResult.stdout.toString()).toContain("- [x] #3 Third");
-			expect(taskResult.stdout.toString()).toContain("- [ ] #4 Fourth");
+			const stateResult = await $`bun run ${CLI_PATH_UNIT} state ${stateId} --plain`.cwd(TEST_DIR_UNIT);
+			expect(stateResult.stdout.toString()).toContain("- [x] #1 First");
+			expect(stateResult.stdout.toString()).toContain("- [ ] #2 Second");
+			expect(stateResult.stdout.toString()).toContain("- [x] #3 Third");
+			expect(stateResult.stdout.toString()).toContain("- [ ] #4 Fourth");
 		});
 
 		it("should support mixed AC operations in single command", async () => {
-			// Create task with multiple ACs
+			// Create state with multiple ACs
 			const createResult =
-				await $`bun run ${CLI_PATH_UNIT} task create "Mixed Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth"`.cwd(
+				await $`bun run ${CLI_PATH_UNIT} state create "Mixed Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth"`.cwd(
 					TEST_DIR_UNIT,
 				);
-			const taskId = createResult.stdout.toString().match(/Created task (TASK-\d+)/)?.[1];
+			const stateId = createResult.stdout.toString().match(/Created state (STATE-\d+)/)?.[1];
 
 			// Check some ACs first
-			await $`bun run ${CLI_PATH_UNIT} task edit ${taskId} --check-ac 1 --check-ac 2 --check-ac 3`.cwd(TEST_DIR_UNIT);
+			await $`bun run ${CLI_PATH_UNIT} state edit ${stateId} --check-ac 1 --check-ac 2 --check-ac 3`.cwd(TEST_DIR_UNIT);
 
 			// Now do mixed operations: uncheck 1, keep 2 checked, check 4
-			const mixedResult = await $`bun run ${CLI_PATH_UNIT} task edit ${taskId} --uncheck-ac 1 --check-ac 4`.cwd(
+			const mixedResult = await $`bun run ${CLI_PATH_UNIT} state edit ${stateId} --uncheck-ac 1 --check-ac 4`.cwd(
 				TEST_DIR_UNIT,
 			);
 			expect(mixedResult.exitCode).toBe(0);
 
 			// Verify final state
-			const taskResult = await $`bun run ${CLI_PATH_UNIT} task ${taskId} --plain`.cwd(TEST_DIR_UNIT);
-			expect(taskResult.stdout.toString()).toContain("- [ ] #1 First"); // unchecked
-			expect(taskResult.stdout.toString()).toContain("- [x] #2 Second"); // remained checked
-			expect(taskResult.stdout.toString()).toContain("- [x] #3 Third"); // remained checked
-			expect(taskResult.stdout.toString()).toContain("- [x] #4 Fourth"); // newly checked
+			const stateResult = await $`bun run ${CLI_PATH_UNIT} state ${stateId} --plain`.cwd(TEST_DIR_UNIT);
+			expect(stateResult.stdout.toString()).toContain("- [ ] #1 First"); // unchecked
+			expect(stateResult.stdout.toString()).toContain("- [x] #2 Second"); // remained checked
+			expect(stateResult.stdout.toString()).toContain("- [x] #3 Third"); // remained checked
+			expect(stateResult.stdout.toString()).toContain("- [x] #4 Fourth"); // newly checked
 		});
 
 		it("should support multiple --remove-ac flags with proper renumbering", async () => {
-			// Create task with 5 ACs
+			// Create state with 5 ACs
 			const createResult =
-				await $`bun run ${CLI_PATH_UNIT} task create "Remove Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth" --ac "Fifth"`.cwd(
+				await $`bun run ${CLI_PATH_UNIT} state create "Remove Test" --ac "First" --ac "Second" --ac "Third" --ac "Fourth" --ac "Fifth"`.cwd(
 					TEST_DIR_UNIT,
 				);
-			const taskId = createResult.stdout.toString().match(/Created task (TASK-\d+)/)?.[1];
+			const stateId = createResult.stdout.toString().match(/Created state (STATE-\d+)/)?.[1];
 
 			// Remove ACs 2 and 4 (should be processed in descending order to avoid index shifting)
-			const removeResult = await $`bun run ${CLI_PATH_UNIT} task edit ${taskId} --remove-ac 2 --remove-ac 4`.cwd(
+			const removeResult = await $`bun run ${CLI_PATH_UNIT} state edit ${stateId} --remove-ac 2 --remove-ac 4`.cwd(
 				TEST_DIR_UNIT,
 			);
 			expect(removeResult.exitCode).toBe(0);
 
 			// Verify remaining ACs are properly renumbered
-			const taskResult = await $`bun run ${CLI_PATH_UNIT} task ${taskId} --plain`.cwd(TEST_DIR_UNIT);
-			expect(taskResult.stdout.toString()).toContain("- [ ] #1 First"); // original #1
-			expect(taskResult.stdout.toString()).toContain("- [ ] #2 Third"); // original #3 -> #2
-			expect(taskResult.stdout.toString()).toContain("- [ ] #3 Fifth"); // original #5 -> #3
-			expect(taskResult.stdout.toString()).not.toContain("Second"); // removed
-			expect(taskResult.stdout.toString()).not.toContain("Fourth"); // removed
+			const stateResult = await $`bun run ${CLI_PATH_UNIT} state ${stateId} --plain`.cwd(TEST_DIR_UNIT);
+			expect(stateResult.stdout.toString()).toContain("- [ ] #1 First"); // original #1
+			expect(stateResult.stdout.toString()).toContain("- [ ] #2 Third"); // original #3 -> #2
+			expect(stateResult.stdout.toString()).toContain("- [ ] #3 Fifth"); // original #5 -> #3
+			expect(stateResult.stdout.toString()).not.toContain("Second"); // removed
+			expect(stateResult.stdout.toString()).not.toContain("Fourth"); // removed
 		});
 
 		it("should handle invalid indices gracefully in multi-value operations", async () => {
-			// Create task with 2 ACs
-			const createResult = await $`bun run ${CLI_PATH_UNIT} task create "Invalid Test" --ac "First" --ac "Second"`.cwd(
+			// Create state with 2 ACs
+			const createResult = await $`bun run ${CLI_PATH_UNIT} state create "Invalid Test" --ac "First" --ac "Second"`.cwd(
 				TEST_DIR_UNIT,
 			);
-			const taskId = createResult.stdout.toString().match(/Created task (TASK-\d+)/)?.[1];
+			const stateId = createResult.stdout.toString().match(/Created state (STATE-\d+)/)?.[1];
 
 			// Try to check valid and invalid indices
-			const checkResult = await $`bun run ${CLI_PATH_UNIT} task edit ${taskId} --check-ac 1 --check-ac 5`
+			const checkResult = await $`bun run ${CLI_PATH_UNIT} state edit ${stateId} --check-ac 1 --check-ac 5`
 				.cwd(TEST_DIR_UNIT)
 				.nothrow();
 			expect(checkResult.exitCode).toBe(1);

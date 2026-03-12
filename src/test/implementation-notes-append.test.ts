@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { extractStructuredSection } from "../markdown/structured-sections.ts";
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
@@ -28,9 +28,9 @@ describe("Implementation Notes - append", () => {
 
 	it("appends to existing Implementation Notes with single blank line", async () => {
 		const core = new Core(TEST_DIR);
-		const task: Task = {
-			id: "task-1",
-			title: "Task",
+		const state: State = {
+			id: "state-1",
+			title: "State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2025-07-03",
@@ -39,21 +39,21 @@ describe("Implementation Notes - append", () => {
 			description: "Test description",
 			implementationNotes: "First block",
 		};
-		await core.createTask(task, false);
+		await core.createState(state, false);
 
-		const result = await $`bun ${[CLI_PATH, "task", "edit", "1", "--append-notes", "Second block"]}`
+		const result = await $`bun ${[CLI_PATH, "state", "edit", "1", "--append-notes", "Second block"]}`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(result.exitCode).toBe(0);
 
-		const updatedBody = await core.getTaskContent("task-1");
+		const updatedBody = await core.getStateContent("state-1");
 		expect(extractStructuredSection(updatedBody ?? "", "implementationNotes")).toBe("First block\n\nSecond block");
 	});
 
 	it("creates Implementation Notes at correct position when missing (after plan, else AC, else Description)", async () => {
 		const core = new Core(TEST_DIR);
-		const t: Task = {
-			id: "task-1",
+		const t: State = {
+			id: "state-1",
 			title: "Planned",
 			status: "To Do",
 			assignee: [],
@@ -64,14 +64,14 @@ describe("Implementation Notes - append", () => {
 			acceptanceCriteriaItems: [{ index: 1, text: "A", checked: false }],
 			implementationPlan: "1. Do A\n2. Do B",
 		};
-		await core.createTask(t, false);
+		await core.createState(t, false);
 
-		const res = await $`bun ${[CLI_PATH, "task", "edit", "1", "--append-notes", "Followed plan"]}`
+		const res = await $`bun ${[CLI_PATH, "state", "edit", "1", "--append-notes", "Followed plan"]}`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(res.exitCode).toBe(0);
 
-		const body = (await core.getTaskContent("task-1")) ?? "";
+		const body = (await core.getStateContent("state-1")) ?? "";
 		const planIdx = body.indexOf("## Implementation Plan");
 		const notesContent = extractStructuredSection(body, "implementationNotes") || "";
 		expect(planIdx).toBeGreaterThan(0);
@@ -80,9 +80,9 @@ describe("Implementation Notes - append", () => {
 
 	it("supports multiple --append-notes flags in order", async () => {
 		const core = new Core(TEST_DIR);
-		const task: Task = {
-			id: "task-1",
-			title: "Task",
+		const state: State = {
+			id: "state-1",
+			title: "State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2025-07-03",
@@ -90,38 +90,38 @@ describe("Implementation Notes - append", () => {
 			dependencies: [],
 			description: "Some description",
 		};
-		await core.createTask(task, false);
+		await core.createState(state, false);
 
-		const res = await $`bun ${[CLI_PATH, "task", "edit", "1", "--append-notes", "First", "--append-notes", "Second"]}`
+		const res = await $`bun ${[CLI_PATH, "state", "edit", "1", "--append-notes", "First", "--append-notes", "Second"]}`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(res.exitCode).toBe(0);
 
-		const updatedBody = await core.getTaskContent("task-1");
+		const updatedBody = await core.getStateContent("state-1");
 		expect(extractStructuredSection(updatedBody ?? "", "implementationNotes")).toBe("First\n\nSecond");
 	});
 
 	it("edit --append-notes works and allows combining with --notes", async () => {
-		const resOk = await $`bun ${[CLI_PATH, "task", "create", "T", "--plan", "1. A\n2. B"]}`.cwd(TEST_DIR).quiet();
+		const resOk = await $`bun ${[CLI_PATH, "state", "create", "T", "--plan", "1. A\n2. B"]}`.cwd(TEST_DIR).quiet();
 		expect(resOk.exitCode).toBe(0);
 
-		const res1 = await $`bun ${[CLI_PATH, "task", "edit", "1", "--append-notes", "Alpha", "--append-notes", "Beta"]}`
+		const res1 = await $`bun ${[CLI_PATH, "state", "edit", "1", "--append-notes", "Alpha", "--append-notes", "Beta"]}`
 			.cwd(TEST_DIR)
 			.quiet();
 		expect(res1.exitCode).toBe(0);
 
 		const core = new Core(TEST_DIR);
-		let taskBody = await core.getTaskContent("task-1");
-		expect(extractStructuredSection(taskBody ?? "", "implementationNotes")).toBe("Alpha\n\nBeta");
+		let stateBody = await core.getStateContent("state-1");
+		expect(extractStructuredSection(stateBody ?? "", "implementationNotes")).toBe("Alpha\n\nBeta");
 
 		// Combining --notes (replace) with --append-notes (append) should work
-		const combined = await $`bun ${[CLI_PATH, "task", "edit", "1", "--notes", "Y", "--append-notes", "X"]}`
+		const combined = await $`bun ${[CLI_PATH, "state", "edit", "1", "--notes", "Y", "--append-notes", "X"]}`
 			.cwd(TEST_DIR)
 			.quiet()
 			.nothrow();
 		expect(combined.exitCode).toBe(0);
 
-		taskBody = await core.getTaskContent("task-1");
-		expect(extractStructuredSection(taskBody ?? "", "implementationNotes")).toBe("Y\n\nX");
+		stateBody = await core.getStateContent("state-1");
+		expect(extractStructuredSection(stateBody ?? "", "implementationNotes")).toBe("Y\n\nX");
 	});
 });

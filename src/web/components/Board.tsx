@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { type Milestone, type Task } from '../../types';
-import { apiClient, type ReorderTaskPayload } from '../lib/api';
-import { buildLanes, DEFAULT_LANE_KEY, groupTasksByLaneAndStatus, type LaneMode } from '../lib/lanes';
+import { type Milestone, type State } from '../../types';
+import { apiClient, type ReorderStatePayload } from '../lib/api';
+import { buildLanes, DEFAULT_LANE_KEY, groupStatesByLaneAndStatus, type LaneMode } from '../lib/lanes';
 import { collectArchivedMilestoneKeys, milestoneKey } from '../utils/milestones';
-import TaskColumn from './TaskColumn';
+import StateColumn from './StateColumn';
 import CleanupModal from './CleanupModal';
 import { SuccessToast } from './SuccessToast';
 
 interface BoardProps {
-  onEditTask: (task: Task) => void;
-  onNewTask: () => void;
-  highlightTaskId?: string | null;
-  tasks: Task[];
+  onEditState: (state: State) => void;
+  onNewState: () => void;
+  highlightStateId?: string | null;
+  states: State[];
   onRefreshData?: () => Promise<void>;
   statuses: string[];
   isLoading: boolean;
@@ -24,10 +24,10 @@ interface BoardProps {
 }
 
 const Board: React.FC<BoardProps> = ({
-  onEditTask,
-  onNewTask,
-  highlightTaskId,
-  tasks,
+  onEditState,
+  onNewState,
+  highlightStateId,
+  states,
   onRefreshData,
   statuses,
   isLoading,
@@ -179,54 +179,54 @@ const Board: React.FC<BoardProps> = ({
   };
   const canonicalMilestoneFilter = canonicalizeMilestone(milestoneFilter);
 
-  // Filter tasks by milestone when milestoneFilter is set
-  const filteredTasks = useMemo(() => {
-    if (!milestoneFilter) return tasks;
-    return tasks.filter(task => canonicalizeMilestone(task.milestone) === canonicalMilestoneFilter);
-  }, [tasks, milestoneFilter, canonicalMilestoneFilter, milestoneAliasToCanonical]);
+  // Filter states by milestone when milestoneFilter is set
+  const filteredStates = useMemo(() => {
+    if (!milestoneFilter) return states;
+    return states.filter(state => canonicalizeMilestone(state.milestone) === canonicalMilestoneFilter);
+  }, [states, milestoneFilter, canonicalMilestoneFilter, milestoneAliasToCanonical]);
 
-  // Handle highlighting a task (opening its edit popup)
+  // Handle highlighting a state (opening its edit popup)
   useEffect(() => {
-    if (highlightTaskId && tasks.length > 0) {
-      const taskToHighlight = tasks.find(task => task.id === highlightTaskId);
-      if (taskToHighlight) {
-        // Use setTimeout to ensure the task is found and modal opens properly
+    if (highlightStateId && states.length > 0) {
+      const stateToHighlight = states.find(state => state.id === highlightStateId);
+      if (stateToHighlight) {
+        // Use setTimeout to ensure the state is found and modal opens properly
         setTimeout(() => {
-          onEditTask(taskToHighlight);
+          onEditState(stateToHighlight);
         }, 100);
       }
     }
-  }, [highlightTaskId, tasks, onEditTask]);
+  }, [highlightStateId, states, onEditState]);
 
-  const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+  const handleStateUpdate = async (stateId: string, updates: Partial<State>) => {
     try {
-      await apiClient.updateTask(taskId, updates);
+      await apiClient.updateState(stateId, updates);
       // Refresh data to reflect the changes
       if (onRefreshData) {
         await onRefreshData();
       }
       setUpdateError(null);
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Failed to update task');
+      setUpdateError(err instanceof Error ? err.message : 'Failed to update state');
     }
   };
 
-  const handleTaskReorder = async (payload: ReorderTaskPayload) => {
+  const handleStateReorder = async (payload: ReorderStatePayload) => {
     try {
-      await apiClient.reorderTask(payload);
+      await apiClient.reorderState(payload);
       // Refresh data to reflect the changes
       if (onRefreshData) {
         await onRefreshData();
       }
       setUpdateError(null);
     } catch (err) {
-      setUpdateError(err instanceof Error ? err.message : 'Failed to reorder task');
+      setUpdateError(err instanceof Error ? err.message : 'Failed to reorder state');
     }
   };
 
   const handleCleanupSuccess = async (movedCount: number) => {
     setShowCleanupModal(false);
-    setCleanupSuccessMessage(`Successfully moved ${movedCount} task${movedCount !== 1 ? 's' : ''} to completed folder`);
+    setCleanupSuccessMessage(`Successfully moved ${movedCount} state${movedCount !== 1 ? 's' : ''} to completed folder`);
 
     // Refresh data to reflect the changes
     if (onRefreshData) {
@@ -239,51 +239,51 @@ const Board: React.FC<BoardProps> = ({
     }, 4000);
   };
 
-  // Use all tasks for building lanes (so we can show/collapse other milestones)
+  // Use all states for building lanes (so we can show/collapse other milestones)
   const lanes = useMemo(
-    () => buildLanes(laneMode, tasks, milestoneEntities.map((milestone) => milestone.id), milestoneEntities, {
+    () => buildLanes(laneMode, states, milestoneEntities.map((milestone) => milestone.id), milestoneEntities, {
       archivedMilestoneIds,
       archivedMilestones,
     }),
-    [laneMode, tasks, milestoneEntities, archivedMilestoneIds, archivedMilestones]
+    [laneMode, states, milestoneEntities, archivedMilestoneIds, archivedMilestones]
   );
 
-  // Check if any tasks actually have milestones assigned
-  const hasTasksWithMilestones = useMemo(() => {
+  // Check if any states actually have milestones assigned
+  const hasStatesWithMilestones = useMemo(() => {
     if (archivedMilestoneIds.length === 0) {
-      return tasks.some(task => task.milestone && task.milestone.trim() !== '');
+      return states.some(state => state.milestone && state.milestone.trim() !== '');
     }
     const archivedKeys = new Set(archivedMilestoneIds.map((value) => milestoneKey(value)));
-    return tasks.some(task => {
-      const key = milestoneKey(canonicalizeMilestone(task.milestone));
+    return states.some(state => {
+      const key = milestoneKey(canonicalizeMilestone(state.milestone));
       return key.length > 0 && !archivedKeys.has(key);
     });
-  }, [tasks, archivedMilestoneIds, milestoneAliasToCanonical]);
+  }, [states, archivedMilestoneIds, milestoneAliasToCanonical]);
 
-  // Use all tasks for lane grouping (for counts and visibility)
-  const tasksByLane = useMemo(
-    () => groupTasksByLaneAndStatus(laneMode, lanes, statuses, tasks, {
+  // Use all states for lane grouping (for counts and visibility)
+  const statesByLane = useMemo(
+    () => groupStatesByLaneAndStatus(laneMode, lanes, statuses, states, {
       archivedMilestoneIds,
       milestoneEntities,
       archivedMilestones,
     }),
-    [laneMode, lanes, statuses, tasks, archivedMilestoneIds, milestoneEntities, archivedMilestones]
+    [laneMode, lanes, statuses, states, archivedMilestoneIds, milestoneEntities, archivedMilestones]
   );
 
   // Separate grouping for filtered display in columns
-  const filteredTasksByLane = useMemo(
+  const filteredStatesByLane = useMemo(
     () =>
-      groupTasksByLaneAndStatus(laneMode, lanes, statuses, filteredTasks, {
+      groupStatesByLaneAndStatus(laneMode, lanes, statuses, filteredStates, {
         archivedMilestoneIds,
         milestoneEntities,
         archivedMilestones,
       }),
-    [laneMode, lanes, statuses, filteredTasks, archivedMilestoneIds, milestoneEntities, archivedMilestones]
+    [laneMode, lanes, statuses, filteredStates, archivedMilestoneIds, milestoneEntities, archivedMilestones]
   );
 
-  const getTasksForLane = (laneKey: string, status: string): Task[] => {
-    // When filtering by milestone, use filtered tasks for display
-    const sourceMap = milestoneFilter ? filteredTasksByLane : tasksByLane;
+  const getStatesForLane = (laneKey: string, status: string): State[] => {
+    // When filtering by milestone, use filtered states for display
+    const sourceMap = milestoneFilter ? filteredStatesByLane : statesByLane;
     const statusMap = sourceMap.get(laneKey);
     if (!statusMap) {
       return [];
@@ -291,8 +291,8 @@ const Board: React.FC<BoardProps> = ({
     return statusMap.get(status) ?? [];
   };
 
-  const laneTaskCount = (laneKey: string): number => {
-    const statusMap = tasksByLane.get(laneKey);
+  const laneStateCount = (laneKey: string): number => {
+    const statusMap = statesByLane.get(laneKey);
     if (!statusMap) return 0;
     let count = 0;
     for (const list of statusMap.values()) {
@@ -301,30 +301,30 @@ const Board: React.FC<BoardProps> = ({
     return count;
   };
 
-  const countDoneTasksInLane = (laneKey: string): number => {
-    const statusMap = tasksByLane.get(laneKey);
+  const countDoneStatesInLane = (laneKey: string): number => {
+    const statusMap = statesByLane.get(laneKey);
     if (!statusMap) return 0;
     let count = 0;
-    for (const [status, taskList] of statusMap) {
+    for (const [status, stateList] of statusMap) {
       if (status.toLowerCase().includes('done') || status.toLowerCase().includes('complete')) {
-        count += taskList.length;
+        count += stateList.length;
       }
     }
     return count;
   };
 
   const getLaneProgress = (laneKey: string): number => {
-    const total = laneTaskCount(laneKey);
+    const total = laneStateCount(laneKey);
     if (total === 0) return 0;
-    const done = countDoneTasksInLane(laneKey);
+    const done = countDoneStatesInLane(laneKey);
     return Math.round((done / total) * 100);
   };
 
   // Filter out empty lanes in milestone mode
   const visibleLanes = useMemo(() => {
     if (laneMode !== 'milestone') return lanes;
-    return lanes.filter(l => laneTaskCount(l.key) > 0);
-  }, [laneMode, lanes, tasksByLane]);
+    return lanes.filter(l => laneStateCount(l.key) > 0);
+  }, [laneMode, lanes, statesByLane]);
 
   // Only show lane headers when multiple lanes exist
   const shouldShowLaneHeaders = useMemo(() => {
@@ -362,7 +362,7 @@ const Board: React.FC<BoardProps> = ({
   if (isLoading && statuses.length === 0) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="text-lg text-gray-600 dark:text-gray-300 transition-colors duration-200">Loading tasks...</div>
+        <div className="text-lg text-gray-600 dark:text-gray-300 transition-colors duration-200">Loading states...</div>
       </div>
     );
   }
@@ -392,15 +392,15 @@ const Board: React.FC<BoardProps> = ({
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
               }`}
             >
-              All Tasks
+              All States
             </button>
             <button
               type="button"
               onClick={() => onLaneChange('milestone')}
-              disabled={!hasTasksWithMilestones}
-              title={!hasTasksWithMilestones ? 'No tasks have milestones. Assign milestones to tasks first.' : 'Group tasks by milestone'}
+              disabled={!hasStatesWithMilestones}
+              title={!hasStatesWithMilestones ? 'No states have milestones. Assign milestones to states first.' : 'Group states by milestone'}
               className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ${
-                !hasTasksWithMilestones
+                !hasStatesWithMilestones
                   ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed opacity-50'
                   : laneMode === 'milestone'
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
@@ -413,16 +413,16 @@ const Board: React.FC<BoardProps> = ({
         </div>
 	        <button
 	          className="inline-flex items-center px-4 py-2 bg-blue-500 dark:bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 dark:focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200"
-	          onClick={onNewTask}
+	          onClick={onNewState}
 	        >
-	          + New Task
+	          + New State
         </button>
       </div>
 
       {laneMode === 'milestone' ? (
         <div className="space-y-6">
           {visibleLanes.map((lane) => {
-            const taskCount = laneTaskCount(lane.key);
+            const stateCount = laneStateCount(lane.key);
             const progress = getLaneProgress(lane.key);
             const isCollapsed = isLaneCollapsed(lane.key, lane.milestone);
 
@@ -448,7 +448,7 @@ const Board: React.FC<BoardProps> = ({
                         {getLaneLabel(lane)}
                       </h3>
                       <span className="shrink-0 px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors duration-200">
-                        {taskCount}
+                        {stateCount}
                       </span>
                     </div>
 
@@ -473,12 +473,12 @@ const Board: React.FC<BoardProps> = ({
                     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${statuses.length}, minmax(0, 1fr))` }}>
                       {statuses.map((status) => (
                         <div key={`${lane.key}-${status}`} className="min-w-0">
-                          <TaskColumn
+                          <StateColumn
                             title={status}
-                            tasks={getTasksForLane(lane.key, status)}
-                            onTaskUpdate={handleTaskUpdate}
-                            onEditTask={onEditTask}
-                            onTaskReorder={handleTaskReorder}
+                            states={getStatesForLane(lane.key, status)}
+                            onStateUpdate={handleStateUpdate}
+                            onEditState={onEditState}
+                            onStateReorder={handleStateReorder}
                             dragSourceStatus={dragSourceStatus}
                             dragSourceLane={dragSourceLane}
                             laneId={lane.key}
@@ -507,12 +507,12 @@ const Board: React.FC<BoardProps> = ({
           <div className="flex flex-row flex-nowrap gap-4 w-full">
             {statuses.map((status) => (
               <div key={status} className="flex-1 min-w-[16rem]">
-                <TaskColumn
+                <StateColumn
                   title={status}
-                  tasks={getTasksForLane(DEFAULT_LANE_KEY, status)}
-                  onTaskUpdate={handleTaskUpdate}
-                  onEditTask={onEditTask}
-                  onTaskReorder={handleTaskReorder}
+                  states={getStatesForLane(DEFAULT_LANE_KEY, status)}
+                  onStateUpdate={handleStateUpdate}
+                  onEditState={onEditState}
+                  onStateReorder={handleStateReorder}
                   dragSourceStatus={dragSourceStatus}
                   dragSourceLane={dragSourceLane}
                   laneId={DEFAULT_LANE_KEY}

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 
-describe("Task Documentation", () => {
+describe("State Documentation", () => {
 	let core: Core;
 
 	beforeEach(async () => {
@@ -30,58 +30,58 @@ describe("Task Documentation", () => {
 		}
 	});
 
-	describe("Create task with documentation", () => {
-		it("should create a task with documentation", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with docs",
+	describe("Create state with documentation", () => {
+		it("should create a state with documentation", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with docs",
 				documentation: ["https://docs.example.com/api", "docs/architecture.md"],
 			});
 
-			expect(task.documentation).toEqual(["https://docs.example.com/api", "docs/architecture.md"]);
+			expect(state.documentation).toEqual(["https://docs.example.com/api", "docs/architecture.md"]);
 
 			// Verify persistence
-			const loaded = await core.loadTaskById(task.id);
+			const loaded = await core.loadStateById(state.id);
 			expect(loaded?.documentation).toEqual(["https://docs.example.com/api", "docs/architecture.md"]);
 		});
 
-		it("should create a task without documentation", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task without docs",
+		it("should create a state without documentation", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State without docs",
 			});
 
-			expect(task.documentation).toEqual([]);
+			expect(state.documentation).toEqual([]);
 		});
 
 		it("should handle empty documentation array", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with empty docs",
+			const { state } = await core.createStateFromInput({
+				title: "State with empty docs",
 				documentation: [],
 			});
 
-			expect(task.documentation).toEqual([]);
+			expect(state.documentation).toEqual([]);
 		});
 	});
 
-	describe("Update task documentation", () => {
-		it("should set documentation on existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task to update",
+	describe("Update state documentation", () => {
+		it("should set documentation on existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State to update",
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				documentation: ["https://design-docs.example.com", "README.md"],
 			});
 
 			expect(updated.documentation).toEqual(["https://design-docs.example.com", "README.md"]);
 		});
 
-		it("should add documentation to existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with initial docs",
+		it("should add documentation to existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with initial docs",
 				documentation: ["doc1.md"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				addDocumentation: ["doc2.md", "doc3.md"],
 			});
 
@@ -89,25 +89,25 @@ describe("Task Documentation", () => {
 		});
 
 		it("should not add duplicate documentation", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with docs",
+			const { state } = await core.createStateFromInput({
+				title: "State with docs",
 				documentation: ["doc1.md", "doc2.md"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				addDocumentation: ["doc2.md", "doc3.md"],
 			});
 
 			expect(updated.documentation).toEqual(["doc1.md", "doc2.md", "doc3.md"]);
 		});
 
-		it("should remove documentation from existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with docs to remove",
+		it("should remove documentation from existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with docs to remove",
 				documentation: ["doc1.md", "doc2.md", "doc3.md"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				removeDocumentation: ["doc2.md"],
 			});
 
@@ -115,12 +115,12 @@ describe("Task Documentation", () => {
 		});
 
 		it("should replace documentation when setting directly", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with docs to replace",
+			const { state } = await core.createStateFromInput({
+				title: "State with docs to replace",
 				documentation: ["old1.md", "old2.md"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				documentation: ["new1.md", "new2.md"],
 			});
 
@@ -130,8 +130,8 @@ describe("Task Documentation", () => {
 
 	describe("Documentation in markdown", () => {
 		it("should persist documentation in markdown frontmatter", async () => {
-			const { filePath } = await core.createTaskFromInput({
-				title: "Task with markdown docs",
+			const { filePath } = await core.createStateFromInput({
+				title: "State with markdown docs",
 				documentation: ["https://example.com/docs", "src/index.ts"],
 			});
 
@@ -145,8 +145,8 @@ describe("Task Documentation", () => {
 		});
 
 		it("should not include empty documentation in frontmatter", async () => {
-			const { filePath } = await core.createTaskFromInput({
-				title: "Task without docs",
+			const { filePath } = await core.createStateFromInput({
+				title: "State without docs",
 			});
 
 			const content = await Bun.file(filePath as string).text();

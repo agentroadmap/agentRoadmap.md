@@ -5,6 +5,7 @@ const BASE_SECTION_TITLES = [
 	"Implementation Plan",
 	"Implementation Notes",
 	"Final Summary",
+	"Hype",
 ] as const;
 
 const SECTION_TITLE_VARIANTS: Record<string, string[]> = {

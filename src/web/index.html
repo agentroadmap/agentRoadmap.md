@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="/">
-    <title>Backlog.md - Task Management</title>
+    <title>agentRoadmap.md - State Management</title>
     <link rel="icon" type="image/png" href="./favicon.png">
     <link rel="stylesheet" href="./styles/style.css">
     <script>
         // Prevent flash of wrong theme by applying theme before page renders
         (function() {
-            const savedTheme = localStorage.getItem('backlog-theme');
+            const savedTheme = localStorage.getItem('roadmap-theme');
             const systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             const shouldUseDark = savedTheme === 'dark' || (!savedTheme && systemDark);
             

@@ -1,11 +1,11 @@
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 
 export const DEFAULT_ORDINAL_STEP = 1000;
 const EPSILON = 1e-6;
 
 export interface CalculateNewOrdinalOptions {
-	previous?: Pick<Task, "id" | "ordinal"> | null;
-	next?: Pick<Task, "id" | "ordinal"> | null;
+	previous?: Pick<State, "id" | "ordinal"> | null;
+	next?: Pick<State, "id" | "ordinal"> | null;
 	defaultStep?: number;
 }
 
@@ -55,7 +55,7 @@ export interface ResolveOrdinalConflictsOptions {
 }
 
 export function resolveOrdinalConflicts<T extends { id: string; ordinal?: number }>(
-	tasks: T[],
+	states: T[],
 	options: ResolveOrdinalConflictsOptions = {},
 ): T[] {
 	const defaultStep = options.defaultStep ?? DEFAULT_ORDINAL_STEP;
@@ -65,26 +65,26 @@ export function resolveOrdinalConflicts<T extends { id: string; ordinal?: number
 	const updates: T[] = [];
 	let lastOrdinal: number | undefined;
 
-	for (let index = 0; index < tasks.length; index += 1) {
-		const task = tasks[index];
-		if (!task) {
+	for (let index = 0; index < states.length; index += 1) {
+		const state = states[index];
+		if (!state) {
 			continue;
 		}
 		let assigned: number;
 
 		if (forceSequential) {
 			assigned = index === 0 ? startOrdinal : (lastOrdinal ?? startOrdinal) + defaultStep;
-		} else if (task.ordinal === undefined) {
+		} else if (state.ordinal === undefined) {
 			assigned = index === 0 ? startOrdinal : (lastOrdinal ?? startOrdinal) + defaultStep;
-		} else if (lastOrdinal !== undefined && task.ordinal <= lastOrdinal) {
+		} else if (lastOrdinal !== undefined && state.ordinal <= lastOrdinal) {
 			assigned = lastOrdinal + defaultStep;
 		} else {
-			assigned = task.ordinal;
+			assigned = state.ordinal;
 		}
 
-		if (assigned !== task.ordinal) {
+		if (assigned !== state.ordinal) {
 			updates.push({
-				...task,
+				...state,
 				ordinal: assigned,
 			});
 		}

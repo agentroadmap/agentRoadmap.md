@@ -1,6 +1,6 @@
 ## Local Development
 
-> **Runtime requirement:** Use Bun 1.2.23. Later Bun 1.3.x builds currently trigger a websocket CPU regression ([oven-sh/bun#23536](https://github.com/oven-sh/bun/issues/23536)), which also affects `backlog browser`. Our CI is pinned to 1.2.23 until the upstream fix lands.
+> **Runtime requirement:** Use Bun 1.2.23. Later Bun 1.3.x builds currently trigger a websocket CPU regression ([oven-sh/bun#23536](https://github.com/oven-sh/bun/issues/23536)), which also affects `roadmap browser`. Our CI is pinned to 1.2.23 until the upstream fix lands.
 
 Run these commands to bootstrap the project:
 
@@ -55,32 +55,32 @@ Choose one of the methods below based on your agent:
 **Claude Code (Recommended for Development):**
 ```bash
 # Add to project (creates .mcp.json)
-claude mcp add backlog-dev -- bun run mcp
+claude mcp add roadmap-dev -- bun run mcp
 ```
 
 **Codex CLI:**
 ```bash
 # Edit ~/.codex/config.toml
-[mcp_servers.backlog-dev]
+[mcp_servers.roadmap-dev]
 command = "bun"
 args = ["run", "mcp"]
 ```
 
 **Gemini CLI:**
 ```bash
-gemini mcp add backlog-dev bun run mcp
+gemini mcp add roadmap-dev bun run mcp
 ```
 
 **Kiro CLI:**
 ```bash
-kiro-cli mcp add --scope global --name backlog-dev --command bun --args run,mcp
+kiro-cli mcp add --scope global --name roadmap-dev --command bun --args run,mcp
 ```
 
 #### 3. Test the Connection
 
 Open your agent and test:
-- "Show me all tasks in this project"
-- "Create a test task called 'Test MCP Integration'"
+- "Show me all states in this project"
+- "Create a test state called 'Test MCP Integration'"
 - "Display the current board"
 
 #### 4. Development Workflow
@@ -95,7 +95,7 @@ Open your agent and test:
 Each AI agent has different configuration requirements. Start the server from your project root and follow the assistant's instructions to register it:
 
 ```bash
-backlog mcp start
+roadmap mcp start
 ```
 
 ### Testing with MCP Inspector
@@ -108,11 +108,11 @@ Use the Inspector tooling when you want to exercise the stdio server outside an 
 2. Choose **STDIO** transport.
 3. Fill the connection fields exactly as follows:
    - **Command**: `bun`
-   - **Arguments** (enter each item separately): `--cwd`, `/Users/<you>/Projects/Backlog.md`, `src/cli.ts`, `mcp`, `start`
+   - **Arguments** (enter each item separately): `--cwd`, `/Users/<you>/Projects/agentRoadmap.md`, `src/cli.ts`, `mcp`, `start`
    - Remove any proxy token; it is not needed for local stdio.
 4. Connect and use the tools/resources panes to issue MCP requests.
 
-> Replace `/Users/<you>/Projects/Backlog.md` with the absolute path to your local Backlog.md checkout.
+> Replace `/Users/<you>/Projects/agentRoadmap.md` with the absolute path to your local agentRoadmap.md checkout.
 
 `bun run mcp` by itself prints Bun's `$ bun …` preamble, which breaks the Inspector’s JSON parser. If you prefer using the package script here, add `--silent` so the startup log disappears:
 
@@ -121,7 +121,7 @@ Command: bun
 Arguments: run, --silent, mcp
 ```
 
-> Remember to substitute your own project directory for `/Users/<you>/Projects/Backlog.md`.
+> Remember to substitute your own project directory for `/Users/<you>/Projects/agentRoadmap.md`.
 
 #### CLI workflow (`npx @modelcontextprotocol/inspector-cli`)
 
@@ -132,7 +132,7 @@ npx @modelcontextprotocol/inspector-cli \
   --cli \
   --transport stdio \
   --method tools/list \
-  -- bun --cwd /Users/<you>/Projects/Backlog.md src/cli.ts mcp start
+  -- bun --cwd /Users/<you>/Projects/agentRoadmap.md src/cli.ts mcp start
 ```
 
 The key detail in both flows is to call `src/cli.ts mcp start` directly (or `bun run --silent mcp`) so stdout stays pure JSON for the MCP handshake.
@@ -143,7 +143,7 @@ The key detail in both flows is to call `src/cli.ts mcp start` directly (or `bun
 ### Project Structure
 
 ```
-backlog.md/
+roadmap.md/
 ├── src/
 │   ├── mcp/
 │   │   ├── errors/          # MCP error helpers
@@ -159,7 +159,7 @@ backlog.md/
 
 ## Release
 
-Backlog.md now relies on npm Trusted Publishing with GitHub Actions OIDC. The
+agentRoadmap.md now relies on npm Trusted Publishing with GitHub Actions OIDC. The
 release workflow builds binaries, publishes all npm packages, and records
 provenance automatically. Follow the steps below to keep the setup healthy.
 
@@ -170,10 +170,10 @@ provenance automatically. Follow the steps below to keep the setup healthy.
   `package.json` files to match the tag, so you do **not** need to edit the
   version field manually.
 - In npm's **Trusted publishers** settings, link the
-  `MrLesk/Backlog.md` repository and the `Release multi-platform executables`
-  workflow for each package: `backlog.md`,
-  `backlog.md-linux-{x64,arm64}`, `backlog.md-darwin-{x64,arm64}`, and
-  `backlog.md-windows-x64`.
+  `MrLesk/agentRoadmap.md` repository and the `Release multi-platform executables`
+  workflow for each package: `roadmap.md`,
+  `roadmap.md-linux-{x64,arm64}`, `roadmap.md-darwin-{x64,arm64}`, and
+  `roadmap.md-windows-x64`.
 - Remove the legacy `NODE_AUTH_TOKEN` repository secret. Publishing now uses
   the GitHub-issued OIDC token, so no long-lived npm tokens should remain.
 - The workflow activates `npm@latest` (currently 11.6.0 as of 2025-09-18) via

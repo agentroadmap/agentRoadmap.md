@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -23,13 +23,13 @@ describe("Tab switching functionality", () => {
 		core = new Core(TEST_DIR);
 		await core.initializeProject("Test Tab Switching Project");
 
-		// Create test tasks
-		const tasksDir = core.filesystem.tasksDir;
+		// Create test states
+		const statesDir = core.filesystem.statesDir;
 		await writeFile(
-			join(tasksDir, "task-1 - Test Task.md"),
+			join(statesDir, "state-1 - Test State.md"),
 			`---
-id: task-1
-title: Test Task
+id: state-1
+title: Test State
 status: To Do
 assignee: []
 created_date: '2025-07-05'
@@ -39,7 +39,7 @@ dependencies: []
 
 ## Description
 
-Test task for tab switching.`,
+Test state for tab switching.`,
 		);
 	});
 
@@ -51,42 +51,42 @@ Test task for tab switching.`,
 		}
 	});
 
-	describe("Unified Task domain", () => {
-		it("should use unified Task interface everywhere", async () => {
-			// Load tasks
-			const tasks = await core.filesystem.listTasks();
-			expect(tasks.length).toBe(1);
+	describe("Unified State domain", () => {
+		it("should use unified State interface everywhere", async () => {
+			// Load states
+			const states = await core.filesystem.listStates();
+			expect(states.length).toBe(1);
 
-			const task = tasks[0];
-			expect(task).toBeDefined();
+			const state = states[0];
+			expect(state).toBeDefined();
 
-			if (!task) return;
+			if (!state) return;
 
-			// Verify Task has all the expected fields (including metadata fields)
-			expect(task.id).toBeDefined();
-			expect(task.title).toBeDefined();
-			expect(task.status).toBeDefined();
-			expect(task.assignee).toBeDefined();
-			expect(task.labels).toBeDefined();
-			expect(task.dependencies).toBeDefined();
+			// Verify State has all the expected fields (including metadata fields)
+			expect(state.id).toBeDefined();
+			expect(state.title).toBeDefined();
+			expect(state.status).toBeDefined();
+			expect(state.assignee).toBeDefined();
+			expect(state.labels).toBeDefined();
+			expect(state.dependencies).toBeDefined();
 
 			// Metadata fields should be optional and available
-			expect(typeof task.source).toBe("undefined"); // Not set for local tasks loaded from filesystem
-			expect(typeof task.lastModified).toBe("undefined"); // Not set for basic loaded tasks
+			expect(typeof state.source).toBe("undefined"); // Not set for local states loaded from filesystem
+			expect(typeof state.lastModified).toBe("undefined"); // Not set for basic loaded states
 
 			// But they should be settable
-			const taskWithMetadata = {
-				...task,
+			const stateWithMetadata = {
+				...state,
 				source: "local" as const,
 				lastModified: new Date(),
 			};
 
-			expect(taskWithMetadata.source).toBe("local");
-			expect(taskWithMetadata.lastModified).toBeInstanceOf(Date);
+			expect(stateWithMetadata.source).toBe("local");
+			expect(stateWithMetadata.lastModified).toBeInstanceOf(Date);
 		});
 
 		it("should handle runUnifiedView with preloaded kanban data", async () => {
-			const tasks = await core.filesystem.listTasks();
+			const states = await core.filesystem.listStates();
 
 			// Test that runUnifiedView accepts the correct parameters without actually running the UI
 			expect(() => {
@@ -94,9 +94,9 @@ Test task for tab switching.`,
 				const options = {
 					core,
 					initialView: "kanban" as const,
-					tasks,
+					states,
 					preloadedKanbanData: {
-						tasks: tasks.map((t) => ({ ...t, source: "local" as const })),
+						states: states.map((t) => ({ ...t, source: "local" as const })),
 						statuses: ["To Do", "In Progress", "Done"],
 					},
 				};
@@ -104,22 +104,22 @@ Test task for tab switching.`,
 				// Verify the options object is valid
 				expect(options.core).toBeDefined();
 				expect(options.initialView).toBe("kanban");
-				expect(options.tasks).toBeDefined();
+				expect(options.states).toBeDefined();
 				expect(options.preloadedKanbanData).toBeDefined();
 			}).not.toThrow();
 		});
 
-		it("should handle task switching between views", async () => {
-			const tasks = await core.filesystem.listTasks();
-			expect(tasks.length).toBe(1);
+		it("should handle state switching between views", async () => {
+			const states = await core.filesystem.listStates();
+			expect(states.length).toBe(1);
 
-			const testTask = tasks[0];
+			const testState = states[0];
 
 			// Test that we can create valid options for different view types
 			const testStates = [
-				{ view: "task-list" as const, task: testTask },
-				{ view: "task-detail" as const, task: testTask },
-				{ view: "kanban" as const, task: testTask },
+				{ view: "state-list" as const, state: testState },
+				{ view: "state-detail" as const, state: testState },
+				{ view: "kanban" as const, state: testState },
 			];
 
 			for (const state of testStates) {
@@ -128,10 +128,10 @@ Test task for tab switching.`,
 					const options = {
 						core,
 						initialView: state.view,
-						selectedTask: state.task,
-						tasks,
+						selectedState: state.state,
+						states,
 						preloadedKanbanData: {
-							tasks,
+							states,
 							statuses: ["To Do"],
 						},
 					};
@@ -139,12 +139,12 @@ Test task for tab switching.`,
 					// Verify the options are valid
 					expect(options.core).toBeDefined();
 					expect(options.initialView).toBe(state.view);
-					if (state.task) {
-						expect(options.selectedTask).toEqual(state.task);
+					if (state.state) {
+						expect(options.selectedState).toEqual(state.state);
 					} else {
-						expect(options.selectedTask).toBeNull();
+						expect(options.selectedState).toBeNull();
 					}
-					expect(options.tasks).toBeDefined();
+					expect(options.states).toBeDefined();
 					expect(options.preloadedKanbanData).toBeDefined();
 				}).not.toThrow();
 			}

@@ -1,4 +1,4 @@
-import type { BacklogConfig } from "../../../types/index.ts";
+import type { RoadmapConfig } from "../../../types/index.ts";
 import type { McpServer } from "../../server.ts";
 import type { McpToolHandler } from "../../types.ts";
 import { createSimpleValidatedTool } from "../../validation/tool-wrapper.ts";
@@ -18,13 +18,13 @@ import {
 	documentViewSchema,
 } from "./schemas.ts";
 
-export function registerDocumentTools(server: McpServer, _config: BacklogConfig): void {
+export function registerDocumentTools(server: McpServer, _config: RoadmapConfig): void {
 	const handlers = new DocumentHandlers(server);
 
 	const listDocumentsTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "document_list",
-			description: "List Backlog.md documents with optional substring filtering",
+			description: "List Roadmap.md documents with optional substring filtering",
 			inputSchema: documentListSchema,
 		},
 		documentListSchema,
@@ -34,7 +34,7 @@ export function registerDocumentTools(server: McpServer, _config: BacklogConfig)
 	const viewDocumentTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "document_view",
-			description: "View a Backlog.md document including metadata and markdown content",
+			description: "View a Roadmap.md document including metadata and markdown content",
 			inputSchema: documentViewSchema,
 		},
 		documentViewSchema,
@@ -44,7 +44,7 @@ export function registerDocumentTools(server: McpServer, _config: BacklogConfig)
 	const createDocumentTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "document_create",
-			description: "Create a Backlog.md document using the shared ID generator",
+			description: "Create a Roadmap.md document using the shared ID generator",
 			inputSchema: documentCreateSchema,
 		},
 		documentCreateSchema,
@@ -54,7 +54,7 @@ export function registerDocumentTools(server: McpServer, _config: BacklogConfig)
 	const updateDocumentTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "document_update",
-			description: "Update an existing Backlog.md document's content and optional title",
+			description: "Update an existing Roadmap.md document's content and optional title",
 			inputSchema: documentUpdateSchema,
 		},
 		documentUpdateSchema,
@@ -64,7 +64,7 @@ export function registerDocumentTools(server: McpServer, _config: BacklogConfig)
 	const searchDocumentTool: McpToolHandler = createSimpleValidatedTool(
 		{
 			name: "document_search",
-			description: "Search Backlog.md documents using the shared fuzzy index",
+			description: "Search Roadmap.md documents using the shared fuzzy index",
 			inputSchema: documentSearchSchema,
 		},
 		documentSearchSchema,

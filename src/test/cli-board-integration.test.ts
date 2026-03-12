@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -30,13 +30,13 @@ describe("CLI Board Integration", () => {
 			await core.filesystem.saveConfig(config);
 		}
 
-		// Create test tasks
-		const tasksDir = core.filesystem.tasksDir;
+		// Create test states
+		const statesDir = core.filesystem.statesDir;
 		await writeFile(
-			join(tasksDir, "task-1 - Board Test Task.md"),
+			join(statesDir, "state-1 - Board Test State.md"),
 			`---
-id: task-1
-title: Board Test Task
+id: state-1
+title: Board Test State
 status: To Do
 assignee: []
 created_date: '2025-07-05'
@@ -46,12 +46,12 @@ dependencies: []
 
 ## Description
 
-Test task for board CLI integration.`,
+Test state for board CLI integration.`,
 		);
 	});
 
 	afterEach(async () => {
-		// Wait a bit to ensure any background operations from listTasksWithMetadata complete
+		// Wait a bit to ensure any background operations from listStatesWithMetadata complete
 		await new Promise((resolve) => setTimeout(resolve, 100));
 		try {
 			await safeCleanup(TEST_DIR);
@@ -65,34 +65,34 @@ Test task for board CLI integration.`,
 		const config = await core.filesystem.loadConfig();
 		const statuses = config?.statuses || [];
 
-		// Load tasks like the CLI does
-		const [localTasks, _remoteTasks] = await Promise.all([
-			core.listTasksWithMetadata(),
-			// Remote tasks would normally be loaded but will fail in test env - that's OK
+		// Load states like the CLI does
+		const [localStates, _remoteStates] = await Promise.all([
+			core.listStatesWithMetadata(),
+			// Remote states would normally be loaded but will fail in test env - that's OK
 			Promise.resolve([]),
 		]);
 
 		// Verify basic functionality
-		expect(localTasks.length).toBe(1);
-		expect(localTasks[0]?.id).toBe("TASK-1");
-		expect(localTasks[0]?.status).toBe("To Do");
+		expect(localStates.length).toBe(1);
+		expect(localStates[0]?.id).toBe("STATE-1");
+		expect(localStates[0]?.status).toBe("To Do");
 		expect(statuses).toContain("To Do");
 
-		// Test that we can create the task map
-		const tasksById = new Map(localTasks.map((t) => [t.id, { ...t, source: "local" as const }]));
-		expect(tasksById.size).toBe(1);
-		expect(tasksById.get("TASK-1")?.title).toBe("Board Test Task");
+		// Test that we can create the state map
+		const statesById = new Map(localStates.map((t) => [t.id, { ...t, source: "local" as const }]));
+		expect(statesById.size).toBe(1);
+		expect(statesById.get("STATE-1")?.title).toBe("Board Test State");
 	});
 
-	it("should properly handle cross-branch task resolution", async () => {
+	it("should properly handle cross-branch state resolution", async () => {
 		// Test the function that was missing filesystem parameter
-		const { getLatestTaskStatesForIds } = await import("../core/cross-branch-tasks.ts");
+		const { getLatestStateStatesForIds } = await import("../core/cross-branch-states.ts");
 
-		const tasks = await core.filesystem.listTasks();
-		const taskIds = tasks.map((t) => t.id);
+		const states = await core.filesystem.listStates();
+		const stateIds = states.map((t) => t.id);
 
 		// This should not throw "fs is not defined" or parameter errors
-		const result = await getLatestTaskStatesForIds(core.gitOps, core.filesystem, taskIds);
+		const result = await getLatestStateStatesForIds(core.gitOps, core.filesystem, stateIds);
 
 		expect(result).toBeInstanceOf(Map);
 		// The result may be empty in test environment without branches, but it shouldn't crash
@@ -105,7 +105,7 @@ Test task for board CLI integration.`,
 		const initialState = {
 			type: "kanban" as const,
 			kanbanData: {
-				tasks: [],
+				states: [],
 				statuses: [],
 				isLoading: true,
 			},
@@ -131,7 +131,7 @@ Test task for board CLI integration.`,
 			const config = await core.filesystem.loadConfig();
 			const statuses = config?.statuses || ["To Do", "In Progress"];
 			return {
-				tasks: await core.filesystem.listTasks(),
+				states: await core.filesystem.listStates(),
 				statuses: statuses || [],
 			};
 		};
@@ -139,7 +139,7 @@ Test task for board CLI integration.`,
 		// Test that getKanbanData method exists and can be called
 		const kanbanData = await viewSwitcher.getKanbanData();
 		expect(kanbanData).toBeDefined();
-		expect(Array.isArray(kanbanData.tasks)).toBe(true);
+		expect(Array.isArray(kanbanData.states)).toBe(true);
 		expect(Array.isArray(kanbanData.statuses)).toBe(true);
 
 		// Clean up again to be sure

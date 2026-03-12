@@ -13,7 +13,7 @@ export async function generateNextDocId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const roadmapDir = DEFAULT_DIRECTORIES.ROADMAP;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -28,7 +28,7 @@ export async function generateNextDocId(core: Core): Promise<string> {
 
 		// Load files from all branches in parallel
 		const branchFilePromises = branches.map(async (branch) => {
-			const files = await core.gitOps.listFilesInTree(branch, `${backlogDir}/docs`);
+			const files = await core.gitOps.listFilesInTree(branch, `${roadmapDir}/docs`);
 			return files
 				.map((file) => {
 					const match = file.match(/doc-(\d+)/);
@@ -86,7 +86,7 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 	const allIds: string[] = [];
 
 	try {
-		const backlogDir = DEFAULT_DIRECTORIES.BACKLOG;
+		const roadmapDir = DEFAULT_DIRECTORIES.ROADMAP;
 
 		// Skip remote operations if disabled
 		if (config?.remoteOperations === false) {
@@ -101,7 +101,7 @@ export async function generateNextDecisionId(core: Core): Promise<string> {
 
 		// Load files from all branches in parallel
 		const branchFilePromises = branches.map(async (branch) => {
-			const files = await core.gitOps.listFilesInTree(branch, `${backlogDir}/decisions`);
+			const files = await core.gitOps.listFilesInTree(branch, `${roadmapDir}/decisions`);
 			return files
 				.map((file) => {
 					const match = file.match(/decision-(\d+)/);

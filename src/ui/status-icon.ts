@@ -7,7 +7,7 @@ export interface StatusStyle {
 
 /**
  * Get the icon and color for a given status
- * @param status - The task status
+ * @param status - The state status
  * @returns The icon and color for the status
  */
 export function getStatusStyle(status: string): StatusStyle {
@@ -26,7 +26,7 @@ export function getStatusStyle(status: string): StatusStyle {
 
 /**
  * Get just the color for a status (for backward compatibility)
- * @param status - The task status
+ * @param status - The state status
  * @returns The color for the status
  */
 export function getStatusColor(status: string): string {
@@ -35,7 +35,7 @@ export function getStatusColor(status: string): string {
 
 /**
  * Get just the icon for a status
- * @param status - The task status
+ * @param status - The state status
  * @returns The icon for the status
  */
 export function getStatusIcon(status: string): string {
@@ -44,7 +44,7 @@ export function getStatusIcon(status: string): string {
 
 /**
  * Format a status with its icon
- * @param status - The task status
+ * @param status - The state status
  * @returns The formatted status string with icon
  */
 export function formatStatusWithIcon(status: string): string {

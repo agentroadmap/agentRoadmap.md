@@ -1,22 +1,22 @@
-import type { TaskStatistics } from "../../core/statistics.ts";
+import type { StateStatistics } from "../../core/statistics.ts";
 import type {
-	BacklogConfig,
+	RoadmapConfig,
 	Decision,
 	Document,
 	Milestone,
 	SearchPriorityFilter,
 	SearchResult,
 	SearchResultType,
-	Task,
-	TaskStatus,
+	State,
+	StateStatus,
 } from "../../types/index.ts";
 
 const API_BASE = "/api";
 
-export interface ReorderTaskPayload {
-	taskId: string;
+export interface ReorderStatePayload {
+	stateId: string;
 	targetStatus: string;
-	orderedTaskIds: string[];
+	orderedStateIds: string[];
 	targetMilestone?: string | null;
 }
 
@@ -126,14 +126,14 @@ export class ApiClient {
 		const response = await this.fetchWithRetry(url, options);
 		return response.json();
 	}
-	async fetchTasks(options?: {
+	async fetchStates(options?: {
 		status?: string;
 		assignee?: string;
 		parent?: string;
 		priority?: SearchPriorityFilter;
 		labels?: string[];
 		crossBranch?: boolean;
-	}): Promise<Task[]> {
+	}): Promise<State[]> {
 		const params = new URLSearchParams();
 		if (options?.status) params.append("status", options.status);
 		if (options?.assignee) params.append("assignee", options.assignee);
@@ -149,8 +149,8 @@ export class ApiClient {
 		// Default to true for cross-branch loading to match TUI behavior
 		if (options?.crossBranch !== false) params.append("crossBranch", "true");
 
-		const url = `${API_BASE}/tasks${params.toString() ? `?${params.toString()}` : ""}`;
-		return this.fetchJson<Task[]>(url);
+		const url = `${API_BASE}/states${params.toString() ? `?${params.toString()}` : ""}`;
+		return this.fetchJson<State[]>(url);
 	}
 
 	async search(
@@ -199,73 +199,73 @@ export class ApiClient {
 		return this.fetchJson<SearchResult[]>(url);
 	}
 
-	async fetchTask(id: string): Promise<Task> {
-		return this.fetchJson<Task>(`${API_BASE}/task/${id}`);
+	async fetchState(id: string): Promise<State> {
+		return this.fetchJson<State>(`${API_BASE}/state/${id}`);
 	}
 
-	async createTask(task: Omit<Task, "id" | "createdDate">): Promise<Task> {
-		return this.fetchJson<Task>(`${API_BASE}/tasks`, {
+	async createState(state: Omit<State, "id" | "createdDate">): Promise<State> {
+		return this.fetchJson<State>(`${API_BASE}/states`, {
 			method: "POST",
-			body: JSON.stringify(task),
+			body: JSON.stringify(state),
 		});
 	}
 
-	async updateTask(
+	async updateState(
 		id: string,
-		updates: Omit<Partial<Task>, "milestone"> & { milestone?: string | null },
-	): Promise<Task> {
-		return this.fetchJson<Task>(`${API_BASE}/tasks/${id}`, {
+		updates: Omit<Partial<State>, "milestone"> & { milestone?: string | null },
+	): Promise<State> {
+		return this.fetchJson<State>(`${API_BASE}/states/${id}`, {
 			method: "PUT",
 			body: JSON.stringify(updates),
 		});
 	}
 
-	async reorderTask(payload: ReorderTaskPayload): Promise<{ success: boolean; task: Task }> {
-		return this.fetchJson<{ success: boolean; task: Task }>(`${API_BASE}/tasks/reorder`, {
+	async reorderState(payload: ReorderStatePayload): Promise<{ success: boolean; state: State }> {
+		return this.fetchJson<{ success: boolean; state: State }>(`${API_BASE}/states/reorder`, {
 			method: "POST",
 			body: JSON.stringify(payload),
 		});
 	}
 
-	async archiveTask(id: string): Promise<void> {
-		await this.fetchWithRetry(`${API_BASE}/tasks/${id}`, {
+	async archiveState(id: string): Promise<void> {
+		await this.fetchWithRetry(`${API_BASE}/states/${id}`, {
 			method: "DELETE",
 		});
 	}
 
-	async completeTask(id: string): Promise<void> {
-		await this.fetchWithRetry(`${API_BASE}/tasks/${id}/complete`, {
+	async completeState(id: string): Promise<void> {
+		await this.fetchWithRetry(`${API_BASE}/states/${id}/complete`, {
 			method: "POST",
 		});
 	}
 
 	async getCleanupPreview(age: number): Promise<{
 		count: number;
-		tasks: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
+		states: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
 	}> {
 		return this.fetchJson<{
 			count: number;
-			tasks: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
-		}>(`${API_BASE}/tasks/cleanup?age=${age}`);
+			states: Array<{ id: string; title: string; updatedDate?: string; createdDate: string }>;
+		}>(`${API_BASE}/states/cleanup?age=${age}`);
 	}
 
 	async executeCleanup(
 		age: number,
-	): Promise<{ success: boolean; movedCount: number; totalCount: number; message: string; failedTasks?: string[] }> {
+	): Promise<{ success: boolean; movedCount: number; totalCount: number; message: string; failedStates?: string[] }> {
 		return this.fetchJson<{
 			success: boolean;
 			movedCount: number;
 			totalCount: number;
 			message: string;
-			failedTasks?: string[];
-		}>(`${API_BASE}/tasks/cleanup/execute`, {
+			failedStates?: string[];
+		}>(`${API_BASE}/states/cleanup/execute`, {
 			method: "POST",
 			body: JSON.stringify({ age }),
 		});
 	}
 
-	async updateTaskStatus(id: string, status: TaskStatus): Promise<Task> {
-		return this.updateTask(id, { status });
+	async updateStateStatus(id: string, status: StateStatus): Promise<State> {
+		return this.updateState(id, { status });
 	}
 
 	async fetchStatuses(): Promise<string[]> {
@@ -276,7 +276,7 @@ export class ApiClient {
 		return response.json();
 	}
 
-	async fetchConfig(): Promise<BacklogConfig> {
+	async fetchConfig(): Promise<RoadmapConfig> {
 		const response = await fetch(`${API_BASE}/config`);
 		if (!response.ok) {
 			throw new Error("Failed to fetch config");
@@ -284,7 +284,7 @@ export class ApiClient {
 		return response.json();
 	}
 
-	async updateConfig(config: BacklogConfig): Promise<BacklogConfig> {
+	async updateConfig(config: RoadmapConfig): Promise<RoadmapConfig> {
 		const response = await fetch(`${API_BASE}/config`, {
 			method: "PUT",
 			headers: {
@@ -456,10 +456,10 @@ export class ApiClient {
 	}
 
 	async fetchStatistics(): Promise<
-		TaskStatistics & { statusCounts: Record<string, number>; priorityCounts: Record<string, number> }
+		StateStatistics & { statusCounts: Record<string, number>; priorityCounts: Record<string, number> }
 	> {
 		return this.fetchJson<
-			TaskStatistics & { statusCounts: Record<string, number>; priorityCounts: Record<string, number> }
+			StateStatistics & { statusCounts: Record<string, number>; priorityCounts: Record<string, number> }
 		>(`${API_BASE}/statistics`);
 	}
 
@@ -480,7 +480,7 @@ export class ApiClient {
 			bypassGitHooks?: boolean;
 			autoCommit?: boolean;
 			zeroPaddedIds?: number;
-			taskPrefix?: string;
+			statePrefix?: string;
 			defaultEditor?: string;
 			defaultPort?: number;
 			autoOpenBrowser?: boolean;

@@ -1,21 +1,21 @@
 import { dirname, join } from "node:path";
 import type { Server, ServerWebSocket } from "bun";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import type { ContentStore } from "../core/content-store.ts";
 import { initializeProject } from "../core/init.ts";
 import type { SearchService } from "../core/search-service.ts";
-import { getTaskStatistics } from "../core/statistics.ts";
-import type { SearchPriorityFilter, SearchResultType, Task, TaskUpdateInput } from "../types/index.ts";
+import { getStateStatistics } from "../core/statistics.ts";
+import type { SearchPriorityFilter, SearchResultType, State, StateUpdateInput } from "../types/index.ts";
 import { watchConfig } from "../utils/config-watcher.ts";
 import { getVersion } from "../utils/version.ts";
 
 // Regex pattern to match any prefix (letters followed by dash)
 const PREFIX_PATTERN = /^[a-zA-Z]+-/i;
-const DEFAULT_PREFIX = "task-";
+const DEFAULT_PREFIX = "state-";
 
 /**
- * Strip any prefix from an ID (e.g., "task-123" -> "123", "JIRA-456" -> "456")
+ * Strip any prefix from an ID (e.g., "state-123" -> "123", "JIRA-456" -> "456")
  */
 function stripPrefix(id: string): string {
 	return id.replace(PREFIX_PATTERN, "");
@@ -23,7 +23,7 @@ function stripPrefix(id: string): string {
 
 /**
  * Ensure an ID has a prefix. If it already has one, return as-is.
- * Otherwise, add the default "task-" prefix.
+ * Otherwise, add the default "state-" prefix.
  */
 function ensurePrefix(id: string): string {
 	if (PREFIX_PATTERN.test(id)) {
@@ -32,7 +32,7 @@ function ensurePrefix(id: string): string {
 	return `${DEFAULT_PREFIX}${id}`;
 }
 
-function parseTaskIdSegments(value: string): number[] | null {
+function parseStateIdSegments(value: string): number[] | null {
 	const withoutPrefix = stripPrefix(value);
 	if (!/^[0-9]+(?:\.[0-9]+)*$/.test(withoutPrefix)) {
 		return null;
@@ -40,22 +40,22 @@ function parseTaskIdSegments(value: string): number[] | null {
 	return withoutPrefix.split(".").map((segment) => Number.parseInt(segment, 10));
 }
 
-function findTaskByLooseId(tasks: Task[], inputId: string): Task | undefined {
+function findStateByLooseId(states: State[], inputId: string): State | undefined {
 	// First try exact match (case-insensitive)
 	const lowerInputId = inputId.toLowerCase();
-	const exact = tasks.find((task) => task.id.toLowerCase() === lowerInputId);
+	const exact = states.find((state) => state.id.toLowerCase() === lowerInputId);
 	if (exact) {
 		return exact;
 	}
 
 	// Try matching by numeric segments only
-	const inputSegments = parseTaskIdSegments(inputId);
+	const inputSegments = parseStateIdSegments(inputId);
 	if (!inputSegments) {
 		return undefined;
 	}
 
-	return tasks.find((task) => {
-		const candidateSegments = parseTaskIdSegments(task.id);
+	return states.find((state) => {
+		const candidateSegments = parseStateIdSegments(state.id);
 		if (!candidateSegments || candidateSegments.length !== inputSegments.length) {
 			return false;
 		}
@@ -72,7 +72,7 @@ function findTaskByLooseId(tasks: Task[], inputId: string): Task | undefined {
 import favicon from "../web/favicon.png" with { type: "file" };
 import indexHtml from "../web/index.html";
 
-export class BacklogServer {
+export class RoadmapServer {
 	private core: Core;
 	private server: Server<unknown> | null = null;
 	private projectName = "Untitled Project";
@@ -220,13 +220,13 @@ export class BacklogServer {
 						this.storeReadyBroadcasted = true;
 						return;
 					}
-					this.broadcastTasksUpdated();
+					this.broadcastStatesUpdated();
 					return;
 				}
 
-				// Broadcast for tasks/documents/decisions so clients refresh caches/search
+				// Broadcast for states/documents/decisions so clients refresh caches/search
 				this.storeReadyBroadcasted = true;
-				this.broadcastTasksUpdated();
+				this.broadcastStatesUpdated();
 			});
 		}
 
@@ -254,10 +254,10 @@ export class BacklogServer {
 		return this.server?.port ?? null;
 	}
 
-	private broadcastTasksUpdated() {
+	private broadcastStatesUpdated() {
 		for (const ws of this.sockets) {
 			try {
-				ws.send("tasks-updated");
+				ws.send("states-updated");
 			} catch {}
 		}
 	}
@@ -301,7 +301,7 @@ export class BacklogServer {
 				development: process.env.NODE_ENV === "development",
 				routes: {
 					"/": indexHtml,
-					"/tasks": indexHtml,
+					"/states": indexHtml,
 					"/milestones": indexHtml,
 					"/drafts": indexHtml,
 					"/documentation": indexHtml,
@@ -312,20 +312,20 @@ export class BacklogServer {
 					"/settings": indexHtml,
 
 					// API Routes using Bun's native route syntax
-					"/api/tasks": {
-						GET: async (req: Request) => await this.handleListTasks(req),
-						POST: async (req: Request) => await this.handleCreateTask(req),
+					"/api/states": {
+						GET: async (req: Request) => await this.handleListStates(req),
+						POST: async (req: Request) => await this.handleCreateState(req),
 					},
-					"/api/task/:id": {
-						GET: async (req: Request & { params: { id: string } }) => await this.handleGetTask(req.params.id),
+					"/api/state/:id": {
+						GET: async (req: Request & { params: { id: string } }) => await this.handleGetState(req.params.id),
 					},
-					"/api/tasks/:id": {
-						GET: async (req: Request & { params: { id: string } }) => await this.handleGetTask(req.params.id),
-						PUT: async (req: Request & { params: { id: string } }) => await this.handleUpdateTask(req, req.params.id),
-						DELETE: async (req: Request & { params: { id: string } }) => await this.handleDeleteTask(req.params.id),
+					"/api/states/:id": {
+						GET: async (req: Request & { params: { id: string } }) => await this.handleGetState(req.params.id),
+						PUT: async (req: Request & { params: { id: string } }) => await this.handleUpdateState(req, req.params.id),
+						DELETE: async (req: Request & { params: { id: string } }) => await this.handleDeleteState(req.params.id),
 					},
-					"/api/tasks/:id/complete": {
-						POST: async (req: Request & { params: { id: string } }) => await this.handleCompleteTask(req.params.id),
+					"/api/states/:id/complete": {
+						POST: async (req: Request & { params: { id: string } }) => await this.handleCompleteState(req.params.id),
 					},
 					"/api/statuses": {
 						GET: async () => await this.handleGetStatuses(),
@@ -376,13 +376,13 @@ export class BacklogServer {
 					"/api/milestones/:id/archive": {
 						POST: async (req: Request & { params: { id: string } }) => await this.handleArchiveMilestone(req.params.id),
 					},
-					"/api/tasks/reorder": {
-						POST: async (req: Request) => await this.handleReorderTask(req),
+					"/api/states/reorder": {
+						POST: async (req: Request) => await this.handleReorderState(req),
 					},
-					"/api/tasks/cleanup": {
+					"/api/states/cleanup": {
 						GET: async (req: Request) => await this.handleCleanupPreview(req),
 					},
-					"/api/tasks/cleanup/execute": {
+					"/api/states/cleanup/execute": {
 						POST: async (req: Request) => await this.handleCleanupExecute(req),
 					},
 					"/api/version": {
@@ -412,7 +412,7 @@ export class BacklogServer {
 					"/api/sequences/move": {
 						POST: async (req: Request) => await this.handleMoveSequence(req),
 					},
-					// Serve files placed under backlog/assets at /assets/<relative-path>
+					// Serve files placed under roadmap/assets at /assets/<relative-path>
 					"/assets/*": {
 						GET: async (req: Request) => await this.handleAssetRequest(req),
 					},
@@ -446,7 +446,7 @@ export class BacklogServer {
 			this.server = Bun.serve(serveOptions as unknown as Parameters<typeof Bun.serve>[0]);
 
 			const url = `http://localhost:${finalPort}`;
-			console.log(`🚀 Backlog.md browser interface running at ${url}`);
+			console.log(`🚀 Roadmap.md browser interface running at ${url}`);
 			console.log(`📊 Project: ${this.projectName}`);
 			const stopKey = process.platform === "darwin" ? "Cmd+C" : "Ctrl+C";
 			console.log(`⏹️  Press ${stopKey} to stop the server`);
@@ -464,7 +464,7 @@ export class BacklogServer {
 			if (errorCode === "EADDRINUSE" || errorMessage?.includes("address already in use")) {
 				console.error(`\n❌ Error: Port ${finalPort} is already in use.\n`);
 				console.log("💡 Suggestions:");
-				console.log(`   1. Try a different port: backlog browser --port ${finalPort + 1}`);
+				console.log(`   1. Try a different port: roadmap browser --port ${finalPort + 1}`);
 				console.log(`   2. Find what's using port ${finalPort}:`);
 				if (process.platform === "darwin" || process.platform === "linux") {
 					console.log(`      Run: lsof -i :${finalPort}`);
@@ -561,16 +561,16 @@ export class BacklogServer {
 			const prefix = "/assets/";
 			if (!pathname.startsWith(prefix)) return new Response("Not Found", { status: 404 });
 
-			// Path relative to backlog/assets
+			// Path relative to roadmap/assets
 			const relPath = pathname.slice(prefix.length);
 
 			// disallow traversal
 			if (relPath.includes("..")) return new Response("Not Found", { status: 404 });
 
-			// derive backlog root from docsDir (parent of backlog/docs)
+			// derive roadmap root from docsDir (parent of roadmap/docs)
 			const docsDir = this.core.filesystem.docsDir;
-			const backlogRoot = dirname(docsDir);
-			const assetsRoot = join(backlogRoot, "assets");
+			const roadmapRoot = dirname(docsDir);
+			const assetsRoot = join(roadmapRoot, "assets");
 			const filePath = join(assetsRoot, relPath);
 
 			if (!filePath.startsWith(assetsRoot)) return new Response("Not Found", { status: 404 });
@@ -626,8 +626,8 @@ export class BacklogServer {
 		return new Response("Not Found", { status: 404 });
 	}
 
-	// Task handlers
-	private async handleListTasks(req: Request): Promise<Response> {
+	// State handlers
+	private async handleListStates(req: Request): Promise<Response> {
 		const url = new URL(req.url);
 		const status = url.searchParams.get("status") || undefined;
 		const assignee = url.searchParams.get("assignee") || undefined;
@@ -651,34 +651,34 @@ export class BacklogServer {
 			priority = normalizedPriority as "high" | "medium" | "low";
 		}
 
-		// Resolve parent task ID if provided
-		let parentTaskId: string | undefined;
+		// Resolve parent state ID if provided
+		let parentStateId: string | undefined;
 		if (parent) {
 			const store = await this.getContentStoreInstance();
-			const allTasks = store.getTasks();
-			let parentTask = findTaskByLooseId(allTasks, parent);
-			if (!parentTask) {
+			const allStates = store.getStates();
+			let parentState = findStateByLooseId(allStates, parent);
+			if (!parentState) {
 				const fallbackId = ensurePrefix(parent);
-				const fallback = await this.core.filesystem.loadTask(fallbackId);
+				const fallback = await this.core.filesystem.loadState(fallbackId);
 				if (fallback) {
-					store.upsertTask(fallback);
-					parentTask = fallback;
+					store.upsertState(fallback);
+					parentState = fallback;
 				}
 			}
-			if (!parentTask) {
+			if (!parentState) {
 				const normalizedParent = ensurePrefix(parent);
-				return Response.json({ error: `Parent task ${normalizedParent} not found` }, { status: 404 });
+				return Response.json({ error: `Parent state ${normalizedParent} not found` }, { status: 404 });
 			}
-			parentTaskId = parentTask.id;
+			parentStateId = parentState.id;
 		}
 
-		// Use Core.queryTasks which handles all filtering and cross-branch logic
-		const tasks = await this.core.queryTasks({
-			filters: { status, assignee, priority, parentTaskId, labels: labels.length > 0 ? labels : undefined },
+		// Use Core.queryStates which handles all filtering and cross-branch logic
+		const states = await this.core.queryStates({
+			filters: { status, assignee, priority, parentStateId, labels: labels.length > 0 ? labels : undefined },
 			includeCrossBranch: crossBranch,
 		});
 
-		return Response.json(tasks);
+		return Response.json(states);
 	}
 
 	private async handleSearch(req: Request): Promise<Response> {
@@ -707,14 +707,14 @@ export class BacklogServer {
 
 			let types: SearchResultType[] | undefined;
 			if (typeParams.length > 0) {
-				const allowed: SearchResultType[] = ["task", "document", "decision"];
+				const allowed: SearchResultType[] = ["state", "document", "decision"];
 				const normalizedTypes = typeParams
 					.map((value) => value.toLowerCase())
 					.filter((value): value is SearchResultType => {
 						return allowed.includes(value as SearchResultType);
 					});
 				if (normalizedTypes.length === 0) {
-					return Response.json({ error: "type must be task, document, or decision" }, { status: 400 });
+					return Response.json({ error: "type must be state, document, or decision" }, { status: 400 });
 				}
 				types = normalizedTypes;
 			}
@@ -762,7 +762,7 @@ export class BacklogServer {
 		}
 	}
 
-	private async handleCreateTask(req: Request): Promise<Response> {
+	private async handleCreateState(req: Request): Promise<Response> {
 		const payload = await req.json();
 
 		if (!payload || typeof payload.title !== "string" || payload.title.trim().length === 0) {
@@ -788,7 +788,7 @@ export class BacklogServer {
 			const milestone =
 				typeof payload.milestone === "string" ? await this.resolveMilestoneInput(payload.milestone) : undefined;
 
-			const { task: createdTask } = await this.core.createTaskFromInput({
+			const { state: createdState } = await this.core.createStateFromInput({
 				title: payload.title,
 				description: payload.description,
 				status: payload.status,
@@ -798,7 +798,7 @@ export class BacklogServer {
 				assignee: payload.assignee,
 				dependencies: payload.dependencies,
 				references: payload.references,
-				parentTaskId: payload.parentTaskId,
+				parentStateId: payload.parentStateId,
 				implementationPlan: payload.implementationPlan,
 				implementationNotes: payload.implementationNotes,
 				finalSummary: payload.finalSummary,
@@ -806,37 +806,37 @@ export class BacklogServer {
 				definitionOfDoneAdd,
 				disableDefinitionOfDoneDefaults,
 			});
-			return Response.json(createdTask, { status: 201 });
+			return Response.json(createdState, { status: 201 });
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to create task";
+			const message = error instanceof Error ? error.message : "Failed to create state";
 			return Response.json({ error: message }, { status: 400 });
 		}
 	}
 
-	private async handleGetTask(taskId: string): Promise<Response> {
+	private async handleGetState(stateId: string): Promise<Response> {
 		const store = await this.getContentStoreInstance();
-		const tasks = store.getTasks();
-		const task = findTaskByLooseId(tasks, taskId);
-		if (!task) {
-			const fallbackId = ensurePrefix(taskId);
-			const fallback = await this.core.filesystem.loadTask(fallbackId);
+		const states = store.getStates();
+		const state = findStateByLooseId(states, stateId);
+		if (!state) {
+			const fallbackId = ensurePrefix(stateId);
+			const fallback = await this.core.filesystem.loadState(fallbackId);
 			if (fallback) {
-				store.upsertTask(fallback);
+				store.upsertState(fallback);
 				return Response.json(fallback);
 			}
-			return Response.json({ error: "Task not found" }, { status: 404 });
+			return Response.json({ error: "State not found" }, { status: 404 });
 		}
-		return Response.json(task);
+		return Response.json(state);
 	}
 
-	private async handleUpdateTask(req: Request, taskId: string): Promise<Response> {
+	private async handleUpdateState(req: Request, stateId: string): Promise<Response> {
 		const updates = await req.json();
-		const existingTask = await this.core.filesystem.loadTask(taskId);
-		if (!existingTask) {
-			return Response.json({ error: "Task not found" }, { status: 404 });
+		const existingState = await this.core.filesystem.loadState(stateId);
+		if (!existingState) {
+			return Response.json({ error: "State not found" }, { status: 404 });
 		}
 
-		const updateInput: TaskUpdateInput = {};
+		const updateInput: StateUpdateInput = {};
 
 		if ("title" in updates && typeof updates.title === "string") {
 			updateInput.title = updates.title;
@@ -924,40 +924,40 @@ export class BacklogServer {
 		}
 
 		try {
-			const updatedTask = await this.core.updateTaskFromInput(taskId, updateInput);
-			return Response.json(updatedTask);
+			const updatedState = await this.core.updateStateFromInput(stateId, updateInput);
+			return Response.json(updatedState);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to update task";
+			const message = error instanceof Error ? error.message : "Failed to update state";
 			return Response.json({ error: message }, { status: 400 });
 		}
 	}
 
-	private async handleDeleteTask(taskId: string): Promise<Response> {
-		const success = await this.core.archiveTask(taskId);
+	private async handleDeleteState(stateId: string): Promise<Response> {
+		const success = await this.core.archiveState(stateId);
 		if (!success) {
-			return Response.json({ error: "Task not found" }, { status: 404 });
+			return Response.json({ error: "State not found" }, { status: 404 });
 		}
 		return Response.json({ success: true });
 	}
 
-	private async handleCompleteTask(taskId: string): Promise<Response> {
+	private async handleCompleteState(stateId: string): Promise<Response> {
 		try {
-			const task = await this.core.filesystem.loadTask(taskId);
-			if (!task) {
-				return Response.json({ error: "Task not found" }, { status: 404 });
+			const state = await this.core.filesystem.loadState(stateId);
+			if (!state) {
+				return Response.json({ error: "State not found" }, { status: 404 });
 			}
 
-			const success = await this.core.completeTask(taskId);
+			const success = await this.core.completeState(stateId);
 			if (!success) {
-				return Response.json({ error: "Failed to complete task" }, { status: 500 });
+				return Response.json({ error: "Failed to complete state" }, { status: 500 });
 			}
 
 			// Notify listeners to refresh
-			this.broadcastTasksUpdated();
+			this.broadcastStatesUpdated();
 			return Response.json({ success: true });
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to complete task";
-			console.error("Error completing task:", error);
+			const message = error instanceof Error ? error.message : "Failed to complete state";
+			console.error("Error completing state:", error);
 			return Response.json({ error: message }, { status: 500 });
 		}
 	}
@@ -1154,7 +1154,7 @@ export class BacklogServer {
 			}
 
 			// Notify connected clients so that they refresh configuration-dependent data (e.g., statuses)
-			this.broadcastTasksUpdated();
+			this.broadcastStatesUpdated();
 
 			return Response.json(updatedConfig);
 		} catch (error) {
@@ -1286,7 +1286,7 @@ export class BacklogServer {
 			if (!result.success) {
 				return Response.json({ error: "Milestone not found" }, { status: 404 });
 			}
-			this.broadcastTasksUpdated();
+			this.broadcastStatesUpdated();
 			return Response.json({ success: true, milestone: result.milestone ?? null });
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Failed to archive milestone";
@@ -1305,12 +1305,12 @@ export class BacklogServer {
 		}
 	}
 
-	private async handleReorderTask(req: Request): Promise<Response> {
+	private async handleReorderState(req: Request): Promise<Response> {
 		try {
 			const body = await req.json();
-			const taskId = typeof body.taskId === "string" ? body.taskId : "";
+			const stateId = typeof body.stateId === "string" ? body.stateId : "";
 			const targetStatus = typeof body.targetStatus === "string" ? body.targetStatus : "";
-			const orderedTaskIds = Array.isArray(body.orderedTaskIds) ? body.orderedTaskIds : [];
+			const orderedStateIds = Array.isArray(body.orderedStateIds) ? body.orderedStateIds : [];
 			const targetMilestone =
 				typeof body.targetMilestone === "string"
 					? body.targetMilestone
@@ -1318,30 +1318,30 @@ export class BacklogServer {
 						? null
 						: undefined;
 
-			if (!taskId || !targetStatus || orderedTaskIds.length === 0) {
+			if (!stateId || !targetStatus || orderedStateIds.length === 0) {
 				return Response.json(
-					{ error: "Missing required fields: taskId, targetStatus, and orderedTaskIds" },
+					{ error: "Missing required fields: stateId, targetStatus, and orderedStateIds" },
 					{ status: 400 },
 				);
 			}
 
-			const { updatedTask } = await this.core.reorderTask({
-				taskId,
+			const { updatedState } = await this.core.reorderState({
+				stateId,
 				targetStatus,
-				orderedTaskIds,
+				orderedStateIds,
 				targetMilestone,
-				commitMessage: `Reorder tasks in ${targetStatus}`,
+				commitMessage: `Reorder states in ${targetStatus}`,
 			});
 
-			return Response.json({ success: true, task: updatedTask });
+			return Response.json({ success: true, state: updatedState });
 		} catch (error) {
-			const message = error instanceof Error ? error.message : "Failed to reorder task";
+			const message = error instanceof Error ? error.message : "Failed to reorder state";
 			// Cross-branch and validation errors are client errors (400), not server errors (500)
 			const isCrossBranchError = message.includes("exists in branch");
 			const isValidationError = message.includes("not found") || message.includes("Missing required");
 			const status = isCrossBranchError || isValidationError ? 400 : 500;
 			if (status === 500) {
-				console.error("Error reordering task:", error);
+				console.error("Error reordering state:", error);
 			}
 			return Response.json({ error: message }, { status });
 		}
@@ -1361,20 +1361,20 @@ export class BacklogServer {
 				return Response.json({ error: "Invalid age parameter" }, { status: 400 });
 			}
 
-			// Get Done tasks older than specified days
-			const tasksToCleanup = await this.core.getDoneTasksByAge(age);
+			// Get Done states older than specified days
+			const statesToCleanup = await this.core.getDoneStatesByAge(age);
 
-			// Return preview of tasks to be cleaned up
-			const preview = tasksToCleanup.map((task) => ({
-				id: task.id,
-				title: task.title,
-				updatedDate: task.updatedDate,
-				createdDate: task.createdDate,
+			// Return preview of states to be cleaned up
+			const preview = statesToCleanup.map((state) => ({
+				id: state.id,
+				title: state.title,
+				updatedDate: state.updatedDate,
+				createdDate: state.createdDate,
 			}));
 
 			return Response.json({
 				count: preview.length,
-				tasks: preview,
+				states: preview,
 			});
 		} catch (error) {
 			console.error("Error getting cleanup preview:", error);
@@ -1395,44 +1395,44 @@ export class BacklogServer {
 				return Response.json({ error: "Invalid age parameter" }, { status: 400 });
 			}
 
-			// Get Done tasks older than specified days
-			const tasksToCleanup = await this.core.getDoneTasksByAge(ageInDays);
+			// Get Done states older than specified days
+			const statesToCleanup = await this.core.getDoneStatesByAge(ageInDays);
 
-			if (tasksToCleanup.length === 0) {
+			if (statesToCleanup.length === 0) {
 				return Response.json({
 					success: true,
 					movedCount: 0,
-					message: "No tasks to clean up",
+					message: "No states to clean up",
 				});
 			}
 
-			// Move tasks to completed folder
+			// Move states to completed folder
 			let successCount = 0;
-			const failedTasks: string[] = [];
+			const failedStates: string[] = [];
 
-			for (const task of tasksToCleanup) {
+			for (const state of statesToCleanup) {
 				try {
-					const success = await this.core.completeTask(task.id);
+					const success = await this.core.completeState(state.id);
 					if (success) {
 						successCount++;
 					} else {
-						failedTasks.push(task.id);
+						failedStates.push(state.id);
 					}
 				} catch (error) {
-					console.error(`Failed to complete task ${task.id}:`, error);
-					failedTasks.push(task.id);
+					console.error(`Failed to complete state ${state.id}:`, error);
+					failedStates.push(state.id);
 				}
 			}
 
 			// Notify listeners to refresh
-			this.broadcastTasksUpdated();
+			this.broadcastStatesUpdated();
 
 			return Response.json({
 				success: true,
 				movedCount: successCount,
-				totalCount: tasksToCleanup.length,
-				failedTasks: failedTasks.length > 0 ? failedTasks : undefined,
-				message: `Moved ${successCount} of ${tasksToCleanup.length} tasks to completed folder`,
+				totalCount: statesToCleanup.length,
+				failedStates: failedStates.length > 0 ? failedStates : undefined,
+				message: `Moved ${successCount} of ${statesToCleanup.length} states to completed folder`,
 			});
 		} catch (error) {
 			console.error("Error executing cleanup:", error);
@@ -1449,14 +1449,14 @@ export class BacklogServer {
 	private async handleMoveSequence(req: Request): Promise<Response> {
 		try {
 			const body = await req.json();
-			const taskId = String(body.taskId || "").trim();
+			const stateId = String(body.stateId || "").trim();
 			const moveToUnsequenced = Boolean(body.unsequenced === true);
 			const targetSequenceIndex = body.targetSequenceIndex !== undefined ? Number(body.targetSequenceIndex) : undefined;
 
-			if (!taskId) return Response.json({ error: "taskId is required" }, { status: 400 });
+			if (!stateId) return Response.json({ error: "stateId is required" }, { status: 400 });
 
-			const next = await this.core.moveTaskInSequences({
-				taskId,
+			const next = await this.core.moveStateInSequences({
+				stateId,
 				unsequenced: moveToUnsequenced,
 				targetSequenceIndex,
 			});
@@ -1469,11 +1469,11 @@ export class BacklogServer {
 
 	private async handleGetStatistics(): Promise<Response> {
 		try {
-			// Load tasks using the same logic as CLI overview
-			const { tasks, drafts, statuses } = await this.core.loadAllTasksForStatistics();
+			// Load states using the same logic as CLI overview
+			const { states, drafts, statuses } = await this.core.loadAllStatesForStatistics();
 
 			// Calculate statistics using the exact same function as CLI
-			const statistics = getTaskStatistics(tasks, drafts, statuses);
+			const statistics = getStateStatistics(states, drafts, statuses);
 
 			// Convert Maps to objects for JSON serialization
 			const response = {

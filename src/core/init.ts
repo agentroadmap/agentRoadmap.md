@@ -6,11 +6,11 @@ import {
 	installClaudeAgent,
 } from "../agent-instructions.ts";
 import { DEFAULT_INIT_CONFIG } from "../constants/index.ts";
-import type { BacklogConfig } from "../types/index.ts";
-import type { Core } from "./backlog.ts";
+import type { RoadmapConfig } from "../types/index.ts";
+import type { Core } from "./roadmap.ts";
 
-export const MCP_SERVER_NAME = "backlog";
-export const MCP_GUIDE_URL = "https://github.com/MrLesk/Backlog.md#-mcp-integration-model-context-protocol";
+export const MCP_SERVER_NAME = "roadmap";
+export const MCP_GUIDE_URL = "https://github.com/MrLesk/Roadmap.md#-mcp-integration-model-context-protocol";
 
 export type IntegrationMode = "mcp" | "cli" | "none";
 export type McpClient = "claude" | "codex" | "gemini" | "kiro" | "guide";
@@ -32,18 +32,18 @@ export interface InitializeProjectOptions {
 		definitionOfDone?: string[];
 		defaultPort?: number;
 		autoOpenBrowser?: boolean;
-		/** Custom task prefix (e.g., "JIRA"). Only set during first init, read-only after. */
-		taskPrefix?: string;
+		/** Custom state prefix (e.g., "JIRA"). Only set during first init, read-only after. */
+		statePrefix?: string;
 	};
 	/** Existing config for re-initialization */
-	existingConfig?: BacklogConfig | null;
+	existingConfig?: RoadmapConfig | null;
 }
 
 export interface InitializeProjectResult {
 	success: boolean;
 	projectName: string;
 	isReInitialization: boolean;
-	config: BacklogConfig;
+	config: RoadmapConfig;
 	mcpResults?: Record<string, string>;
 }
 
@@ -58,7 +58,7 @@ async function runMcpClientCommand(label: string, command: string, args: string[
 		if (exitCode !== 0) {
 			throw new Error(`Command exited with code ${exitCode}`);
 		}
-		return `Added Backlog MCP server to ${label}`;
+		return `Added Roadmap MCP server to ${label}`;
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		throw new Error(
@@ -94,7 +94,7 @@ export async function initializeProject(
 	// Build config, preserving existing values for re-initialization.
 	// Re-init should be idempotent for fields that init does not explicitly manage.
 	const d = DEFAULT_INIT_CONFIG;
-	const baseConfig: BacklogConfig = {
+	const baseConfig: RoadmapConfig = {
 		projectName,
 		statuses: ["To Do", "In Progress", "Done"],
 		labels: [],
@@ -109,13 +109,13 @@ export async function initializeProject(
 		activeBranchDays: advancedConfig.activeBranchDays ?? existingConfig?.activeBranchDays ?? d.activeBranchDays,
 		defaultPort: advancedConfig.defaultPort ?? existingConfig?.defaultPort ?? d.defaultPort,
 		autoOpenBrowser: advancedConfig.autoOpenBrowser ?? existingConfig?.autoOpenBrowser ?? d.autoOpenBrowser,
-		taskResolutionStrategy: existingConfig?.taskResolutionStrategy || "most_recent",
+		stateResolutionStrategy: existingConfig?.stateResolutionStrategy || "most_recent",
 		// Preserve existing prefixes on re-init, or use custom prefix if provided during first init
 		prefixes: existingConfig?.prefixes || {
-			task: advancedConfig.taskPrefix || "task",
+			state: advancedConfig.statePrefix || "state",
 		},
 	};
-	const config: BacklogConfig = {
+	const config: RoadmapConfig = {
 		...baseConfig,
 		...(existingConfig ?? {}),
 		projectName,
@@ -128,7 +128,7 @@ export async function initializeProject(
 		defaultPort: advancedConfig.defaultPort ?? existingConfig?.defaultPort ?? d.defaultPort,
 		autoOpenBrowser: advancedConfig.autoOpenBrowser ?? existingConfig?.autoOpenBrowser ?? d.autoOpenBrowser,
 		prefixes: existingConfig?.prefixes || {
-			task: advancedConfig.taskPrefix || "task",
+			state: advancedConfig.statePrefix || "state",
 		},
 		...(hasDefaultEditorOverride && advancedConfig.defaultEditor
 			? { defaultEditor: advancedConfig.defaultEditor }
@@ -158,7 +158,7 @@ export async function initializeProject(
 	if (isReInitialization) {
 		await core.filesystem.saveConfig(config);
 	} else {
-		await core.filesystem.ensureBacklogStructure();
+		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(config);
 		await core.ensureConfigLoaded();
 	}
@@ -177,7 +177,7 @@ export async function initializeProject(
 						"user",
 						MCP_SERVER_NAME,
 						"--",
-						"backlog",
+						"roadmap",
 						"mcp",
 						"start",
 					]);
@@ -188,7 +188,7 @@ export async function initializeProject(
 						"mcp",
 						"add",
 						MCP_SERVER_NAME,
-						"backlog",
+						"roadmap",
 						"mcp",
 						"start",
 					]);
@@ -201,7 +201,7 @@ export async function initializeProject(
 						"-s",
 						"user",
 						MCP_SERVER_NAME,
-						"backlog",
+						"roadmap",
 						"mcp",
 						"start",
 					]);
@@ -216,7 +216,7 @@ export async function initializeProject(
 						"--name",
 						MCP_SERVER_NAME,
 						"--command",
-						"backlog",
+						"roadmap",
 						"--args",
 						"mcp,start",
 					]);

@@ -3,15 +3,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import type { State } from "../types/index.ts";
 
-describe("Task Dependencies", () => {
+describe("State Dependencies", () => {
 	let tempDir: string;
 	let core: Core;
 
 	beforeEach(async () => {
-		tempDir = mkdtempSync(join(tmpdir(), "backlog-dependency-test-"));
+		tempDir = mkdtempSync(join(tmpdir(), "roadmap-dependency-test-"));
 
 		// Initialize git repository first using the same pattern as other tests
 		await $`git init -b main`.cwd(tempDir).quiet();
@@ -30,313 +30,313 @@ describe("Task Dependencies", () => {
 		}
 	});
 
-	test("should create task with dependencies", async () => {
-		// Create base tasks first
-		const task1: Task = {
-			id: "task-1",
-			title: "Base Task 1",
+	test("should create state with dependencies", async () => {
+		// Create base states first
+		const state1: State = {
+			id: "state-1",
+			title: "Base State 1",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Base task",
+			description: "Base state",
 		};
 
-		const task2: Task = {
-			id: "task-2",
-			title: "Base Task 2",
+		const state2: State = {
+			id: "state-2",
+			title: "Base State 2",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Another base task",
+			description: "Another base state",
 		};
 
-		await core.createTask(task1, false);
-		await core.createTask(task2, false);
+		await core.createState(state1, false);
+		await core.createState(state2, false);
 
-		// Create task with dependencies
-		const dependentTask: Task = {
-			id: "task-3",
-			title: "Dependent Task",
+		// Create state with dependencies
+		const dependentState: State = {
+			id: "state-3",
+			title: "Dependent State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["task-1", "task-2"],
-			description: "Task that depends on others",
+			dependencies: ["state-1", "state-2"],
+			description: "State that depends on others",
 		};
 
-		await core.createTask(dependentTask, false);
+		await core.createState(dependentState, false);
 
-		// Verify the task was created with dependencies
-		const savedTask = await core.filesystem.loadTask("task-3");
-		expect(savedTask).not.toBeNull();
-		expect(savedTask?.dependencies).toEqual(["task-1", "task-2"]);
+		// Verify the state was created with dependencies
+		const savedState = await core.filesystem.loadState("state-3");
+		expect(savedState).not.toBeNull();
+		expect(savedState?.dependencies).toEqual(["state-1", "state-2"]);
 	});
 
-	test("should update task dependencies", async () => {
-		// Create base tasks
-		const task1: Task = {
-			id: "task-1",
-			title: "Base Task 1",
+	test("should update state dependencies", async () => {
+		// Create base states
+		const state1: State = {
+			id: "state-1",
+			title: "Base State 1",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Base task",
+			description: "Base state",
 		};
 
-		const task2: Task = {
-			id: "task-2",
-			title: "Base Task 2",
+		const state2: State = {
+			id: "state-2",
+			title: "Base State 2",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Another base task",
+			description: "Another base state",
 		};
 
-		const task3: Task = {
-			id: "task-3",
-			title: "Task without dependencies",
+		const state3: State = {
+			id: "state-3",
+			title: "State without dependencies",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Task without dependencies initially",
+			description: "State without dependencies initially",
 		};
 
-		await core.createTask(task1, false);
-		await core.createTask(task2, false);
-		await core.createTask(task3, false);
+		await core.createState(state1, false);
+		await core.createState(state2, false);
+		await core.createState(state3, false);
 
-		// Update task to add dependencies
-		await core.updateTaskFromInput(task3.id, { dependencies: ["task-1", "task-2"] }, false);
+		// Update state to add dependencies
+		await core.updateStateFromInput(state3.id, { dependencies: ["state-1", "state-2"] }, false);
 
 		// Verify the dependencies were updated
-		const savedTask = await core.filesystem.loadTask("task-3");
-		expect(savedTask).not.toBeNull();
-		expect(savedTask?.dependencies).toEqual(["TASK-1", "TASK-2"]);
+		const savedState = await core.filesystem.loadState("state-3");
+		expect(savedState).not.toBeNull();
+		expect(savedState?.dependencies).toEqual(["STATE-1", "STATE-2"]);
 	});
 
-	test("should handle tasks with dependencies in drafts", async () => {
-		// Create a draft task
-		const draftTask: Task = {
-			id: "task-1",
-			title: "Draft Task",
+	test("should handle states with dependencies in drafts", async () => {
+		// Create a draft state
+		const draftState: State = {
+			id: "state-1",
+			title: "Draft State",
 			status: "Draft",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Draft task",
+			description: "Draft state",
 		};
 
-		await core.createDraft(draftTask, false);
+		await core.createDraft(draftState, false);
 
-		// Create task that depends on draft
-		const task2: Task = {
-			id: "task-2",
-			title: "Task depending on draft",
+		// Create state that depends on draft
+		const state2: State = {
+			id: "state-2",
+			title: "State depending on draft",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["task-1"], // Depends on draft task
-			description: "Task depending on draft",
+			dependencies: ["state-1"], // Depends on draft state
+			description: "State depending on draft",
 		};
 
-		await core.createTask(task2, false);
+		await core.createState(state2, false);
 
-		// Verify the task was created with dependency on draft
-		const savedTask = await core.filesystem.loadTask("task-2");
-		expect(savedTask).not.toBeNull();
-		expect(savedTask?.dependencies).toEqual(["task-1"]);
+		// Verify the state was created with dependency on draft
+		const savedState = await core.filesystem.loadState("state-2");
+		expect(savedState).not.toBeNull();
+		expect(savedState?.dependencies).toEqual(["state-1"]);
 	});
 
 	test("should serialize and deserialize dependencies correctly", async () => {
-		const task: Task = {
-			id: "task-1",
-			title: "Task with multiple dependencies",
+		const state: State = {
+			id: "state-1",
+			title: "State with multiple dependencies",
 			status: "In Progress",
 			assignee: ["@developer"],
 			createdDate: "2024-01-01",
 			labels: ["feature", "backend"],
-			dependencies: ["task-2", "task-3", "task-4"],
-			description: "Task with various metadata and dependencies",
+			dependencies: ["state-2", "state-3", "state-4"],
+			description: "State with various metadata and dependencies",
 		};
 
-		// Create dependency tasks first
+		// Create dependency states first
 		for (let i = 2; i <= 4; i++) {
-			const depTask: Task = {
-				id: `task-${i}`,
-				title: `Dependency Task ${i}`,
+			const depState: State = {
+				id: `state-${i}`,
+				title: `Dependency State ${i}`,
 				status: "To Do",
 				assignee: [],
 				createdDate: "2024-01-01",
 				labels: [],
 				dependencies: [],
-				description: `Dependency task ${i}`,
+				description: `Dependency state ${i}`,
 			};
-			await core.createTask(depTask, false);
+			await core.createState(depState, false);
 		}
 
-		await core.createTask(task, false);
+		await core.createState(state, false);
 
-		// Load the task back and verify all fields
-		const loadedTask = await core.filesystem.loadTask("task-1");
-		expect(loadedTask).not.toBeNull();
-		expect(loadedTask?.id).toBe("TASK-1");
-		expect(loadedTask?.title).toBe("Task with multiple dependencies");
-		expect(loadedTask?.status).toBe("In Progress");
-		expect(loadedTask?.assignee).toEqual(["@developer"]);
-		expect(loadedTask?.labels).toEqual(["feature", "backend"]);
-		expect(loadedTask?.dependencies).toEqual(["task-2", "task-3", "task-4"]);
+		// Load the state back and verify all fields
+		const loadedState = await core.filesystem.loadState("state-1");
+		expect(loadedState).not.toBeNull();
+		expect(loadedState?.id).toBe("STATE-1");
+		expect(loadedState?.title).toBe("State with multiple dependencies");
+		expect(loadedState?.status).toBe("In Progress");
+		expect(loadedState?.assignee).toEqual(["@developer"]);
+		expect(loadedState?.labels).toEqual(["feature", "backend"]);
+		expect(loadedState?.dependencies).toEqual(["state-2", "state-3", "state-4"]);
 	});
 
 	test("should handle empty dependencies array", async () => {
-		const task: Task = {
-			id: "task-1",
-			title: "Task without dependencies",
+		const state: State = {
+			id: "state-1",
+			title: "State without dependencies",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Task without dependencies",
+			description: "State without dependencies",
 		};
 
-		await core.createTask(task, false);
+		await core.createState(state, false);
 
-		const loadedTask = await core.filesystem.loadTask("task-1");
-		expect(loadedTask).not.toBeNull();
-		expect(loadedTask?.dependencies).toEqual([]);
+		const loadedState = await core.filesystem.loadState("state-1");
+		expect(loadedState).not.toBeNull();
+		expect(loadedState?.dependencies).toEqual([]);
 	});
 
-	test("should sanitize archived task dependencies on active tasks only", async () => {
-		const archivedTarget: Task = {
-			id: "task-1",
+	test("should sanitize archived state dependencies on active states only", async () => {
+		const archivedTarget: State = {
+			id: "state-1",
 			title: "Archive target",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Task that will be archived",
+			description: "State that will be archived",
 		};
 
-		const activeDependent: Task = {
-			id: "task-2",
-			title: "Active dependent task",
+		const activeDependent: State = {
+			id: "state-2",
+			title: "Active dependent state",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["TASK-1", "task-1"],
+			dependencies: ["STATE-1", "state-1"],
 			description: "Depends on archive target",
 		};
 
-		const completedDependent: Task = {
-			id: "task-3",
-			title: "Completed dependent task",
+		const completedDependent: State = {
+			id: "state-3",
+			title: "Completed dependent state",
 			status: "Done",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["task-1"],
-			description: "Completed task should stay unchanged",
+			dependencies: ["state-1"],
+			description: "Completed state should stay unchanged",
 		};
 
-		const childTask: Task = {
-			id: "task-4",
-			title: "Child task",
+		const childState: State = {
+			id: "state-4",
+			title: "Child state",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["task-1"],
-			parentTaskId: "task-1",
+			dependencies: ["state-1"],
+			parentStateId: "state-1",
 			description: "Parent relationship is out of scope for archive sanitization",
 		};
 
-		await core.createTask(archivedTarget, false);
-		await core.createTask(activeDependent, false);
-		await core.createTask(completedDependent, false);
-		await core.createTask(childTask, false);
-		await core.completeTask("task-3", false);
+		await core.createState(archivedTarget, false);
+		await core.createState(activeDependent, false);
+		await core.createState(completedDependent, false);
+		await core.createState(childState, false);
+		await core.completeState("state-3", false);
 
-		const archived = await core.archiveTask("task-1", false);
+		const archived = await core.archiveState("state-1", false);
 		expect(archived).toBe(true);
 
-		const updatedActive = await core.filesystem.loadTask("task-2");
-		const updatedChild = await core.filesystem.loadTask("task-4");
-		const completedTasks = await core.filesystem.listCompletedTasks();
-		const completed = completedTasks.find((task) => task.id === "TASK-3");
+		const updatedActive = await core.filesystem.loadState("state-2");
+		const updatedChild = await core.filesystem.loadState("state-4");
+		const completedStates = await core.filesystem.listCompletedStates();
+		const completed = completedStates.find((state) => state.id === "STATE-3");
 
 		expect(updatedActive?.dependencies).toEqual([]);
 		expect(updatedChild?.dependencies).toEqual([]);
-		expect(updatedChild?.parentTaskId).toBe("TASK-1");
-		expect(completed?.dependencies).toEqual(["task-1"]);
+		expect(updatedChild?.parentStateId).toBe("STATE-1");
+		expect(completed?.dependencies).toEqual(["state-1"]);
 	});
 
-	test("should sanitize archive links when archiving by numeric id with custom task prefix", async () => {
+	test("should sanitize archive links when archiving by numeric id with custom state prefix", async () => {
 		const config = await core.filesystem.loadConfig();
 		expect(config).not.toBeNull();
 		if (!config) {
 			return;
 		}
-		config.prefixes = { task: "back" };
+		config.prefixes = { state: "back" };
 		await core.filesystem.saveConfig(config);
 
-		const { task: archiveTarget } = await core.createTaskFromInput({
+		const { state: archiveTarget } = await core.createStateFromInput({
 			title: "Custom prefix target",
 		});
-		const { task: dependentTask } = await core.createTaskFromInput({
+		const { state: dependentState } = await core.createStateFromInput({
 			title: "Custom prefix dependent",
 			dependencies: [archiveTarget.id],
 		});
 
-		const archived = await core.archiveTask("1", false);
+		const archived = await core.archiveState("1", false);
 		expect(archived).toBe(true);
 
-		const updatedDependent = await core.filesystem.loadTask(dependentTask.id);
+		const updatedDependent = await core.filesystem.loadState(dependentState.id);
 		expect(updatedDependent?.dependencies).toEqual([]);
 	});
 
 	test("should not sanitize draft dependencies when archiving", async () => {
-		const archiveTarget: Task = {
-			id: "task-1",
+		const archiveTarget: State = {
+			id: "state-1",
 			title: "Archive target",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
 			dependencies: [],
-			description: "Task that will be archived",
+			description: "State that will be archived",
 		};
 
-		const draftTask: Task = {
+		const draftState: State = {
 			id: "draft-1",
-			title: "Draft dependent task",
+			title: "Draft dependent state",
 			status: "Draft",
 			assignee: [],
 			createdDate: "2024-01-01",
 			labels: [],
-			dependencies: ["task-1"],
+			dependencies: ["state-1"],
 			description: "Draft should not be sanitized by archive cleanup",
 		};
 
-		await core.createTask(archiveTarget, false);
-		await core.createDraft(draftTask, false);
-		await core.archiveTask("task-1", false);
+		await core.createState(archiveTarget, false);
+		await core.createDraft(draftState, false);
+		await core.archiveState("state-1", false);
 
 		const draft = await core.filesystem.loadDraft("draft-1");
-		expect(draft?.dependencies).toEqual(["task-1"]);
+		expect(draft?.dependencies).toEqual(["state-1"]);
 	});
 });

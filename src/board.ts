@@ -1,6 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import type { Milestone, Task } from "./types/index.ts";
+import type { Milestone, State } from "./types/index.ts";
 
 export interface BoardOptions {
 	statuses?: string[];
@@ -10,9 +10,9 @@ export type BoardLayout = "horizontal" | "vertical";
 export type BoardFormat = "terminal" | "markdown";
 
 export function buildKanbanStatusGroups(
-	tasks: Task[],
+	states: State[],
 	statuses: string[],
-): { orderedStatuses: string[]; groupedTasks: Map<string, Task[]> } {
+): { orderedStatuses: string[]; groupedStates: Map<string, State[]> } {
 	const canonicalByLower = new Map<string, string>();
 	const orderedConfiguredStatuses: string[] = [];
 	const configuredSeen = new Set<string>();
@@ -31,19 +31,19 @@ export function buildKanbanStatusGroups(
 		}
 	}
 
-	const groupedTasks = new Map<string, Task[]>();
+	const groupedStates = new Map<string, State[]>();
 	for (const status of orderedConfiguredStatuses) {
-		groupedTasks.set(status, []);
+		groupedStates.set(status, []);
 	}
 
-	for (const task of tasks) {
-		const raw = (task.status ?? "").trim();
+	for (const state of states) {
+		const raw = (state.status ?? "").trim();
 		if (!raw) continue;
 		const canonical = canonicalByLower.get(raw.toLowerCase()) ?? raw;
-		if (!groupedTasks.has(canonical)) {
-			groupedTasks.set(canonical, []);
+		if (!groupedStates.has(canonical)) {
+			groupedStates.set(canonical, []);
 		}
-		groupedTasks.get(canonical)?.push(task);
+		groupedStates.get(canonical)?.push(state);
 	}
 
 	const orderedStatuses: string[] = [];
@@ -55,32 +55,32 @@ export function buildKanbanStatusGroups(
 		seen.add(status);
 	}
 
-	for (const status of groupedTasks.keys()) {
+	for (const status of groupedStates.keys()) {
 		if (seen.has(status)) continue;
 		orderedStatuses.push(status);
 		seen.add(status);
 	}
 
-	return { orderedStatuses, groupedTasks };
+	return { orderedStatuses, groupedStates };
 }
 
-export function generateKanbanBoardWithMetadata(tasks: Task[], statuses: string[], projectName: string): string {
+export function generateKanbanBoardWithMetadata(states: State[], statuses: string[], projectName: string): string {
 	// Generate timestamp
 	const now = new Date();
 	const timestamp = now.toISOString().replace("T", " ").substring(0, 19);
 
-	const { orderedStatuses, groupedTasks } = buildKanbanStatusGroups(tasks, statuses);
+	const { orderedStatuses, groupedStates } = buildKanbanStatusGroups(states, statuses);
 
 	// Create header
-	const header = `# Kanban Board Export (powered by Backlog.md)
+	const header = `# Kanban Board Export (powered by Roadmap.md)
 Generated on: ${timestamp}
 Project: ${projectName}
 
 `;
 
-	// Return early if there are no configured statuses and no tasks
+	// Return early if there are no configured statuses and no states
 	if (orderedStatuses.length === 0) {
-		return `${header}No tasks found.`;
+		return `${header}No states found.`;
 	}
 
 	// Create table header
@@ -88,13 +88,13 @@ Project: ${projectName}
 	const separatorRow = `| ${orderedStatuses.map(() => "---").join(" | ")} |`;
 
 	// Map for quick lookup by id
-	const byId = new Map<string, Task>(tasks.map((t) => [t.id, t]));
+	const byId = new Map<string, State>(states.map((t) => [t.id, t]));
 
-	// Group tasks by status and handle parent-child relationships
-	const columns: Task[][] = orderedStatuses.map((status) => {
-		const items = groupedTasks.get(status) || [];
-		const top: Task[] = [];
-		const children = new Map<string, Task[]>();
+	// Group states by status and handle parent-child relationships
+	const columns: State[][] = orderedStatuses.map((status) => {
+		const items = groupedStates.get(status) || [];
+		const top: State[] = [];
+		const children = new Map<string, State[]>();
 
 		// Sort items: All columns by updatedDate descending (fallback to createdDate), then by ID as secondary
 		const sortedItems = items.sort((a, b) => {
@@ -105,34 +105,34 @@ Project: ${projectName}
 				return dateB - dateA; // Newest first
 			}
 			// Secondary sort: ID descending when dates are equal
-			const idA = Number.parseInt(a.id.replace("task-", ""), 10);
-			const idB = Number.parseInt(b.id.replace("task-", ""), 10);
+			const idA = Number.parseInt(a.id.replace("state-", ""), 10);
+			const idB = Number.parseInt(b.id.replace("state-", ""), 10);
 			return idB - idA; // Highest ID first (newest)
 		});
 
-		// Separate top-level tasks from subtasks
+		// Separate top-level states from substates
 		for (const t of sortedItems) {
-			const parent = t.parentTaskId ? byId.get(t.parentTaskId) : undefined;
+			const parent = t.parentStateId ? byId.get(t.parentStateId) : undefined;
 			if (parent && parent.status === t.status) {
-				// Subtask with same status as parent - group under parent
+				// Substate with same status as parent - group under parent
 				const list = children.get(parent.id) || [];
 				list.push(t);
 				children.set(parent.id, list);
 			} else {
-				// Top-level task or subtask with different status
+				// Top-level state or substate with different status
 				top.push(t);
 			}
 		}
 
-		// Build final list with subtasks nested under parents
-		const result: Task[] = [];
+		// Build final list with substates nested under parents
+		const result: State[] = [];
 		for (const t of top) {
 			result.push(t);
 			const subs = children.get(t.id) || [];
 			subs.sort((a, b) => {
-				const idA = Number.parseInt(a.id.replace("task-", ""), 10);
-				const idB = Number.parseInt(b.id.replace("task-", ""), 10);
-				return idA - idB; // Subtasks in ascending order
+				const idA = Number.parseInt(a.id.replace("state-", ""), 10);
+				const idB = Number.parseInt(b.id.replace("state-", ""), 10);
+				return idA - idB; // Substates in ascending order
 			});
 			result.push(...subs);
 		}
@@ -140,45 +140,45 @@ Project: ${projectName}
 		return result;
 	});
 
-	const maxTasks = Math.max(...columns.map((c) => c.length), 0);
+	const maxStates = Math.max(...columns.map((c) => c.length), 0);
 	const rows = [headerRow, separatorRow];
 
-	for (let taskIdx = 0; taskIdx < maxTasks; taskIdx++) {
+	for (let stateIdx = 0; stateIdx < maxStates; stateIdx++) {
 		const row = orderedStatuses.map((_, cIdx) => {
-			const task = columns[cIdx]?.[taskIdx];
-			if (!task || !task.id || !task.title) return "";
+			const state = columns[cIdx]?.[stateIdx];
+			if (!state || !state.id || !state.title) return "";
 
-			// Check if this is a subtask
-			const isSubtask = task.parentTaskId;
-			const taskIdPrefix = isSubtask ? "└─ " : "";
-			const taskIdUpper = task.id.toUpperCase();
+			// Check if this is a substate
+			const isSubstate = state.parentStateId;
+			const stateIdPrefix = isSubstate ? "└─ " : "";
+			const stateIdUpper = state.id.toUpperCase();
 
 			// Format assignees in brackets or empty string if none
 			// Add @ prefix only if not already present
 			const assigneesText =
-				task.assignee && task.assignee.length > 0
-					? ` [${task.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ")}]`
+				state.assignee && state.assignee.length > 0
+					? ` [${state.assignee.map((a) => (a.startsWith("@") ? a : `@${a}`)).join(", ")}]`
 					: "";
 
 			// Format labels with # prefix and italic or empty string if none
 			const labelsText =
-				task.labels && task.labels.length > 0 ? `<br>*${task.labels.map((label) => `#${label}`).join(" ")}*` : "";
+				state.labels && state.labels.length > 0 ? `<br>*${state.labels.map((label) => `#${label}`).join(" ")}*` : "";
 
-			return `${taskIdPrefix}**${taskIdUpper}** - ${task.title}${assigneesText}${labelsText}`;
+			return `${stateIdPrefix}**${stateIdUpper}** - ${state.title}${assigneesText}${labelsText}`;
 		});
 		rows.push(`| ${row.join(" | ")} |`);
 	}
 
 	const table = `${rows.join("\n")}`;
-	if (maxTasks === 0) {
-		return `${header}${table}\n\nNo tasks found.\n`;
+	if (maxStates === 0) {
+		return `${header}${table}\n\nNo states found.\n`;
 	}
 
 	return `${header}${table}\n`;
 }
 
 export function generateMilestoneGroupedBoard(
-	tasks: Task[],
+	states: State[],
 	statuses: string[],
 	milestoneEntities: Milestone[],
 	projectName: string,
@@ -186,8 +186,8 @@ export function generateMilestoneGroupedBoard(
 	const now = new Date();
 	const timestamp = now.toISOString().replace("T", " ").substring(0, 19);
 
-	// Collect canonical milestone identifiers from milestone files and tasks.
-	// Task values can be either IDs or titles, so normalize aliases to one key.
+	// Collect canonical milestone identifiers from milestone files and states.
+	// State values can be either IDs or titles, so normalize aliases to one key.
 	const milestoneSeen = new Set<string>();
 	const allMilestones: string[] = [];
 	const aliasToMilestone = new Map<string, string>();
@@ -250,15 +250,15 @@ export function generateMilestoneGroupedBoard(
 		return normalized;
 	};
 
-	for (const task of tasks) {
-		const canonicalMilestone = canonicalizeMilestone(task.milestone);
+	for (const state of states) {
+		const canonicalMilestone = canonicalizeMilestone(state.milestone);
 		if (canonicalMilestone && !milestoneSeen.has(canonicalMilestone.toLowerCase())) {
 			milestoneSeen.add(canonicalMilestone.toLowerCase());
 			allMilestones.push(canonicalMilestone);
 		}
 	}
 
-	const header = `# Kanban Board by Milestone (powered by Backlog.md)
+	const header = `# Kanban Board by Milestone (powered by Roadmap.md)
 Generated on: ${timestamp}
 Project: ${projectName}
 
@@ -267,59 +267,59 @@ Project: ${projectName}
 	const sections: string[] = [];
 
 	// No milestone section
-	const noMilestoneTasks = tasks.filter((t) => !t.milestone?.trim());
-	if (noMilestoneTasks.length > 0) {
-		sections.push(generateMilestoneSection("No Milestone", noMilestoneTasks, statuses));
+	const noMilestoneStates = states.filter((t) => !t.milestone?.trim());
+	if (noMilestoneStates.length > 0) {
+		sections.push(generateMilestoneSection("No Milestone", noMilestoneStates, statuses));
 	}
 
 	// Each milestone section
 	for (const milestone of allMilestones) {
-		const milestoneTasks = tasks.filter(
-			(task) => canonicalizeMilestone(task.milestone).toLowerCase() === milestone.toLowerCase(),
+		const milestoneStates = states.filter(
+			(state) => canonicalizeMilestone(state.milestone).toLowerCase() === milestone.toLowerCase(),
 		);
-		if (milestoneTasks.length > 0) {
+		if (milestoneStates.length > 0) {
 			const milestoneLabel = milestoneLabelsByKey.get(milestone.toLowerCase()) ?? milestone;
-			sections.push(generateMilestoneSection(milestoneLabel, milestoneTasks, statuses));
+			sections.push(generateMilestoneSection(milestoneLabel, milestoneStates, statuses));
 		}
 	}
 
 	if (sections.length === 0) {
-		return `${header}No tasks found.\n`;
+		return `${header}No states found.\n`;
 	}
 
 	return `${header}${sections.join("\n\n")}\n`;
 }
 
-function generateMilestoneSection(milestone: string, tasks: Task[], statuses: string[]): string {
-	const { orderedStatuses, groupedTasks } = buildKanbanStatusGroups(tasks, statuses);
+function generateMilestoneSection(milestone: string, states: State[], statuses: string[]): string {
+	const { orderedStatuses, groupedStates } = buildKanbanStatusGroups(states, statuses);
 
-	const sectionHeader = `## ${milestone} (${tasks.length} tasks)\n`;
+	const sectionHeader = `## ${milestone} (${states.length} states)\n`;
 
 	if (orderedStatuses.length === 0) {
-		return `${sectionHeader}\nNo tasks.\n`;
+		return `${sectionHeader}\nNo states.\n`;
 	}
 
 	const statusLines = orderedStatuses.map((status) => {
-		const statusTasks = groupedTasks.get(status) || [];
-		const taskLines = statusTasks.map((t) => {
+		const statusStates = groupedStates.get(status) || [];
+		const stateLines = statusStates.map((t) => {
 			const id = t.id.toUpperCase();
 			const assignees = t.assignee?.length ? ` [@${t.assignee.join(", @")}]` : "";
 			return `  - **${id}** - ${t.title}${assignees}`;
 		});
-		return `### ${status} (${statusTasks.length})\n${taskLines.length > 0 ? taskLines.join("\n") : "  (empty)"}`;
+		return `### ${status} (${statusStates.length})\n${stateLines.length > 0 ? stateLines.join("\n") : "  (empty)"}`;
 	});
 
 	return `${sectionHeader}\n${statusLines.join("\n\n")}`;
 }
 
 export async function exportKanbanBoardToFile(
-	tasks: Task[],
+	states: State[],
 	statuses: string[],
 	filePath: string,
 	projectName: string,
 	_overwrite = false,
 ): Promise<void> {
-	const board = generateKanbanBoardWithMetadata(tasks, statuses, projectName);
+	const board = generateKanbanBoardWithMetadata(states, statuses, projectName);
 
 	// Ensure directory exists
 	try {

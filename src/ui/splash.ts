@@ -1,4 +1,4 @@
-// Simple splash screen renderer for bare `backlog` invocations
+// Simple splash screen renderer for bare `roadmap` invocations
 // Focus: fast, TUI-friendly, graceful fallback to plain text
 
 type SplashOptions = {
@@ -35,7 +35,7 @@ function getWideLogoLines(): string[] {
 
 function getNarrowLogoLines(color: boolean | undefined): string[] {
 	// Minimal fallback for very narrow terminals
-	return [bold(color, "Backlog.md")];
+	return [bold(color, "Roadmap.md")];
 }
 
 // Terminal hyperlinks (OSC 8). Safely ignored by terminals that don't support them.
@@ -63,34 +63,34 @@ export async function printSplash(opts: SplashOptions): Promise<void> {
 		lines.push("");
 		lines.push(...getWideLogoLines());
 		lines.push("");
-		lines.push(`${bold(color, "Backlog.md")} ${dim(color, `v${version}`)}`);
+		lines.push(`${bold(color, "Roadmap.md")} ${dim(color, `v${version}`)}`);
 	} else if (!plain && (width === 0 || width >= 20)) {
 		// Also add space before the narrow logo variant
 		lines.push("");
 		lines.push(...getNarrowLogoLines(color));
 		lines.push(dim(color, `v${version}`));
 	} else {
-		lines.push(`${bold(color, "Backlog.md")} v${version}`);
+		lines.push(`${bold(color, "Roadmap.md")} v${version}`);
 	}
 
 	lines.push("");
 
 	if (!initialized) {
 		lines.push(bold(color, "Not initialized"));
-		lines.push(`  ${green(color, "backlog init")}  ${dim(color, "Initialize Backlog.md in this repo")}`);
+		lines.push(`  ${green(color, "roadmap init")}  ${dim(color, "Initialize Roadmap.md in this repo")}`);
 	} else {
 		lines.push(bold(color, "Quickstart"));
 		lines.push(
-			`  ${accent(color, 'backlog task create "Title" -d "Description"')}  ${dim(color, "Create a new task")}`,
+			`  ${accent(color, 'roadmap state create "Title" -d "Description"')}  ${dim(color, "Create a new state")}`,
 		);
-		lines.push(`  ${accent(color, "backlog task list --plain")}  ${dim(color, "List tasks (plain text)")}`);
-		lines.push(`  ${accent(color, "backlog board")}  ${dim(color, "Open the TUI Kanban board")}`);
-		lines.push(`  ${accent(color, "backlog browser")}  ${dim(color, "Start the web UI")}`);
-		lines.push(`  ${accent(color, "backlog overview")}  ${dim(color, "Show project statistics")}`);
+		lines.push(`  ${accent(color, "roadmap state list --plain")}  ${dim(color, "List states (plain text)")}`);
+		lines.push(`  ${accent(color, "roadmap board")}  ${dim(color, "Open the TUI Kanban board")}`);
+		lines.push(`  ${accent(color, "roadmap browser")}  ${dim(color, "Start the web UI")}`);
+		lines.push(`  ${accent(color, "roadmap overview")}  ${dim(color, "Show project statistics")}`);
 	}
 
 	lines.push("");
-	const linkTarget = "https://backlog.md";
+	const linkTarget = "https://roadmap.md";
 	// Enable hyperlink on TTY regardless of color; respect --plain
 	const hyperlinkEnabled = !!process.stdout.isTTY && !plain;
 	const clickable = osc8(linkTarget, linkTarget, hyperlinkEnabled);

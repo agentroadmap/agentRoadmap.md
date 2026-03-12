@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Core } from "../core/backlog.ts";
-import { serializeTask } from "../markdown/serializer.ts";
-import type { Task } from "../types/index.ts";
+import { Core } from "../core/roadmap.ts";
+import { serializeState } from "../markdown/serializer.ts";
+import type { State } from "../types/index.ts";
 
-const TEST_DIR = join(tmpdir(), "backlog-id-gen-test");
+const TEST_DIR = join(tmpdir(), "roadmap-id-gen-test");
 
-describe("Task ID Generation with Archives", () => {
+describe("State ID Generation with Archives", () => {
 	let core: Core;
 	let testDir: string;
 
@@ -26,89 +26,89 @@ describe("Task ID Generation with Archives", () => {
 		}
 	});
 
-	it("should reuse IDs from archived tasks (soft delete behavior)", async () => {
-		// Create tasks 1-5
-		await core.createTaskFromInput({ title: "Task 1" }, false);
-		await core.createTaskFromInput({ title: "Task 2" }, false);
-		await core.createTaskFromInput({ title: "Task 3" }, false);
-		await core.createTaskFromInput({ title: "Task 4" }, false);
-		await core.createTaskFromInput({ title: "Task 5" }, false);
+	it("should reuse IDs from archived states (soft delete behavior)", async () => {
+		// Create states 1-5
+		await core.createStateFromInput({ title: "State 1" }, false);
+		await core.createStateFromInput({ title: "State 2" }, false);
+		await core.createStateFromInput({ title: "State 3" }, false);
+		await core.createStateFromInput({ title: "State 4" }, false);
+		await core.createStateFromInput({ title: "State 5" }, false);
 
-		// Archive all tasks
-		await core.archiveTask("task-1", false);
-		await core.archiveTask("task-2", false);
-		await core.archiveTask("task-3", false);
-		await core.archiveTask("task-4", false);
-		await core.archiveTask("task-5", false);
+		// Archive all states
+		await core.archiveState("state-1", false);
+		await core.archiveState("state-2", false);
+		await core.archiveState("state-3", false);
+		await core.archiveState("state-4", false);
+		await core.archiveState("state-5", false);
 
-		// Verify tasks directory has no active tasks
-		const activeTasks = await core.fs.listTasks();
-		expect(activeTasks.length).toBe(0);
+		// Verify states directory has no active states
+		const activeStates = await core.fs.listStates();
+		expect(activeStates.length).toBe(0);
 
-		// Create new task - should be TASK-1 (archived IDs can be reused)
-		const result = await core.createTaskFromInput({ title: "Task After Archive" }, false);
-		expect(result.task.id).toBe("TASK-1");
+		// Create new state - should be STATE-1 (archived IDs can be reused)
+		const result = await core.createStateFromInput({ title: "State After Archive" }, false);
+		expect(result.state.id).toBe("STATE-1");
 
-		// Verify the task was created with correct ID
-		const newTask = await core.getTask("task-1");
-		expect(newTask).not.toBeNull();
-		expect(newTask?.title).toBe("Task After Archive");
+		// Verify the state was created with correct ID
+		const newState = await core.getState("state-1");
+		expect(newState).not.toBeNull();
+		expect(newState?.title).toBe("State After Archive");
 	});
 
-	it("should consider completed tasks but not archived tasks for ID generation", async () => {
-		// Create tasks 1-3
-		await core.createTaskFromInput({ title: "Task 1", status: "Todo" }, false);
-		await core.createTaskFromInput({ title: "Task 2", status: "Todo" }, false);
-		await core.createTaskFromInput({ title: "Task 3", status: "Todo" }, false);
+	it("should consider completed states but not archived states for ID generation", async () => {
+		// Create states 1-3
+		await core.createStateFromInput({ title: "State 1", status: "Todo" }, false);
+		await core.createStateFromInput({ title: "State 2", status: "Todo" }, false);
+		await core.createStateFromInput({ title: "State 3", status: "Todo" }, false);
 
-		// Archive task-1 (its ID can be reused)
-		await core.archiveTask("task-1", false);
+		// Archive state-1 (its ID can be reused)
+		await core.archiveState("state-1", false);
 
-		// Complete task-2 (moves to completed directory, ID cannot be reused)
-		await core.completeTask("task-2", false);
+		// Complete state-2 (moves to completed directory, ID cannot be reused)
+		await core.completeState("state-2", false);
 
-		// Keep task-3 active
-		const activeTasks = await core.fs.listTasks();
-		expect(activeTasks.length).toBe(1);
-		expect(activeTasks[0]?.id).toBe("TASK-3");
+		// Keep state-3 active
+		const activeStates = await core.fs.listStates();
+		expect(activeStates.length).toBe(1);
+		expect(activeStates[0]?.id).toBe("STATE-3");
 
-		// Create new task - should be TASK-4 (max of active 3 + completed 2 is 3, so next is 4)
-		// Note: archived TASK-1 is NOT considered, so its ID could be reused if 2 and 3 weren't taken
-		const result = await core.createTaskFromInput({ title: "Task 4" }, false);
-		expect(result.task.id).toBe("TASK-4");
+		// Create new state - should be STATE-4 (max of active 3 + completed 2 is 3, so next is 4)
+		// Note: archived STATE-1 is NOT considered, so its ID could be reused if 2 and 3 weren't taken
+		const result = await core.createStateFromInput({ title: "State 4" }, false);
+		expect(result.state.id).toBe("STATE-4");
 
-		// Verify archived task still exists
-		const archivedTasks = await core.fs.listArchivedTasks();
-		expect(archivedTasks.some((t) => t.id === "TASK-1")).toBe(true);
+		// Verify archived state still exists
+		const archivedStates = await core.fs.listArchivedStates();
+		expect(archivedStates.some((t) => t.id === "STATE-1")).toBe(true);
 
-		// Verify completed task still exists
-		const completedTasks = await core.fs.listCompletedTasks();
-		expect(completedTasks.some((t) => t.id === "TASK-2")).toBe(true);
+		// Verify completed state still exists
+		const completedStates = await core.fs.listCompletedStates();
+		expect(completedStates.some((t) => t.id === "STATE-2")).toBe(true);
 	});
 
-	it("should handle subtasks correctly with archived parents", async () => {
-		// Create parent task-1
-		await core.createTaskFromInput({ title: "Parent Task" }, false);
+	it("should handle substates correctly with archived parents", async () => {
+		// Create parent state-1
+		await core.createStateFromInput({ title: "Parent State" }, false);
 
-		// Create subtasks
-		const subtask1 = await core.createTaskFromInput({ title: "Subtask 1", parentTaskId: "task-1" }, false);
-		const subtask2 = await core.createTaskFromInput({ title: "Subtask 2", parentTaskId: "task-1" }, false);
+		// Create substates
+		const substate1 = await core.createStateFromInput({ title: "Substate 1", parentStateId: "state-1" }, false);
+		const substate2 = await core.createStateFromInput({ title: "Substate 2", parentStateId: "state-1" }, false);
 
-		expect(subtask1.task.id).toBe("TASK-1.1");
-		expect(subtask2.task.id).toBe("TASK-1.2");
+		expect(substate1.state.id).toBe("STATE-1.1");
+		expect(substate2.state.id).toBe("STATE-1.2");
 
-		// Archive parent and all subtasks
-		await core.archiveTask("task-1", false);
-		await core.archiveTask("task-1.1", false);
-		await core.archiveTask("task-1.2", false);
+		// Archive parent and all substates
+		await core.archiveState("state-1", false);
+		await core.archiveState("state-1.1", false);
+		await core.archiveState("state-1.2", false);
 
-		// Create new parent task - should be TASK-1 (reusing archived parent ID)
-		const newParent = await core.createTaskFromInput({ title: "New Parent" }, false);
-		expect(newParent.task.id).toBe("TASK-1");
+		// Create new parent state - should be STATE-1 (reusing archived parent ID)
+		const newParent = await core.createStateFromInput({ title: "New Parent" }, false);
+		expect(newParent.state.id).toBe("STATE-1");
 
-		// Create subtask of new parent (TASK-1) - should be TASK-1.1 (reusing archived subtask ID)
-		const newSubtask = await core.createTaskFromInput({ title: "New Subtask", parentTaskId: "task-1" }, false);
-		expect(newSubtask.task.id).toBe("TASK-1.1");
+		// Create substate of new parent (STATE-1) - should be STATE-1.1 (reusing archived substate ID)
+		const newSubstate = await core.createStateFromInput({ title: "New Substate", parentStateId: "state-1" }, false);
+		expect(newSubstate.state.id).toBe("STATE-1.1");
 	});
 
 	it("should work with zero-padded IDs and reuse archived IDs", async () => {
@@ -119,41 +119,41 @@ describe("Task ID Generation with Archives", () => {
 			await core.fs.saveConfig(config);
 		}
 
-		// Create and archive tasks with padding
-		await core.createTaskFromInput({ title: "Task 1" }, false);
-		const task1 = await core.getTask("task-001");
-		expect(task1?.id).toBe("TASK-001");
+		// Create and archive states with padding
+		await core.createStateFromInput({ title: "State 1" }, false);
+		const state1 = await core.getState("state-001");
+		expect(state1?.id).toBe("STATE-001");
 
-		await core.archiveTask("task-001", false);
+		await core.archiveState("state-001", false);
 
-		// Create new task - should reuse archived ID (TASK-001)
-		const result = await core.createTaskFromInput({ title: "Task 2" }, false);
-		expect(result.task.id).toBe("TASK-001");
+		// Create new state - should reuse archived ID (STATE-001)
+		const result = await core.createStateFromInput({ title: "State 2" }, false);
+		expect(result.state.id).toBe("STATE-001");
 	});
 
-	it("should detect existing subtasks with different casing (legacy data)", async () => {
-		// Create parent task via Core (will be uppercase TASK-1)
-		await core.createTaskFromInput({ title: "Parent Task" }, false);
+	it("should detect existing substates with different casing (legacy data)", async () => {
+		// Create parent state via Core (will be uppercase STATE-1)
+		await core.createStateFromInput({ title: "Parent State" }, false);
 
-		// Simulate legacy lowercase subtask by directly writing to filesystem
+		// Simulate legacy lowercase substate by directly writing to filesystem
 		// This represents a file created before the uppercase ID change
-		const tasksDir = core.fs.tasksDir;
-		const legacySubtask: Task = {
-			id: "task-1.1", // Lowercase - legacy format
-			title: "Legacy Subtask",
+		const statesDir = core.fs.statesDir;
+		const legacySubstate: State = {
+			id: "state-1.1", // Lowercase - legacy format
+			title: "Legacy Substate",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2025-01-01",
 			labels: [],
 			dependencies: [],
-			parentTaskId: "task-1",
+			parentStateId: "state-1",
 		};
-		const content = serializeTask(legacySubtask);
-		await Bun.write(join(tasksDir, "task-1.1 - Legacy Subtask.md"), content);
+		const content = serializeState(legacySubstate);
+		await Bun.write(join(statesDir, "state-1.1 - Legacy Substate.md"), content);
 
-		// Create new subtask via Core - should detect the legacy subtask and get TASK-1.2
-		// BUG: Currently returns TASK-1.1 due to case-sensitive startsWith() check
-		const newSubtask = await core.createTaskFromInput({ title: "New Subtask", parentTaskId: "task-1" }, false);
-		expect(newSubtask.task.id).toBe("TASK-1.2");
+		// Create new substate via Core - should detect the legacy substate and get STATE-1.2
+		// BUG: Currently returns STATE-1.1 due to case-sensitive startsWith() check
+		const newSubstate = await core.createStateFromInput({ title: "New Substate", parentStateId: "state-1" }, false);
+		expect(newSubstate.state.id).toBe("STATE-1.2");
 	});
 });

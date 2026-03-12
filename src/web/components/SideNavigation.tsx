@@ -7,8 +7,8 @@ import {
 	type Document,
 	type DocumentSearchResult,
 	type SearchResult,
-	type Task,
-	type TaskSearchResult,
+	type State,
+	type StateSearchResult,
 } from '../../types';
 import ErrorBoundary from './ErrorBoundary';
 import { SidebarSkeleton } from './LoadingSpinner';
@@ -18,13 +18,13 @@ import { apiClient } from '../lib/api';
 
 // Utility functions for ID transformations
 const stripIdPrefix = (id: string): string => {
-	// Remove any prefix pattern: letters followed by dash (task-, doc-, decision-, JIRA-, etc.)
+	// Remove any prefix pattern: letters followed by dash (state-, doc-, decision-, JIRA-, etc.)
 	return id.replace(/^[a-zA-Z]+-/, '');
 };
 
 // Icon components for better semantics and performance
 const Icons = {
-	Tasks: () => (
+	States: () => (
 		<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
 		</svg>
@@ -145,7 +145,7 @@ const Icons = {
 };
 
 interface SideNavigationProps {
-	tasks: Task[];
+	states: State[];
 	docs: Document[];
 	decisions: Decision[];
 	isLoading: boolean;
@@ -155,7 +155,7 @@ interface SideNavigationProps {
 }
 
 const SideNavigation = memo(function SideNavigation({ 
-	tasks, 
+	states, 
 	docs, 
 	decisions, 
 	isLoading, 
@@ -393,8 +393,8 @@ const SideNavigation = memo(function SideNavigation({
 					</div>
 					<div className="space-y-1">
 						{unifiedSearchResults.map((result, index) => {
-							const item = result.type === 'task'
-								? (result as TaskSearchResult).task
+							const item = result.type === 'state'
+								? (result as StateSearchResult).state
 								: result.type === 'document'
 									? (result as DocumentSearchResult).document
 									: (result as DecisionSearchResult).decision;
@@ -411,7 +411,7 @@ const SideNavigation = memo(function SideNavigation({
 							const getResultIcon = () => {
 								if (result.type === 'document') return <span className="text-green-500"><Icons.DocumentPage /></span>;
 								if (result.type === 'decision') return <span className="text-stone-500"><Icons.DecisionPage /></span>;
-								return <span className="text-purple-500"><Icons.Tasks /></span>;
+								return <span className="text-purple-500"><Icons.States /></span>;
 							};
 
 							return (
@@ -477,12 +477,12 @@ const SideNavigation = memo(function SideNavigation({
 					</div>
 				)}
 				
-				{/* Tasks Section - Hidden in collapsed state and when loading */}
+				{/* States Section - Hidden in collapsed state and when loading */}
 				{!isCollapsed && !isLoading && (
 					<div className="px-4 py-4">
 						<div className="flex items-center space-x-3 text-gray-700 dark:text-gray-300">
-							<span className="text-gray-500 dark:text-gray-400"><Icons.Tasks /></span>
-							<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">Tasks ({tasks.length})</span>
+							<span className="text-gray-500 dark:text-gray-400"><Icons.States /></span>
+							<span className="text-sm font-semibold uppercase tracking-wider text-gray-600 dark:text-gray-400 whitespace-nowrap">States ({states.length})</span>
 						</div>
 					</div>
 				)}
@@ -505,9 +505,9 @@ const SideNavigation = memo(function SideNavigation({
 							<span className="ml-3 text-sm font-medium">Kanban Board</span>
 						</NavLink>
 
-						{/* Tasks Navigation */}
+						{/* States Navigation */}
 						<NavLink
-							to="/tasks"
+							to="/states"
 							className={({ isActive }) =>
 								`flex items-center px-3 py-2 rounded-lg transition-colors duration-200 ${
 									isActive
@@ -517,7 +517,7 @@ const SideNavigation = memo(function SideNavigation({
 							}
 						>
 							<Icons.List />
-							<span className="ml-3 text-sm font-medium">All Tasks</span>
+							<span className="ml-3 text-sm font-medium">All States</span>
 						</NavLink>
 
 						{/* Milestones Navigation */}
@@ -569,7 +569,7 @@ const SideNavigation = memo(function SideNavigation({
 
 				{!isCollapsed && !isLoading && (
 					<>
-						{/* Divider between Tasks and Documents */}
+						{/* Divider between States and Documents */}
 						<div className="mx-4 my-2 border-t border-gray-200 dark:border-gray-700"></div>
 						
 						{/* Documents Section */}
@@ -705,9 +705,9 @@ const SideNavigation = memo(function SideNavigation({
 							</div>
 						</NavLink>
 						<NavLink
-							to="/tasks"
+							to="/states"
 							data-tooltip-id="sidebar-tooltip"
-							data-tooltip-content="All Tasks"
+							data-tooltip-content="All States"
 							className={({ isActive }) =>
 								`flex items-center justify-center p-3 rounded-md transition-colors duration-200 ${
 									isActive
@@ -825,7 +825,7 @@ const SideNavigation = memo(function SideNavigation({
 						<Icons.DocumentSettings />
 						<span className="ml-3 text-sm font-medium">Settings</span>
 						{version && (
-							<span className="ml-auto text-xs text-gray-500 dark:text-gray-400">Backlog.md - v{version}</span>
+							<span className="ml-auto text-xs text-gray-500 dark:text-gray-400">Roadmap.md - v{version}</span>
 						)}
 					</NavLink>
 				) : (

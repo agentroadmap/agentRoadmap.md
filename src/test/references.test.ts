@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 
-describe("Task References", () => {
+describe("State References", () => {
 	let core: Core;
 
 	beforeEach(async () => {
@@ -30,58 +30,58 @@ describe("Task References", () => {
 		}
 	});
 
-	describe("Create task with references", () => {
-		it("should create a task with references", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with refs",
+	describe("Create state with references", () => {
+		it("should create a state with references", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with refs",
 				references: ["https://github.com/example/issue/123", "src/components/Button.tsx"],
 			});
 
-			expect(task.references).toEqual(["https://github.com/example/issue/123", "src/components/Button.tsx"]);
+			expect(state.references).toEqual(["https://github.com/example/issue/123", "src/components/Button.tsx"]);
 
 			// Verify persistence
-			const loaded = await core.loadTaskById(task.id);
+			const loaded = await core.loadStateById(state.id);
 			expect(loaded?.references).toEqual(["https://github.com/example/issue/123", "src/components/Button.tsx"]);
 		});
 
-		it("should create a task without references", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task without refs",
+		it("should create a state without references", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State without refs",
 			});
 
-			expect(task.references).toEqual([]);
+			expect(state.references).toEqual([]);
 		});
 
 		it("should handle empty references array", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with empty refs",
+			const { state } = await core.createStateFromInput({
+				title: "State with empty refs",
 				references: [],
 			});
 
-			expect(task.references).toEqual([]);
+			expect(state.references).toEqual([]);
 		});
 	});
 
-	describe("Update task references", () => {
-		it("should set references on existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task to update",
+	describe("Update state references", () => {
+		it("should set references on existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State to update",
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				references: ["https://docs.example.com/api", "README.md"],
 			});
 
 			expect(updated.references).toEqual(["https://docs.example.com/api", "README.md"]);
 		});
 
-		it("should add references to existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with initial refs",
+		it("should add references to existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with initial refs",
 				references: ["file1.ts"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				addReferences: ["file2.ts", "file3.ts"],
 			});
 
@@ -89,25 +89,25 @@ describe("Task References", () => {
 		});
 
 		it("should not add duplicate references", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with refs",
+			const { state } = await core.createStateFromInput({
+				title: "State with refs",
 				references: ["file1.ts", "file2.ts"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				addReferences: ["file2.ts", "file3.ts"],
 			});
 
 			expect(updated.references).toEqual(["file1.ts", "file2.ts", "file3.ts"]);
 		});
 
-		it("should remove references from existing task", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with refs to remove",
+		it("should remove references from existing state", async () => {
+			const { state } = await core.createStateFromInput({
+				title: "State with refs to remove",
 				references: ["file1.ts", "file2.ts", "file3.ts"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				removeReferences: ["file2.ts"],
 			});
 
@@ -115,12 +115,12 @@ describe("Task References", () => {
 		});
 
 		it("should replace references when setting directly", async () => {
-			const { task } = await core.createTaskFromInput({
-				title: "Task with refs to replace",
+			const { state } = await core.createStateFromInput({
+				title: "State with refs to replace",
 				references: ["old1.ts", "old2.ts"],
 			});
 
-			const updated = await core.updateTaskFromInput(task.id, {
+			const updated = await core.updateStateFromInput(state.id, {
 				references: ["new1.ts", "new2.ts"],
 			});
 
@@ -130,8 +130,8 @@ describe("Task References", () => {
 
 	describe("References in markdown", () => {
 		it("should persist references in markdown frontmatter", async () => {
-			const { filePath } = await core.createTaskFromInput({
-				title: "Task with markdown refs",
+			const { filePath } = await core.createStateFromInput({
+				title: "State with markdown refs",
 				references: ["https://example.com", "src/index.ts"],
 			});
 
@@ -145,8 +145,8 @@ describe("Task References", () => {
 		});
 
 		it("should not include empty references in frontmatter", async () => {
-			const { filePath } = await core.createTaskFromInput({
-				title: "Task without refs",
+			const { filePath } = await core.createStateFromInput({
+				title: "State without refs",
 			});
 
 			const content = await Bun.file(filePath as string).text();
@@ -155,47 +155,47 @@ describe("Task References", () => {
 	});
 
 	describe("Archive cleanup", () => {
-		it("removes only exact-ID references from active tasks when archiving", async () => {
-			const { task: archiveTarget } = await core.createTaskFromInput({
+		it("removes only exact-ID references from active states when archiving", async () => {
+			const { state: archiveTarget } = await core.createStateFromInput({
 				title: "Archive target",
 			});
 
-			const { task: activeTask } = await core.createTaskFromInput({
-				title: "Active referencing task",
+			const { state: activeState } = await core.createStateFromInput({
+				title: "Active referencing state",
 				references: [
-					"task-1",
-					"TASK-1",
-					"https://example.com/tasks/task-1",
-					"docs/task-1.md",
-					"prefix-task-1-suffix",
+					"state-1",
+					"STATE-1",
+					"https://example.com/states/state-1",
+					"docs/state-1.md",
+					"prefix-state-1-suffix",
 					"1",
 					"JIRA-1",
-					"task-12",
+					"state-12",
 				],
 			});
 
-			const { task: completedTask } = await core.createTaskFromInput({
-				title: "Completed referencing task",
-				references: ["task-1", "https://example.com/tasks/task-1"],
+			const { state: completedState } = await core.createStateFromInput({
+				title: "Completed referencing state",
+				references: ["state-1", "https://example.com/states/state-1"],
 			});
-			await core.completeTask(completedTask.id, false);
+			await core.completeState(completedState.id, false);
 
-			const archived = await core.archiveTask(archiveTarget.id, false);
+			const archived = await core.archiveState(archiveTarget.id, false);
 			expect(archived).toBe(true);
 
-			const updatedActive = await core.loadTaskById(activeTask.id);
-			const completedTasks = await core.filesystem.listCompletedTasks();
-			const updatedCompleted = completedTasks.find((task) => task.id === completedTask.id);
+			const updatedActive = await core.loadStateById(activeState.id);
+			const completedStates = await core.filesystem.listCompletedStates();
+			const updatedCompleted = completedStates.find((state) => state.id === completedState.id);
 
 			expect(updatedActive?.references).toEqual([
-				"https://example.com/tasks/task-1",
-				"docs/task-1.md",
-				"prefix-task-1-suffix",
+				"https://example.com/states/state-1",
+				"docs/state-1.md",
+				"prefix-state-1-suffix",
 				"1",
 				"JIRA-1",
-				"task-12",
+				"state-12",
 			]);
-			expect(updatedCompleted?.references).toEqual(["task-1", "https://example.com/tasks/task-1"]);
+			expect(updatedCompleted?.references).toEqual(["state-1", "https://example.com/states/state-1"]);
 		});
 	});
 });
