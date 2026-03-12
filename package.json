@@ -53,7 +53,6 @@
 		"lint": "biome lint --write .",
 		"check": "biome check .",
 		"check:types": "bunx tsc --noEmit",
-		"prepare": "husky",
 		"build:css": "bun ./node_modules/@tailwindcss/cli/dist/index.mjs -i src/web/styles/source.css -o src/web/styles/style.css --minify",
 		"build": "bun run build:css && bun build --production --compile --minify --outfile=dist/roadmap src/cli.ts",
 		"cli": "bun run build:css && bun src/cli.ts",
