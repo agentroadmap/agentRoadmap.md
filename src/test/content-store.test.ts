@@ -3,7 +3,7 @@ import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { ContentStore, type ContentStoreEvent } from "../core/content-store.ts";
 import { FileSystem } from "../file-system/operations.ts";
-import type { Decision, Document, Task } from "../types/index.ts";
+import type { Decision, Document, State } from "../types/index.ts";
 import { createUniqueTestDir, getPlatformTimeout, safeCleanup, sleep } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -12,9 +12,9 @@ describe("ContentStore", () => {
 	let filesystem: FileSystem;
 	let store: ContentStore;
 
-	const sampleTask: Task = {
-		id: "task-1",
-		title: "Sample Task",
+	const sampleState: State = {
+		id: "state-1",
+		title: "Sample State",
 		status: "To Do",
 		assignee: [],
 		createdDate: "2025-09-19 10:00",
@@ -45,7 +45,7 @@ describe("ContentStore", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-content-store");
 		filesystem = new FileSystem(TEST_DIR);
-		await filesystem.ensureBacklogStructure();
+		await filesystem.ensureRoadmapStructure();
 		store = new ContentStore(filesystem);
 	});
 
@@ -58,32 +58,32 @@ describe("ContentStore", () => {
 		}
 	});
 
-	it("loads tasks, documents, and decisions during initialization", async () => {
-		await filesystem.saveTask(sampleTask);
+	it("loads states, documents, and decisions during initialization", async () => {
+		await filesystem.saveState(sampleState);
 		await filesystem.saveDecision(sampleDecision);
 		await filesystem.saveDocument(sampleDocument);
 
 		const snapshot = await store.ensureInitialized();
 
-		expect(snapshot.tasks).toHaveLength(1);
+		expect(snapshot.states).toHaveLength(1);
 		expect(snapshot.documents).toHaveLength(1);
 		expect(snapshot.decisions).toHaveLength(1);
-		expect(snapshot.tasks.map((task) => task.id)).toContain("TASK-1");
+		expect(snapshot.states.map((state) => state.id)).toContain("STATE-1");
 	});
 
-	it("emits task updates when underlying files change", async () => {
-		await filesystem.saveTask(sampleTask);
+	it("emits state updates when underlying files change", async () => {
+		await filesystem.saveState(sampleState);
 		await store.ensureInitialized();
 
 		const waitForUpdate = waitForEventWithTimeout(store, (event) => {
-			return event.type === "tasks" && event.tasks.some((task) => task.title === "Updated Task");
+			return event.type === "states" && event.states.some((state) => state.title === "Updated State");
 		});
 
-		await filesystem.saveTask({ ...sampleTask, title: "Updated Task" });
+		await filesystem.saveState({ ...sampleState, title: "Updated State" });
 		await waitForUpdate;
 
-		const tasks = store.getTasks();
-		expect(tasks.map((task) => task.title)).toContain("Updated Task");
+		const states = store.getStates();
+		expect(states.map((state) => state.title)).toContain("Updated State");
 	});
 
 	it("updates documents when new files are added", async () => {
@@ -109,12 +109,12 @@ describe("ContentStore", () => {
 		expect(documents.some((doc) => doc.id === "doc-2")).toBe(true);
 	});
 
-	it("preserves cross-branch tasks from the task loader during refresh", async () => {
-		await filesystem.saveTask(sampleTask);
+	it("preserves cross-branch states from the state loader during refresh", async () => {
+		await filesystem.saveState(sampleState);
 
-		const remoteTask: Task = {
-			id: "task-remote",
-			title: "Remote Task",
+		const remoteState: State = {
+			id: "state-remote",
+			title: "Remote State",
 			status: "In Progress",
 			assignee: ["alice"],
 			createdDate: "2025-10-01 12:00",
@@ -128,17 +128,17 @@ describe("ContentStore", () => {
 		store.dispose();
 		store = new ContentStore(filesystem, async () => {
 			loaderCalls += 1;
-			const localTasks = await filesystem.listTasks();
-			return [...localTasks, remoteTask];
+			const localStates = await filesystem.listStates();
+			return [...localStates, remoteState];
 		});
 
 		await store.ensureInitialized();
-		expect(store.getTasks().map((task) => task.id)).toContain("task-remote");
+		expect(store.getStates().map((state) => state.id)).toContain("state-remote");
 
-		await (store as unknown as { refreshTasksFromDisk: () => Promise<void> }).refreshTasksFromDisk();
+		await (store as unknown as { refreshStatesFromDisk: () => Promise<void> }).refreshStatesFromDisk();
 
-		const refreshedTasks = store.getTasks();
-		expect(refreshedTasks.map((task) => task.id)).toContain("task-remote");
+		const refreshedStates = store.getStates();
+		expect(refreshedStates.map((state) => state.id)).toContain("state-remote");
 		expect(loaderCalls).toBeGreaterThanOrEqual(2);
 	});
 

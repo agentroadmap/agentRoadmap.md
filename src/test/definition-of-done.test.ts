@@ -2,13 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
 
 const readConfigFile = async (root: string): Promise<string> => {
-	const configPath = join(root, "backlog", "config.yml");
+	const configPath = join(root, "roadmap", "config.yml");
 	return await readFile(configPath, "utf8");
 };
 
@@ -93,8 +93,8 @@ describe("Definition of Done", () => {
 			await core.filesystem.saveConfig(config);
 		}
 
-		const { task } = await core.createTaskFromInput({ title: "DoD task" });
-		const saved = await core.filesystem.loadTask(task.id);
+		const { state } = await core.createStateFromInput({ title: "DoD state" });
+		const saved = await core.filesystem.loadState(state.id);
 		expect(saved).not.toBeNull();
 		const body = saved?.rawContent ?? "";
 		expect(body).toContain("## Definition of Done");
@@ -111,12 +111,12 @@ describe("Definition of Done", () => {
 			await core.filesystem.saveConfig(config);
 		}
 
-		const { task } = await core.createTaskFromInput({
+		const { state } = await core.createStateFromInput({
 			title: "DoD overrides",
 			disableDefinitionOfDoneDefaults: true,
 			definitionOfDoneAdd: ["Custom checklist"],
 		});
-		const saved = await core.filesystem.loadTask(task.id);
+		const saved = await core.filesystem.loadState(state.id);
 		const body = saved?.rawContent ?? "";
 		expect(body).toContain("## Definition of Done");
 		expect(body).toContain("- [ ] #1 Custom checklist");
@@ -131,25 +131,25 @@ describe("Definition of Done", () => {
 			await core.filesystem.saveConfig(config);
 		}
 
-		const { task } = await core.createTaskFromInput({ title: "DoD edits" });
+		const { state } = await core.createStateFromInput({ title: "DoD edits" });
 
-		await core.editTask(task.id, { addDefinitionOfDone: [{ text: "Second item", checked: false }] });
-		let updated = await core.filesystem.loadTask(task.id);
+		await core.editState(state.id, { addDefinitionOfDone: [{ text: "Second item", checked: false }] });
+		let updated = await core.filesystem.loadState(state.id);
 		expect(updated?.rawContent).toContain("- [ ] #1 First item");
 		expect(updated?.rawContent).toContain("- [ ] #2 Second item");
 
-		await core.editTask(task.id, { checkDefinitionOfDone: [2] });
-		updated = await core.filesystem.loadTask(task.id);
+		await core.editState(state.id, { checkDefinitionOfDone: [2] });
+		updated = await core.filesystem.loadState(state.id);
 		expect(updated?.rawContent).toContain("- [x] #2 Second item");
 
-		await core.editTask(task.id, { removeDefinitionOfDone: [1] });
-		updated = await core.filesystem.loadTask(task.id);
+		await core.editState(state.id, { removeDefinitionOfDone: [1] });
+		updated = await core.filesystem.loadState(state.id);
 		const body = updated?.rawContent ?? "";
 		expect(body).not.toContain("First item");
 		expect(body).toContain("- [x] #1 Second item");
 
-		await core.editTask(task.id, { uncheckDefinitionOfDone: [1] });
-		updated = await core.filesystem.loadTask(task.id);
+		await core.editState(state.id, { uncheckDefinitionOfDone: [1] });
+		updated = await core.filesystem.loadState(state.id);
 		expect(updated?.rawContent).toContain("- [ ] #1 Second item");
 	});
 });

@@ -20,7 +20,7 @@ describe("CLI agents command", () => {
 		await $`git config user.name "Test User"`.cwd(TEST_DIR).quiet();
 		await $`git config user.email test@example.com`.cwd(TEST_DIR).quiet();
 
-		// Initialize backlog project using Core
+		// Initialize roadmap project using Core
 		const core = new Core(TEST_DIR);
 		await core.initializeProject("Agents Test Project");
 	});
@@ -59,7 +59,7 @@ describe("CLI agents command", () => {
 		const agents = Bun.file(join(TEST_DIR, "AGENTS.md"));
 		expect(await agents.exists()).toBe(true);
 		const content = await agents.text();
-		expect(content).toContain("Backlog.md");
+		expect(content).toContain("Roadmap.md");
 	});
 
 	it("should handle user cancellation gracefully", async () => {
@@ -77,28 +77,28 @@ describe("CLI agents command", () => {
 		expect(await agents.exists()).toBe(false);
 	});
 
-	it("should fail when not in a backlog project", async () => {
+	it("should fail when not in a roadmap project", async () => {
 		// Use OS temp directory to ensure complete isolation from project
 		const tempDir = await import("node:os").then((os) => os.tmpdir());
-		const nonBacklogDir = join(tempDir, `test-non-backlog-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+		const nonRoadmapDir = join(tempDir, `test-non-roadmap-${Date.now()}-${Math.random().toString(36).substring(7)}`);
 
 		// Ensure clean state first
-		await rm(nonBacklogDir, { recursive: true, force: true }).catch(() => {});
+		await rm(nonRoadmapDir, { recursive: true, force: true }).catch(() => {});
 
-		// Create a temporary directory that's not a backlog project
-		await mkdir(nonBacklogDir, { recursive: true });
+		// Create a temporary directory that's not a roadmap project
+		await mkdir(nonRoadmapDir, { recursive: true });
 
 		// Initialize git repo
-		await $`git init`.cwd(nonBacklogDir).quiet();
-		await $`git config user.name "Test User"`.cwd(nonBacklogDir).quiet();
-		await $`git config user.email test@example.com`.cwd(nonBacklogDir).quiet();
+		await $`git init`.cwd(nonRoadmapDir).quiet();
+		await $`git config user.name "Test User"`.cwd(nonRoadmapDir).quiet();
+		await $`git config user.email test@example.com`.cwd(nonRoadmapDir).quiet();
 
-		const result = await $`bun ${cliPath} agents --update-instructions`.cwd(nonBacklogDir).nothrow().quiet();
+		const result = await $`bun ${cliPath} agents --update-instructions`.cwd(nonRoadmapDir).nothrow().quiet();
 
 		expect(result.exitCode).toBe(1);
 
 		// Cleanup
-		await rm(nonBacklogDir, { recursive: true, force: true }).catch(() => {});
+		await rm(nonRoadmapDir, { recursive: true, force: true }).catch(() => {});
 	});
 
 	it("should update multiple selected files", async () => {
@@ -121,8 +121,8 @@ describe("CLI agents command", () => {
 		const agentsContent = await agents2.text();
 		const claudeContent = await claudeMd.text();
 
-		expect(agentsContent).toContain("Backlog.md");
-		expect(claudeContent).toContain("Backlog.md");
+		expect(agentsContent).toContain("Roadmap.md");
+		expect(claudeContent).toContain("Roadmap.md");
 	});
 
 	it("should update existing files correctly", async () => {
@@ -145,7 +145,7 @@ describe("CLI agents command", () => {
 		// File should still exist and have consistent content
 		expect(await agents3.exists()).toBe(true);
 		const updatedContent = await agents3.text();
-		expect(updatedContent).toContain("Backlog.md");
+		expect(updatedContent).toContain("Roadmap.md");
 		// Should be idempotent - content should be similar (may have minor differences)
 		expect(updatedContent.length).toBeGreaterThan(0);
 	});

@@ -1,17 +1,17 @@
 /**
- * View switcher module for handling Tab key navigation between task views and kanban board
+ * View switcher module for handling Tab key navigation between state views and kanban board
  * with intelligent background loading and state preservation.
  */
 
-import type { Core } from "../core/backlog.ts";
-import type { Task } from "../types/index.ts";
+import type { Core } from "../core/roadmap.ts";
+import type { State } from "../types/index.ts";
 
-export type ViewType = "task-list" | "task-detail" | "kanban";
+export type ViewType = "state-list" | "state-detail" | "kanban";
 
 export interface ViewState {
 	type: ViewType;
-	selectedTask?: Task;
-	tasks?: Task[];
+	selectedState?: State;
+	states?: State[];
 	filter?: {
 		status?: string;
 		assignee?: string;
@@ -20,10 +20,10 @@ export interface ViewState {
 		title?: string;
 		filterDescription?: string;
 		searchQuery?: string;
-		parentTaskId?: string;
+		parentStateId?: string;
 	};
 	kanbanData?: {
-		tasks: Task[];
+		states: State[];
 		statuses: string[];
 		isLoading: boolean;
 		loadError?: string;
@@ -40,8 +40,8 @@ export interface ViewSwitcherOptions {
  * Background loading state for kanban board data
  */
 class BackgroundLoader {
-	private loadingPromise: Promise<Task[]> | null = null;
-	private cachedTasks: Task[] | null = null;
+	private loadingPromise: Promise<State[]> | null = null;
+	private cachedStates: State[] | null = null;
 	private lastLoadTime = 0;
 	private readonly CACHE_TTL = 30000; // 30 seconds
 	private onProgress?: (message: string) => void;
@@ -70,12 +70,12 @@ class BackgroundLoader {
 	/**
 	 * Get kanban data - either from cache or by waiting for loading
 	 */
-	async getKanbanData(): Promise<{ tasks: Task[]; statuses: string[] }> {
+	async getKanbanData(): Promise<{ states: State[]; statuses: string[] }> {
 		// Return cached data if fresh
-		if (this.isCacheFresh() && this.cachedTasks) {
+		if (this.isCacheFresh() && this.cachedStates) {
 			const config = await this.core.filesystem.loadConfig();
 			return {
-				tasks: this.cachedTasks,
+				states: this.cachedStates,
 				statuses: config?.statuses || [],
 			};
 		}
@@ -86,15 +86,15 @@ class BackgroundLoader {
 			this.loadingPromise = this.loadKanbanData();
 		} else {
 			// If loading is already in progress, send a status update to the current progress callback
-			this.onProgress?.("Loading tasks from local and remote branches...");
+			this.onProgress?.("Loading states from local and remote branches...");
 		}
 
 		// Wait for loading to complete
-		const tasks = await this.loadingPromise;
+		const states = await this.loadingPromise;
 		const config = await this.core.filesystem.loadConfig();
 
 		return {
-			tasks,
+			states,
 			statuses: config?.statuses || [],
 		};
 	}
@@ -103,7 +103,7 @@ class BackgroundLoader {
 	 * Check if we have fresh cached data
 	 */
 	isReady(): boolean {
-		return this.isCacheFresh() && this.cachedTasks !== null;
+		return this.isCacheFresh() && this.cachedStates !== null;
 	}
 
 	/**
@@ -117,7 +117,7 @@ class BackgroundLoader {
 		return Date.now() - this.lastLoadTime < this.CACHE_TTL;
 	}
 
-	private async loadKanbanData(): Promise<Task[]> {
+	private async loadKanbanData(): Promise<State[]> {
 		try {
 			// Check for cancellation at the start
 			if (this.abortController?.signal.aborted) {
@@ -130,16 +130,16 @@ class BackgroundLoader {
 				this.onProgress?.(msg);
 			};
 
-			// Use the shared Core method for loading board tasks
-			const filteredTasks = await this.core.loadTasks(progressWrapper, this.abortController?.signal);
+			// Use the shared Core method for loading board states
+			const filteredStates = await this.core.loadStates(progressWrapper, this.abortController?.signal);
 
 			// Cache the results
-			this.cachedTasks = filteredTasks;
+			this.cachedStates = filteredStates;
 			this.lastLoadTime = Date.now();
 			this.loadingPromise = null;
 			this.lastProgressMessage = ""; // Clear progress message after completion
 
-			return filteredTasks;
+			return filteredStates;
 		} catch (error) {
 			this.loadingPromise = null;
 			this.lastProgressMessage = ""; // Clear progress message on error
@@ -163,10 +163,10 @@ class BackgroundLoader {
 	}
 
 	/**
-	 * Seed the cache with pre-loaded tasks to avoid redundant loading
+	 * Seed the cache with pre-loaded states to avoid redundant loading
 	 */
-	seedCache(tasks: Task[]): void {
-		this.cachedTasks = tasks;
+	seedCache(states: State[]): void {
+		this.cachedStates = states;
 		this.lastLoadTime = Date.now();
 	}
 
@@ -195,11 +195,11 @@ export class ViewSwitcher {
 		this.backgroundLoader = new BackgroundLoader(options.core);
 		this.onViewChange = options.onViewChange;
 
-		// If starting with kanban view and we already have loaded tasks, seed the cache
-		if (this.state.type === "kanban" && this.state.kanbanData?.tasks && !this.state.kanbanData.isLoading) {
-			this.backgroundLoader.seedCache(this.state.kanbanData.tasks);
+		// If starting with kanban view and we already have loaded states, seed the cache
+		if (this.state.type === "kanban" && this.state.kanbanData?.states && !this.state.kanbanData.isLoading) {
+			this.backgroundLoader.seedCache(this.state.kanbanData.states);
 		}
-		// Note: We no longer auto-start background loading - tasks are loaded once
+		// Note: We no longer auto-start background loading - states are loaded once
 		// at the unified view level and passed through
 	}
 
@@ -215,13 +215,13 @@ export class ViewSwitcher {
 	 */
 	async switchView(): Promise<ViewState> {
 		switch (this.state.type) {
-			case "task-list":
-			case "task-detail":
+			case "state-list":
+			case "state-detail":
 				// Switch to kanban board
 				return await this.switchToKanban();
 			case "kanban":
-				// Switch back to previous task view
-				return this.switchToTaskView();
+				// Switch back to previous state view
+				return this.switchToStateView();
 			default:
 				return this.state;
 		}
@@ -234,12 +234,12 @@ export class ViewSwitcher {
 		try {
 			if (this.backgroundLoader.isReady()) {
 				// Data is ready, switch instantly
-				const { tasks, statuses } = await this.backgroundLoader.getKanbanData();
+				const { states, statuses } = await this.backgroundLoader.getKanbanData();
 				this.state = {
 					...this.state,
 					type: "kanban",
 					kanbanData: {
-						tasks,
+						states,
 						statuses,
 						isLoading: false,
 					},
@@ -250,7 +250,7 @@ export class ViewSwitcher {
 					...this.state,
 					type: "kanban",
 					kanbanData: {
-						tasks: [],
+						states: [],
 						statuses: [],
 						isLoading: true,
 					},
@@ -265,7 +265,7 @@ export class ViewSwitcher {
 				...this.state,
 				type: "kanban",
 				kanbanData: {
-					tasks: [],
+					states: [],
 					statuses: [],
 					isLoading: false,
 					loadError: error instanceof Error ? error.message : "Failed to load kanban data",
@@ -278,11 +278,11 @@ export class ViewSwitcher {
 	}
 
 	/**
-	 * Switch back to task view (preserve previous view type)
+	 * Switch back to state view (preserve previous view type)
 	 */
-	private switchToTaskView(): ViewState {
-		// Default to task-list if no previous task view
-		const viewType = this.state.selectedTask ? "task-detail" : "task-list";
+	private switchToStateView(): ViewState {
+		// Default to state-list if no previous state view
+		const viewType = this.state.selectedState ? "state-detail" : "state-list";
 
 		this.state = {
 			...this.state,
@@ -302,8 +302,8 @@ export class ViewSwitcher {
 	updateState(updates: Partial<ViewState>): ViewState {
 		this.state = { ...this.state, ...updates };
 
-		// Start background loading if switching to task views
-		if (this.state.type === "task-list" || this.state.type === "task-detail") {
+		// Start background loading if switching to state views
+		if (this.state.type === "state-list" || this.state.type === "state-detail") {
 			this.backgroundLoader.startLoading();
 		}
 
@@ -328,7 +328,7 @@ export class ViewSwitcher {
 	/**
 	 * Get kanban data - delegates to background loader
 	 */
-	async getKanbanData(): Promise<{ tasks: Task[]; statuses: string[] }> {
+	async getKanbanData(): Promise<{ states: State[]; statuses: string[] }> {
 		return await this.backgroundLoader.getKanbanData();
 	}
 

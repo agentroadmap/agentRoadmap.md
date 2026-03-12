@@ -1,8 +1,8 @@
 import { describe, expect, it } from "bun:test";
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 import { type ColumnData, shouldRebuildColumns } from "../ui/board.ts";
 
-function createTask(id: string, status: string): Task {
+function createState(id: string, status: string): State {
 	return {
 		id,
 		title: `Title for ${id}`,
@@ -15,38 +15,38 @@ function createTask(id: string, status: string): Task {
 	};
 }
 
-function makeColumns(taskIds: string[][], status: string): ColumnData[] {
-	return taskIds.map((ids) => ({
+function makeColumns(stateIds: string[][], status: string): ColumnData[] {
+	return stateIds.map((ids) => ({
 		status,
-		tasks: ids.map((id) => createTask(id, status)),
+		states: ids.map((id) => createState(id, status)),
 	}));
 }
 
 describe("shouldRebuildColumns", () => {
-	it("returns false when columns and task ordering are unchanged", () => {
-		const previous = makeColumns([["task-1", "task-2"]], "In Progress");
-		const next = makeColumns([["task-1", "task-2"]], "In Progress");
+	it("returns false when columns and state ordering are unchanged", () => {
+		const previous = makeColumns([["state-1", "state-2"]], "In Progress");
+		const next = makeColumns([["state-1", "state-2"]], "In Progress");
 
 		expect(shouldRebuildColumns(previous, next)).toBe(false);
 	});
 
 	it("returns true when a column loses items", () => {
-		const previous = makeColumns([["task-1", "task-2"]], "In Progress");
-		const next = makeColumns([["task-1"]], "In Progress");
+		const previous = makeColumns([["state-1", "state-2"]], "In Progress");
+		const next = makeColumns([["state-1"]], "In Progress");
 
 		expect(shouldRebuildColumns(previous, next)).toBe(true);
 	});
 
-	it("returns true when column task ordering changes", () => {
-		const previous = makeColumns([["task-1", "task-2"]], "In Progress");
-		const next = makeColumns([["task-2", "task-1"]], "In Progress");
+	it("returns true when column state ordering changes", () => {
+		const previous = makeColumns([["state-1", "state-2"]], "In Progress");
+		const next = makeColumns([["state-2", "state-1"]], "In Progress");
 
 		expect(shouldRebuildColumns(previous, next)).toBe(true);
 	});
 
 	it("returns true when number of columns changes", () => {
-		const previous = makeColumns([["task-1"]], "In Progress");
-		const next = makeColumns([["task-1"], ["task-2"]], "In Progress");
+		const previous = makeColumns([["state-1"]], "In Progress");
+		const next = makeColumns([["state-1"], ["state-2"]], "In Progress");
 
 		expect(shouldRebuildColumns(previous, next)).toBe(true);
 	});

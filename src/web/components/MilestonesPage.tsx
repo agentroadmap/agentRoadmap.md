@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import Fuse from "fuse.js";
 import { apiClient } from "../lib/api";
 import { buildMilestoneBuckets, collectArchivedMilestoneKeys, isDoneStatus } from "../utils/milestones";
-import { type Milestone, type MilestoneBucket, type Task } from "../../types";
-import MilestoneTaskRow from "./MilestoneTaskRow";
+import { type Milestone, type MilestoneBucket, type State } from "../../types";
+import MilestoneStateRow from "./MilestoneStateRow";
 import Modal from "./Modal";
 
 interface MilestoneSearchEntry {
@@ -14,46 +14,46 @@ interface MilestoneSearchEntry {
 
 const rebuildFilteredBucket = (
 	bucket: MilestoneBucket,
-	filteredTasks: Task[],
+	filteredStates: State[],
 	statuses: string[],
 ): MilestoneBucket => {
 	const counts: Record<string, number> = {};
 	for (const status of statuses) {
 		counts[status] = 0;
 	}
-	for (const task of filteredTasks) {
-		const status = task.status ?? "";
+	for (const state of filteredStates) {
+		const status = state.status ?? "";
 		counts[status] = (counts[status] ?? 0) + 1;
 	}
 
-	const doneCount = filteredTasks.filter((task) => isDoneStatus(task.status)).length;
-	const progress = filteredTasks.length > 0 ? Math.round((doneCount / filteredTasks.length) * 100) : 0;
+	const doneCount = filteredStates.filter((state) => isDoneStatus(state.status)).length;
+	const progress = filteredStates.length > 0 ? Math.round((doneCount / filteredStates.length) * 100) : 0;
 
 	return {
 		...bucket,
-		tasks: filteredTasks,
+		states: filteredStates,
 		statusCounts: counts,
-		total: filteredTasks.length,
+		total: filteredStates.length,
 		doneCount,
 		progress,
 	};
 };
 
 interface MilestonesPageProps {
-	tasks: Task[];
+	states: State[];
 	statuses: string[];
 	milestoneEntities: Milestone[];
 	archivedMilestones: Milestone[];
-	onEditTask: (task: Task) => void;
+	onEditState: (state: State) => void;
 	onRefreshData?: () => Promise<void>;
 }
 
 const MilestonesPage: React.FC<MilestonesPageProps> = ({
-	tasks,
+	states,
 	statuses,
 	milestoneEntities,
 	archivedMilestones,
-	onEditTask,
+	onEditState,
 	onRefreshData,
 }) => {
 	const [newMilestone, setNewMilestone] = useState("");
@@ -62,7 +62,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 	const [isSaving, setIsSaving] = useState(false);
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [expandedBuckets, setExpandedBuckets] = useState<Record<string, boolean>>({});
-	const [draggedTask, setDraggedTask] = useState<Task | null>(null);
+	const [draggedState, setDraggedState] = useState<State | null>(null);
 	const [dropTargetKey, setDropTargetKey] = useState<string | null>(null);
 	const [showAllUnassigned, setShowAllUnassigned] = useState(false);
 	const [showCompleted, setShowCompleted] = useState(false);
@@ -74,8 +74,8 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		[archivedMilestones, milestoneEntities],
 	);
 	const buckets = useMemo(
-		() => buildMilestoneBuckets(tasks, milestoneEntities, statuses, { archivedMilestoneIds, archivedMilestones }),
-		[tasks, milestoneEntities, statuses, archivedMilestoneIds, archivedMilestones],
+		() => buildMilestoneBuckets(states, milestoneEntities, statuses, { archivedMilestoneIds, archivedMilestones }),
+		[states, milestoneEntities, statuses, archivedMilestoneIds, archivedMilestones],
 	);
 	const searchQueryTrimmed = searchQuery.trim();
 	const isSearchActive = searchQueryTrimmed.length > 0;
@@ -91,22 +91,22 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 			return buckets;
 		}
 
-		const searchableTasks: MilestoneSearchEntry[] = buckets.flatMap((bucket) =>
-			bucket.tasks.map((task) => ({
-				id: task.id,
-				title: task.title,
+		const searchableStates: MilestoneSearchEntry[] = buckets.flatMap((bucket) =>
+			bucket.states.map((state) => ({
+				id: state.id,
+				title: state.title,
 			})),
 		);
-		if (searchableTasks.length === 0) {
+		if (searchableStates.length === 0) {
 			return buckets.map((bucket) => rebuildFilteredBucket(bucket, [], statuses));
 		}
 		const normalizedQuery = searchQueryTrimmed.toLowerCase();
-		const exactIdMatches = searchableTasks.filter((task) => task.id.toLowerCase() === normalizedQuery);
-		const matchedTaskIds =
+		const exactIdMatches = searchableStates.filter((state) => state.id.toLowerCase() === normalizedQuery);
+		const matchedStateIds =
 			exactIdMatches.length > 0
-				? new Set(exactIdMatches.map((task) => task.id))
+				? new Set(exactIdMatches.map((state) => state.id))
 				: (() => {
-						const fuse = new Fuse(searchableTasks, {
+						const fuse = new Fuse(searchableStates, {
 							threshold: 0.35,
 							ignoreLocation: true,
 							minMatchCharLength: 2,
@@ -120,8 +120,8 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 					})();
 
 		return buckets.map((bucket) => {
-			const filteredTasks = bucket.tasks.filter((task) => matchedTaskIds.has(task.id));
-			return rebuildFilteredBucket(bucket, filteredTasks, statuses);
+			const filteredStates = bucket.states.filter((state) => matchedStateIds.has(state.id));
+			return rebuildFilteredBucket(bucket, filteredStates, statuses);
 		});
 	}, [buckets, isSearchActive, searchQueryTrimmed, statuses]);
 
@@ -139,12 +139,12 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		};
 
 		const unassigned = visibleBuckets.find((b) => b.isNoMilestone);
-		const activeWithTasks = visibleBuckets.filter((b) => !b.isNoMilestone && !b.isCompleted && b.total > 0);
+		const activeWithStates = visibleBuckets.filter((b) => !b.isNoMilestone && !b.isCompleted && b.total > 0);
 		const empty = visibleBuckets.filter((b) => !b.isNoMilestone && !b.isCompleted && b.total === 0);
 		const completed = visibleBuckets.filter((b) => !b.isNoMilestone && b.isCompleted);
 
-		// Sort each group by ID descending, then combine (active with tasks first, then empty)
-		const sortedActive = [...activeWithTasks].sort(sortByIdDesc);
+		// Sort each group by ID descending, then combine (active with states first, then empty)
+		const sortedActive = [...activeWithStates].sort(sortByIdDesc);
 		const sortedEmpty = [...empty].sort(sortByIdDesc);
 		const sortedCompleted = [...completed].sort(sortByIdDesc);
 
@@ -156,10 +156,10 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 	}, [visibleBuckets]);
 
 	// Drag and drop handlers
-	const handleDragStart = useCallback((e: React.DragEvent, task: Task) => {
-		setDraggedTask(task);
+	const handleDragStart = useCallback((e: React.DragEvent, state: State) => {
+		setDraggedState(state);
 		e.dataTransfer.effectAllowed = "move";
-		e.dataTransfer.setData("text/plain", task.id);
+		e.dataTransfer.setData("text/plain", state.id);
 		// Add dragging class for visual feedback
 		if (e.currentTarget instanceof HTMLElement) {
 			e.currentTarget.style.opacity = "0.5";
@@ -167,7 +167,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 	}, []);
 
 	const handleDragEnd = useCallback((e: React.DragEvent) => {
-		setDraggedTask(null);
+		setDraggedState(null);
 		setDropTargetKey(null);
 		if (e.currentTarget instanceof HTMLElement) {
 			e.currentTarget.style.opacity = "1";
@@ -188,25 +188,25 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		e.preventDefault();
 		setDropTargetKey(null);
 
-		if (!draggedTask) return;
+		if (!draggedState) return;
 
 		// Don't do anything if dropping on same milestone
-		if (draggedTask.milestone === targetMilestone) {
-			setDraggedTask(null);
+		if (draggedState.milestone === targetMilestone) {
+			setDraggedState(null);
 			return;
 		}
 
 		try {
-			await apiClient.updateTask(draggedTask.id, { milestone: targetMilestone });
+			await apiClient.updateState(draggedState.id, { milestone: targetMilestone });
 			if (onRefreshData) {
 				await onRefreshData();
 			}
 		} catch (err) {
-			console.error("Failed to update task milestone:", err);
+			console.error("Failed to update state milestone:", err);
 		}
 
-		setDraggedTask(null);
-	}, [draggedTask, onRefreshData]);
+		setDraggedState(null);
+	}, [draggedState, onRefreshData]);
 
 	const handleNewMilestoneChange = (value: string) => {
 		setNewMilestone(value);
@@ -255,7 +255,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 
 			const label = bucket.label || bucket.milestone;
 			const confirmed = window.confirm(
-				`Archive milestone "${label}"? This moves it to backlog/archive/milestones and hides it from the milestones view.`,
+				`Archive milestone "${label}"? This moves it to roadmap/archive/milestones and hides it from the milestones view.`,
 			);
 			if (!confirmed) return;
 
@@ -317,9 +317,9 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		return "text-gray-600 dark:text-gray-400";
 	};
 
-	const getSortedTasks = (bucketTasks: Task[]) => {
-		return bucketTasks.slice().sort((a, b) => {
-			// Done tasks go to the bottom
+	const getSortedStates = (bucketStates: State[]) => {
+		return bucketStates.slice().sort((a, b) => {
+			// Done states go to the bottom
 			const aDone = isDoneStatus(a.status);
 			const bDone = isDoneStatus(b.status);
 			if (aDone !== bDone) return aDone ? 1 : -1;
@@ -338,9 +338,9 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		const defaultExpanded = defaultExpandedByBucketKey[bucket.key] ?? (bucket.total > 0 && bucket.total <= 8);
 		const isExpanded = expandedBuckets[bucket.key] ?? defaultExpanded;
 		const listId = `milestone-${safeIdSegment(bucket.key)}`;
-		const sortedTasks = getSortedTasks(bucket.tasks);
+		const sortedStates = getSortedStates(bucket.states);
 		const isDropTarget = dropTargetKey === bucket.key;
-		const isDragging = draggedTask !== null;
+		const isDragging = draggedState !== null;
 		const isArchiving = archivingMilestoneKey === bucket.key;
 
 		return (
@@ -365,12 +365,12 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 						</h3>
 						{isEmpty ? (
 							<span className="text-sm text-gray-400 dark:text-gray-500">
-								{isDragging ? "Drop here" : "No tasks"}
+								{isDragging ? "Drop here" : "No states"}
 							</span>
 						) : (
 							<div className="flex items-center gap-3">
 								<span className="text-sm text-gray-500 dark:text-gray-400">
-									{bucket.total} task{bucket.total === 1 ? "" : "s"}
+									{bucket.total} state{bucket.total === 1 ? "" : "s"}
 								</span>
 								<span className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
 									{progress}%
@@ -415,7 +415,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 								Board
 							</Link>
 							<Link
-								to={`/tasks?milestone=${encodeURIComponent(bucket.milestone ?? "")}`}
+								to={`/states?milestone=${encodeURIComponent(bucket.milestone ?? "")}`}
 								className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
 							>
 								<svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,36 +442,36 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 							onClick={() => setExpandedBuckets((c) => ({ ...c, [bucket.key]: !isExpanded }))}
 							className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
 						>
-							{isExpanded ? "Hide" : "Show"} tasks
+							{isExpanded ? "Hide" : "Show"} states
 							<svg className={`w-4 h-4 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
 							</svg>
 						</button>
 					</div>
 
-					{/* Task list */}
+					{/* State list */}
 					{isExpanded && !isEmpty && (
 						<div id={listId} className="mt-4 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
 							<div className="divide-y divide-gray-200 dark:divide-gray-700">
-								{sortedTasks.slice(0, 10).map((task) => {
+								{sortedStates.slice(0, 10).map((state) => {
 									return (
-										<MilestoneTaskRow
-											key={task.id}
-											task={task}
-											isDone={isDoneStatus(task.status)}
-											statusBadgeClass={getStatusBadgeClass(task.status)}
-											priorityBadgeClass={getPriorityBadgeClass(task.priority)}
-											onEditTask={onEditTask}
+										<MilestoneStateRow
+											key={state.id}
+											state={state}
+											isDone={isDoneStatus(state.status)}
+											statusBadgeClass={getStatusBadgeClass(state.status)}
+											priorityBadgeClass={getPriorityBadgeClass(state.priority)}
+											onEditState={onEditState}
 											onDragStart={handleDragStart}
 											onDragEnd={handleDragEnd}
 										/>
 									);
 								})}
 							</div>
-							{sortedTasks.length > 10 && (
+							{sortedStates.length > 10 && (
 								<div className="px-3 py-2 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700">
-									<Link to={`/tasks?milestone=${encodeURIComponent(bucket.milestone ?? "")}`} className="text-blue-600 dark:text-blue-400 hover:underline">
-										View all {sortedTasks.length} tasks →
+									<Link to={`/states?milestone=${encodeURIComponent(bucket.milestone ?? "")}`} className="text-blue-600 dark:text-blue-400 hover:underline">
+										View all {sortedStates.length} states →
 									</Link>
 								</div>
 							)}
@@ -482,15 +482,15 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 		);
 	};
 
-	// Render unassigned tasks section with table layout
+	// Render unassigned states section with table layout
 	const renderUnassignedSection = () => {
 		if (!unassignedBucket || (!isSearchActive && unassignedBucket.total === 0)) return null;
 
-		const sortedActiveTasks = getSortedTasks(unassignedBucket.tasks.filter((task) => !isDoneStatus(task.status)));
+		const sortedActiveStates = getSortedStates(unassignedBucket.states.filter((state) => !isDoneStatus(state.status)));
 		const isExpanded = expandedBuckets["__unassigned"] ?? true;
-		const displayTasks = showAllUnassigned ? sortedActiveTasks : sortedActiveTasks.slice(0, 12);
-		const hasMore = sortedActiveTasks.length > 12;
-		const hasActiveUnassignedTasks = sortedActiveTasks.length > 0;
+		const displayStates = showAllUnassigned ? sortedActiveStates : sortedActiveStates.slice(0, 12);
+		const hasMore = sortedActiveStates.length > 12;
+		const hasActiveUnassignedStates = sortedActiveStates.length > 0;
 
 		return (
 			<div className="mb-8 rounded-lg border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 transition-colors duration-200">
@@ -502,10 +502,10 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 							</svg>
 							<h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-								Unassigned tasks
+								Unassigned states
 							</h3>
 							<span className="text-sm text-gray-500 dark:text-gray-400">
-								({sortedActiveTasks.length})
+								({sortedActiveStates.length})
 							</span>
 						</div>
 						<button
@@ -522,7 +522,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 
 					{isExpanded && (
 						<div className="mt-4">
-							{hasActiveUnassignedTasks ? (
+							{hasActiveUnassignedStates ? (
 								<>
 									{/* Table */}
 									<div className="rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800">
@@ -537,14 +537,14 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 
 										{/* Table rows */}
 										<div className="divide-y divide-gray-200 dark:divide-gray-700">
-											{displayTasks.map((task) => (
-												<MilestoneTaskRow
-													key={task.id}
-													task={task}
-													isDone={isDoneStatus(task.status)}
-													statusBadgeClass={getStatusBadgeClass(task.status)}
-													priorityBadgeClass={getPriorityBadgeClass(task.priority)}
-													onEditTask={onEditTask}
+											{displayStates.map((state) => (
+												<MilestoneStateRow
+													key={state.id}
+													state={state}
+													isDone={isDoneStatus(state.status)}
+													statusBadgeClass={getStatusBadgeClass(state.status)}
+													priorityBadgeClass={getPriorityBadgeClass(state.priority)}
+													onEditState={onEditState}
 													onDragStart={handleDragStart}
 													onDragEnd={handleDragEnd}
 												/>
@@ -561,7 +561,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 												>
 													{showAllUnassigned
 														? "Show less ↑"
-														: `Show all ${sortedActiveTasks.length} tasks ↓`}
+														: `Show all ${sortedActiveStates.length} states ↓`}
 												</button>
 											</div>
 										)}
@@ -569,14 +569,14 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 
 									{/* Hint */}
 									<p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
-										Drag tasks to a milestone below to assign them
+										Drag states to a milestone below to assign them
 									</p>
 								</>
 							) : (
 								<p className="rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-white/70 dark:bg-gray-800/50 px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
 									{isSearchActive
-										? "No matching unassigned tasks."
-										: "No active unassigned tasks. Completed tasks are hidden."}
+										? "No matching unassigned states."
+										: "No active unassigned states. Completed states are hidden."}
 								</p>
 							)}
 						</div>
@@ -610,7 +610,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 							type="text"
 							value={searchQuery}
 							onInput={(event) => setSearchQuery((event.target as HTMLInputElement).value)}
-							placeholder="Search by task ID or title"
+							placeholder="Search by state ID or title"
 							aria-label="Search milestones"
 							className="w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-stone-500 dark:focus:ring-stone-400 focus:border-transparent transition-colors duration-200"
 						/>
@@ -659,7 +659,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 			{showSearchNoMatchHint && (
 				<div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
 					<p className="text-sm text-amber-800 dark:text-amber-200">
-						No milestones or tasks match &quot;{searchQueryTrimmed}&quot;.
+						No milestones or states match &quot;{searchQueryTrimmed}&quot;.
 					</p>
 					<button
 						type="button"
@@ -671,7 +671,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 				</div>
 			)}
 
-			{/* Unassigned tasks */}
+			{/* Unassigned states */}
 			{renderUnassignedSection()}
 
 			{/* Active milestones */}
@@ -721,7 +721,7 @@ const MilestonesPage: React.FC<MilestonesPageProps> = ({
 					<svg className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
 					</svg>
-					<p className="text-gray-500 dark:text-gray-400">No milestones yet. Create one to start organizing your tasks.</p>
+					<p className="text-gray-500 dark:text-gray-400">No milestones yet. Create one to start organizing your states.</p>
 				</div>
 			)}
 

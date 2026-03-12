@@ -1,5 +1,5 @@
 import * as clack from "@clack/prompts";
-import type { BacklogConfig } from "../types/index.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 import { isEditorAvailable, resolveEditor } from "../utils/editor.ts";
 
 interface PromptChoice {
@@ -30,14 +30,14 @@ export type PromptRunner = (
 ) => Promise<Record<string, unknown>>;
 
 interface WizardOptions {
-	existingConfig?: BacklogConfig | null;
+	existingConfig?: RoadmapConfig | null;
 	cancelMessage: string;
 	includeClaudePrompt?: boolean;
 	promptImpl?: PromptRunner;
 }
 
 export interface AdvancedConfigWizardResult {
-	config: Partial<BacklogConfig>;
+	config: Partial<RoadmapConfig>;
 	installClaudeAgent: boolean;
 	installShellCompletions: boolean;
 }
@@ -221,7 +221,7 @@ export async function runAdvancedConfigWizard({
 			type: "confirm",
 			name: "installCompletions",
 			message: "Install shell completions now?",
-			hint: "Adds TAB completion support for backlog commands in your shell",
+			hint: "Adds TAB completion support for roadmap commands in your shell",
 			initial: true,
 		},
 		{ onCancel },
@@ -232,8 +232,8 @@ export async function runAdvancedConfigWizard({
 		{
 			type: "confirm",
 			name: "checkActiveBranches",
-			message: "Check task states across active branches?",
-			hint: "Ensures accurate task tracking across branches (may impact performance on large repos)",
+			message: "Check state states across active branches?",
+			hint: "Ensures accurate state tracking across branches (may impact performance on large repos)",
 			initial: checkActiveBranches,
 		},
 		{ onCancel },
@@ -245,8 +245,8 @@ export async function runAdvancedConfigWizard({
 			{
 				type: "confirm",
 				name: "remoteOperations",
-				message: "Check task states in remote branches?",
-				hint: "Required for accessing tasks from feature branches on remote repos",
+				message: "Check state states in remote branches?",
+				hint: "Required for accessing states from feature branches on remote repos",
 				initial: remoteOperations,
 			},
 			{ onCancel },
@@ -288,7 +288,7 @@ export async function runAdvancedConfigWizard({
 		{
 			type: "confirm",
 			name: "autoCommit",
-			message: "Enable automatic commits for Backlog operations?",
+			message: "Enable automatic commits for Roadmap operations?",
 			hint: "Creates commits automatically after CLI changes",
 			initial: autoCommit,
 		},
@@ -302,7 +302,7 @@ export async function runAdvancedConfigWizard({
 				type: "confirm",
 				name: "enableZeroPadding",
 				message: "Enable zero-padded IDs for consistent formatting?",
-				hint: "Example: task-001, doc-001 instead of task-1, doc-1",
+				hint: "Example: state-001, doc-001 instead of state-1, doc-1",
 				initial: (zeroPaddedIds ?? 0) > 0,
 			},
 			{ onCancel },
@@ -320,7 +320,7 @@ export async function runAdvancedConfigWizard({
 				type: "number",
 				name: "paddingWidth",
 				message: "Number of digits for zero-padding:",
-				hint: "e.g., 3 creates task-001; 4 creates task-0001",
+				hint: "e.g., 3 creates state-001; 4 creates state-0001",
 				initial: zeroPaddedIds ?? 3,
 				min: 1,
 				max: 10,
@@ -591,7 +591,7 @@ export async function runAdvancedConfigWizard({
 					type: "confirm",
 					name: "autoOpenBrowser",
 					message: "Automatically open browser when starting web UI?",
-					hint: "When enabled, 'backlog web' opens your browser",
+					hint: "When enabled, 'roadmap web' opens your browser",
 					initial: autoOpenBrowser,
 				},
 			],
@@ -618,7 +618,7 @@ export async function runAdvancedConfigWizard({
 			{
 				type: "confirm",
 				name: "installClaudeAgent",
-				message: "Install Claude Code Backlog.md agent?",
+				message: "Install Claude Code Roadmap.md agent?",
 				hint: "Adds configuration under .claude/agents/",
 				initial: false,
 			},

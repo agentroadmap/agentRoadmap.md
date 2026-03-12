@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../lib/api';
-import type { TaskStatistics } from '../../core/statistics';
-import type { Task } from '../../types';
+import type { StateStatistics } from '../../core/statistics';
+import type { State } from '../../types';
 import LoadingSpinner from './LoadingSpinner';
 
-interface StatisticsData extends Omit<TaskStatistics, 'statusCounts' | 'priorityCounts'> {
+interface StatisticsData extends Omit<StateStatistics, 'statusCounts' | 'priorityCounts'> {
 	statusCounts: Record<string, number>;
 	priorityCounts: Record<string, number>;
 }
 
 interface StatisticsProps {
-	tasks?: Task[];
+	states?: State[];
 	isLoading?: boolean;
-	onEditTask?: (task: Task) => void;
+	onEditState?: (state: State) => void;
 	projectName?: string;
 }
 
-const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoading, onEditTask, projectName }) => {
+const Statistics: React.FC<StatisticsProps> = ({ states, isLoading: externalLoading, onEditState, projectName }) => {
 	const [statistics, setStatistics] = useState<StatisticsData | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -36,10 +36,10 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 				// Loading messages that reflect actual backend operations
 				const loadingMessages = [
 					'Building statistics...',
-					'Loading local tasks...',
-					'Loading completed tasks...',
-					'Merging tasks...',
-					'Checking task states across branches...',
+					'Loading local states...',
+					'Loading completed states...',
+					'Merging states...',
+					'Checking state states across branches...',
 					'Loading drafts...',
 					'Calculating statistics...'
 				];
@@ -126,7 +126,7 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 		);
 	}
 
-	const TaskPreview = ({ task, showDate, onClick }: { task: Task; showDate: 'created' | 'updated'; onClick?: () => void }) => {
+	const StatePreview = ({ state, showDate, onClick }: { state: State; showDate: 'created' | 'updated'; onClick?: () => void }) => {
 		const formatDate = (dateStr: string) => {
 			const hasTime = dateStr.includes(" ") || dateStr.includes("T");
 			const date = new Date(dateStr.replace(" ", "T") + (hasTime ? ":00Z" : "T00:00:00Z"));
@@ -144,21 +144,21 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 			}
 		};
 
-		const displayDate = showDate === 'created' ? task.createdDate : task.updatedDate || task.createdDate;
+		const displayDate = showDate === 'created' ? state.createdDate : state.updatedDate || state.createdDate;
 
 		return (
 			<div 
-				key={task.id} 
+				key={state.id} 
 				className={`flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg transition-colors duration-200 ${
 					onClick ? 'hover:bg-gray-100 dark:hover:bg-gray-600/50 cursor-pointer' : ''
 				}`}
 				onClick={onClick}
 			>
-				<StatusIcon status={task.status} />
+				<StatusIcon status={state.status} />
 				<div className="flex-1 min-w-0">
-					<p className="font-medium text-gray-900 dark:text-gray-100 truncate">{task.title}</p>
+					<p className="font-medium text-gray-900 dark:text-gray-100 truncate">{state.title}</p>
 					<p className="text-sm text-gray-500 dark:text-gray-400">
-						{task.id} • {showDate === 'created' ? 'Created' : 'Updated'} {formatDate(displayDate)}
+						{state.id} • {showDate === 'created' ? 'Created' : 'Updated'} {formatDate(displayDate)}
 					</p>
 				</div>
 			</div>
@@ -250,13 +250,13 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					{projectName ? `${projectName} Statistics` : 'Project Statistics'}
 				</h1>
 				<p className="text-gray-600 dark:text-gray-400">
-					Overview of your project's task metrics and activity
+					Overview of your project's state metrics and activity
 				</p>
 			</div>
 
 			{/* Key Metrics Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-				{/* Total Tasks */}
+				{/* Total States */}
 				<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
 					<div className="flex items-center">
 						<div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -265,13 +265,13 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 							</svg>
 						</div>
 						<div className="ml-4">
-							<p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statistics.totalTasks}</p>
-							<p className="text-gray-600 dark:text-gray-400 text-sm">Total Tasks</p>
+							<p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statistics.totalStates}</p>
+							<p className="text-gray-600 dark:text-gray-400 text-sm">Total States</p>
 						</div>
 					</div>
 				</div>
 
-				{/* Completed Tasks */}
+				{/* Completed States */}
 				<div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
 					<div className="flex items-center">
 						<div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
@@ -280,7 +280,7 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 							</svg>
 						</div>
 						<div className="ml-4">
-							<p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statistics.completedTasks}</p>
+							<p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{statistics.completedStates}</p>
 							<p className="text-gray-600 dark:text-gray-400 text-sm">Completed</p>
 						</div>
 					</div>
@@ -327,8 +327,8 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					></div>
 				</div>
 				<div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-					<span>{statistics.completedTasks} completed</span>
-					<span>{statistics.totalTasks - statistics.completedTasks} remaining</span>
+					<span>{statistics.completedStates} completed</span>
+					<span>{statistics.totalStates - statistics.completedStates} remaining</span>
 				</div>
 			</div>
 
@@ -352,13 +352,13 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 									<div className="text-right">
 										<div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{count}</div>
 										<div className="text-xs text-gray-500 dark:text-gray-400">
-											{Math.round((count / statistics.totalTasks) * 100)}%
+											{Math.round((count / statistics.totalStates) * 100)}%
 										</div>
 									</div>
 									<div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-circle h-2">
 										<div 
 											className="bg-blue-500 h-2 rounded-circle transition-all duration-300"
-											style={{ width: `${(count / statistics.totalTasks) * 100}%` }}
+											style={{ width: `${(count / statistics.totalStates) * 100}%` }}
 										></div>
 									</div>
 								</div>
@@ -385,13 +385,13 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 									<div className="text-right">
 										<div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{count}</div>
 										<div className="text-xs text-gray-500 dark:text-gray-400">
-											{Math.round((count / statistics.totalTasks) * 100)}%
+											{Math.round((count / statistics.totalStates) * 100)}%
 										</div>
 									</div>
 									<div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-circle h-2">
 										<div 
 											className="bg-yellow-500 h-2 rounded-circle transition-all duration-300"
-											style={{ width: `${(count / statistics.totalTasks) * 100}%` }}
+											style={{ width: `${(count / statistics.totalStates) * 100}%` }}
 										></div>
 									</div>
 								</div>
@@ -408,16 +408,16 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recently Created</h3>
 					{statistics.recentActivity.created.length > 0 ? (
 						<div className="space-y-3">
-							{statistics.recentActivity.created.map((task) => (
-								<TaskPreview 
-									task={task} 
+							{statistics.recentActivity.created.map((state) => (
+								<StatePreview 
+									state={state} 
 									showDate="created" 
-									onClick={onEditTask ? () => onEditTask(task) : undefined}
+									onClick={onEditState ? () => onEditState(state) : undefined}
 								/>
 							))}
 						</div>
 					) : (
-						<p className="text-gray-500 dark:text-gray-400 text-sm">No recently created tasks</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">No recently created states</p>
 					)}
 				</div>
 
@@ -426,16 +426,16 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					<h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Recently Updated</h3>
 					{statistics.recentActivity.updated.length > 0 ? (
 						<div className="space-y-3">
-							{statistics.recentActivity.updated.map((task) => (
-								<TaskPreview 
-									task={task} 
+							{statistics.recentActivity.updated.map((state) => (
+								<StatePreview 
+									state={state} 
 									showDate="updated" 
-									onClick={onEditTask ? () => onEditTask(task) : undefined}
+									onClick={onEditState ? () => onEditState(state) : undefined}
 								/>
 							))}
 						</div>
 					) : (
-						<p className="text-gray-500 dark:text-gray-400 text-sm">No recently updated tasks</p>
+						<p className="text-gray-500 dark:text-gray-400 text-sm">No recently updated states</p>
 					)}
 				</div>
 			</div>
@@ -448,24 +448,24 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					<div className="flex items-center space-x-4 text-sm">
 						<div className="flex items-center space-x-1">
 							<span className="text-gray-600 dark:text-gray-400">Avg age:</span>
-							<span className="font-medium text-gray-900 dark:text-gray-100">{statistics.projectHealth.averageTaskAge}d</span>
+							<span className="font-medium text-gray-900 dark:text-gray-100">{statistics.projectHealth.averageStateAge}d</span>
 						</div>
 						
-						{statistics.projectHealth.staleTasks.length > 0 && (
+						{statistics.projectHealth.staleStates.length > 0 && (
 							<div className="flex items-center space-x-1">
 								<div className="w-2 h-2 bg-yellow-500 rounded-circle"></div>
-								<span className="font-medium text-yellow-700 dark:text-yellow-400">{statistics.projectHealth.staleTasks.length} stale</span>
+								<span className="font-medium text-yellow-700 dark:text-yellow-400">{statistics.projectHealth.staleStates.length} stale</span>
 							</div>
 						)}
 						
-						{statistics.projectHealth.blockedTasks.length > 0 && (
+						{statistics.projectHealth.blockedStates.length > 0 && (
 							<div className="flex items-center space-x-1">
 								<div className="w-2 h-2 bg-red-500 rounded-circle"></div>
-								<span className="font-medium text-red-700 dark:text-red-400">{statistics.projectHealth.blockedTasks.length} blocked</span>
+								<span className="font-medium text-red-700 dark:text-red-400">{statistics.projectHealth.blockedStates.length} blocked</span>
 							</div>
 						)}
 						
-						{statistics.projectHealth.staleTasks.length === 0 && statistics.projectHealth.blockedTasks.length === 0 && (
+						{statistics.projectHealth.staleStates.length === 0 && statistics.projectHealth.blockedStates.length === 0 && (
 							<div className="flex items-center space-x-1">
 								<div className="w-2 h-2 bg-green-500 rounded-circle"></div>
 								<span className="font-medium text-green-700 dark:text-green-400">All good!</span>
@@ -474,58 +474,58 @@ const Statistics: React.FC<StatisticsProps> = ({ tasks, isLoading: externalLoadi
 					</div>
 				</div>
 				
-				{/* Expandable task lists - only show if there are issues */}
-				{(statistics.projectHealth.staleTasks.length > 0 || statistics.projectHealth.blockedTasks.length > 0) && (
+				{/* Expandable state lists - only show if there are issues */}
+				{(statistics.projectHealth.staleStates.length > 0 || statistics.projectHealth.blockedStates.length > 0) && (
 					<div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
 						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							{/* Stale Tasks */}
-							{statistics.projectHealth.staleTasks.length > 0 && (
+							{/* Stale States */}
+							{statistics.projectHealth.staleStates.length > 0 && (
 								<div>
 									<h4 className="font-medium text-yellow-700 dark:text-yellow-400 mb-3 text-sm">
-										Stale Tasks (&gt;30 days)
+										Stale States (&gt;30 days)
 									</h4>
 									<p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-										Tasks that haven't been updated in over 30 days and may need attention or archiving
+										States that haven't been updated in over 30 days and may need attention or archiving
 									</p>
 									<div className="space-y-2">
-										{statistics.projectHealth.staleTasks.slice(0, 3).map((task) => (
-											<TaskPreview 
-												key={task.id}
-												task={task} 
+										{statistics.projectHealth.staleStates.slice(0, 3).map((state) => (
+											<StatePreview 
+												key={state.id}
+												state={state} 
 												showDate="updated" 
-												onClick={onEditTask ? () => onEditTask(task) : undefined}
+												onClick={onEditState ? () => onEditState(state) : undefined}
 											/>
 										))}
-										{statistics.projectHealth.staleTasks.length > 3 && (
+										{statistics.projectHealth.staleStates.length > 3 && (
 											<p className="text-xs text-gray-500 dark:text-gray-400 px-3">
-												+{statistics.projectHealth.staleTasks.length - 3} more stale tasks
+												+{statistics.projectHealth.staleStates.length - 3} more stale states
 											</p>
 										)}
 									</div>
 								</div>
 							)}
 
-							{/* Blocked Tasks */}
-							{statistics.projectHealth.blockedTasks.length > 0 && (
+							{/* Blocked States */}
+							{statistics.projectHealth.blockedStates.length > 0 && (
 								<div>
 									<h4 className="font-medium text-red-700 dark:text-red-400 mb-3 text-sm">
-										Blocked Tasks
+										Blocked States
 									</h4>
 									<p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
-										Tasks that cannot progress because their dependencies are not yet completed
+										States that cannot progress because their dependencies are not yet completed
 									</p>
 									<div className="space-y-2">
-										{statistics.projectHealth.blockedTasks.slice(0, 3).map((task) => (
-											<TaskPreview 
-												key={task.id}
-												task={task} 
+										{statistics.projectHealth.blockedStates.slice(0, 3).map((state) => (
+											<StatePreview 
+												key={state.id}
+												state={state} 
 												showDate="created" 
-												onClick={onEditTask ? () => onEditTask(task) : undefined}
+												onClick={onEditState ? () => onEditState(state) : undefined}
 											/>
 										))}
-										{statistics.projectHealth.blockedTasks.length > 3 && (
+										{statistics.projectHealth.blockedStates.length > 3 && (
 											<p className="text-xs text-gray-500 dark:text-gray-400 px-3">
-												+{statistics.projectHealth.blockedTasks.length - 3} more blocked tasks
+												+{statistics.projectHealth.blockedStates.length - 3} more blocked states
 											</p>
 										)}
 									</div>

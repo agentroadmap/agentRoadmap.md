@@ -1,4 +1,4 @@
-import type { Milestone, MilestoneBucket, MilestoneSummary, Task } from "../types/index.ts";
+import type { Milestone, MilestoneBucket, MilestoneSummary, State } from "../types/index.ts";
 
 const NO_MILESTONE_KEY = "__none";
 
@@ -193,29 +193,29 @@ function canonicalizeMilestoneValue(value: string | null | undefined, aliasMap: 
 	return normalized;
 }
 
-function canonicalizeTaskMilestones(
-	tasks: Task[],
+function canonicalizeStateMilestones(
+	states: State[],
 	milestoneEntities: Milestone[],
 	archivedMilestones: Milestone[] = [],
-): Task[] {
+): State[] {
 	const aliasMap = buildMilestoneAliasMap(milestoneEntities, archivedMilestones);
-	return tasks.map((task) => {
-		const canonicalMilestone = canonicalizeMilestoneValue(task.milestone, aliasMap);
-		if (task.milestone === canonicalMilestone) {
-			return task;
+	return states.map((state) => {
+		const canonicalMilestone = canonicalizeMilestoneValue(state.milestone, aliasMap);
+		if (state.milestone === canonicalMilestone) {
+			return state;
 		}
 		return {
-			...task,
+			...state,
 			milestone: canonicalMilestone || undefined,
 		};
 	});
 }
 
 /**
- * Collect all unique milestone IDs from tasks and milestone entities
+ * Collect all unique milestone IDs from states and milestone entities
  */
 export function collectMilestoneIds(
-	tasks: Task[],
+	states: State[],
 	milestoneEntities: Milestone[],
 	archivedMilestones: Milestone[] = [],
 ): string[] {
@@ -237,9 +237,9 @@ export function collectMilestoneIds(
 		addMilestone(entity.id);
 	}
 
-	// Then add any milestones from tasks that aren't in entities
-	for (const task of tasks) {
-		addMilestone(canonicalizeMilestoneValue(task.milestone, aliasMap));
+	// Then add any milestones from states that aren't in entities
+	for (const state of states) {
+		addMilestone(canonicalizeMilestoneValue(state.milestone, aliasMap));
 	}
 
 	return merged;
@@ -251,7 +251,7 @@ export function collectMilestoneIds(
  */
 export function getMilestoneLabel(milestoneId: string | undefined, milestoneEntities: Milestone[]): string {
 	if (!milestoneId) {
-		return "Tasks without milestone";
+		return "States without milestone";
 	}
 	const entity = milestoneEntities.find((m) => milestoneKey(m.id) === milestoneKey(milestoneId));
 	return entity?.title || milestoneId;
@@ -270,29 +270,29 @@ export function isDoneStatus(status?: string | null): boolean {
  */
 function createBucket(
 	milestoneId: string | undefined,
-	tasks: Task[],
+	states: State[],
 	statuses: string[],
 	milestoneEntities: Milestone[],
 	isNoMilestone: boolean,
 ): MilestoneBucket {
 	const bucketMilestoneKey = milestoneKey(milestoneId);
-	const bucketTasks = tasks.filter((task) => {
-		const taskMilestoneKey = milestoneKey(task.milestone);
-		return bucketMilestoneKey ? taskMilestoneKey === bucketMilestoneKey : !taskMilestoneKey;
+	const bucketStates = states.filter((state) => {
+		const stateMilestoneKey = milestoneKey(state.milestone);
+		return bucketMilestoneKey ? stateMilestoneKey === bucketMilestoneKey : !stateMilestoneKey;
 	});
 
 	const counts: Record<string, number> = {};
 	for (const status of statuses) {
 		counts[status] = 0;
 	}
-	for (const task of bucketTasks) {
-		const status = task.status ?? "";
+	for (const state of bucketStates) {
+		const status = state.status ?? "";
 		counts[status] = (counts[status] ?? 0) + 1;
 	}
 
-	const doneCount = bucketTasks.filter((t) => isDoneStatus(t.status)).length;
-	const progress = bucketTasks.length > 0 ? Math.round((doneCount / bucketTasks.length) * 100) : 0;
-	const isCompleted = bucketTasks.length > 0 && doneCount === bucketTasks.length;
+	const doneCount = bucketStates.filter((t) => isDoneStatus(t.status)).length;
+	const progress = bucketStates.length > 0 ? Math.round((doneCount / bucketStates.length) * 100) : 0;
+	const isCompleted = bucketStates.length > 0 && doneCount === bucketStates.length;
 
 	const key = bucketMilestoneKey ? bucketMilestoneKey : NO_MILESTONE_KEY;
 	const label = getMilestoneLabel(milestoneId, milestoneEntities);
@@ -303,45 +303,45 @@ function createBucket(
 		milestone: milestoneId,
 		isNoMilestone,
 		isCompleted,
-		tasks: bucketTasks,
+		states: bucketStates,
 		statusCounts: counts,
-		total: bucketTasks.length,
+		total: bucketStates.length,
 		doneCount,
 		progress,
 	};
 }
 
 /**
- * Build milestone buckets from tasks and milestone entities
+ * Build milestone buckets from states and milestone entities
  */
 export function buildMilestoneBuckets(
-	tasks: Task[],
+	states: State[],
 	milestoneEntities: Milestone[],
 	statuses: string[],
 	options?: { archivedMilestoneIds?: string[]; archivedMilestones?: Milestone[] },
 ): MilestoneBucket[] {
 	const archivedKeys = new Set((options?.archivedMilestoneIds ?? []).map((id) => milestoneKey(id)));
-	const canonicalTasks = canonicalizeTaskMilestones(tasks, milestoneEntities, options?.archivedMilestones ?? []);
-	const normalizedTasks =
+	const canonicalStates = canonicalizeStateMilestones(states, milestoneEntities, options?.archivedMilestones ?? []);
+	const normalizedStates =
 		archivedKeys.size > 0
-			? canonicalTasks.map((task) => {
-					const key = milestoneKey(task.milestone);
+			? canonicalStates.map((state) => {
+					const key = milestoneKey(state.milestone);
 					if (!key || !archivedKeys.has(key)) {
-						return task;
+						return state;
 					}
-					return { ...task, milestone: undefined };
+					return { ...state, milestone: undefined };
 				})
-			: canonicalTasks;
+			: canonicalStates;
 	const filteredMilestones =
 		archivedKeys.size > 0
 			? milestoneEntities.filter((milestone) => !archivedKeys.has(milestoneKey(milestone.id)))
 			: milestoneEntities;
 
-	const allMilestoneIds = collectMilestoneIds(normalizedTasks, filteredMilestones);
+	const allMilestoneIds = collectMilestoneIds(normalizedStates, filteredMilestones);
 
 	const buckets: MilestoneBucket[] = [
-		createBucket(undefined, normalizedTasks, statuses, filteredMilestones, true),
-		...allMilestoneIds.map((m) => createBucket(m, normalizedTasks, statuses, filteredMilestones, false)),
+		createBucket(undefined, normalizedStates, statuses, filteredMilestones, true),
+		...allMilestoneIds.map((m) => createBucket(m, normalizedStates, statuses, filteredMilestones, false)),
 	];
 
 	return buckets;
@@ -351,29 +351,29 @@ export function buildMilestoneBuckets(
  * Build a complete milestone summary
  */
 export function buildMilestoneSummary(
-	tasks: Task[],
+	states: State[],
 	milestoneEntities: Milestone[],
 	statuses: string[],
 	options?: { archivedMilestoneIds?: string[]; archivedMilestones?: Milestone[] },
 ): MilestoneSummary {
 	const archivedKeys = new Set((options?.archivedMilestoneIds ?? []).map((id) => milestoneKey(id)));
-	const canonicalTasks = canonicalizeTaskMilestones(tasks, milestoneEntities, options?.archivedMilestones ?? []);
-	const normalizedTasks =
+	const canonicalStates = canonicalizeStateMilestones(states, milestoneEntities, options?.archivedMilestones ?? []);
+	const normalizedStates =
 		archivedKeys.size > 0
-			? canonicalTasks.map((task) => {
-					const key = milestoneKey(task.milestone);
+			? canonicalStates.map((state) => {
+					const key = milestoneKey(state.milestone);
 					if (!key || !archivedKeys.has(key)) {
-						return task;
+						return state;
 					}
-					return { ...task, milestone: undefined };
+					return { ...state, milestone: undefined };
 				})
-			: canonicalTasks;
+			: canonicalStates;
 	const filteredMilestones =
 		archivedKeys.size > 0
 			? milestoneEntities.filter((milestone) => !archivedKeys.has(milestoneKey(milestone.id)))
 			: milestoneEntities;
-	const milestones = collectMilestoneIds(normalizedTasks, filteredMilestones, options?.archivedMilestones ?? []);
-	const buckets = buildMilestoneBuckets(normalizedTasks, filteredMilestones, statuses, options);
+	const milestones = collectMilestoneIds(normalizedStates, filteredMilestones, options?.archivedMilestones ?? []);
+	const buckets = buildMilestoneBuckets(normalizedStates, filteredMilestones, statuses, options);
 
 	return {
 		milestones,

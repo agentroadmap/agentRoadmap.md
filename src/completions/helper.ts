@@ -6,7 +6,7 @@ import {
 	getSubcommandNames,
 	getTopLevelCommands,
 } from "./command-structure.ts";
-import { getAssignees, getDocumentIds, getLabels, getPriorities, getStatuses, getTaskIds } from "./data-providers.ts";
+import { getAssignees, getDocumentIds, getLabels, getPriorities, getStatuses, getStateIds } from "./data-providers.ts";
 
 export interface CompletionContext {
 	words: string[];
@@ -27,7 +27,7 @@ export function parseCompletionContext(line: string, point: number): CompletionC
 	// Split into words, handling quotes
 	const words = textBeforeCursor.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
 
-	// Remove "backlog" from the start
+	// Remove "roadmap" from the start
 	const cleanWords = words.slice(1);
 
 	// Determine if we're completing a partial word or starting a new one
@@ -90,8 +90,8 @@ async function getArgumentCompletions(argumentName: string): Promise<string[]> {
 	const lowerName = argumentName.toLowerCase();
 
 	// Match common patterns
-	if (lowerName.includes("taskid") || lowerName === "id") {
-		return await getTaskIds();
+	if (lowerName.includes("stateid") || lowerName === "id") {
+		return await getStateIds();
 	}
 	if (lowerName.includes("docid") || lowerName.includes("documentid")) {
 		return await getDocumentIds();

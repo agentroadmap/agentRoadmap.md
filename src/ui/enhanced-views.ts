@@ -1,9 +1,9 @@
 /**
- * Enhanced views with Tab key switching between task views and kanban board
+ * Enhanced views with Tab key switching between state views and kanban board
  */
 
-import type { Core } from "../core/backlog.ts";
-import type { Task } from "../types/index.ts";
+import type { Core } from "../core/roadmap.ts";
+import type { State } from "../types/index.ts";
 import { renderBoardTui } from "./board.ts";
 import { createLoadingScreen } from "./loading.ts";
 import { type ViewState, ViewSwitcher, type ViewType } from "./view-switcher.ts";
@@ -11,8 +11,8 @@ import { type ViewState, ViewSwitcher, type ViewType } from "./view-switcher.ts"
 export interface EnhancedViewOptions {
 	core: Core;
 	initialView: ViewType;
-	selectedTask?: Task;
-	tasks?: Task[];
+	selectedState?: State;
+	states?: State[];
 	filter?: {
 		status?: string;
 		assignee?: string;
@@ -27,8 +27,8 @@ export interface EnhancedViewOptions {
 export async function runEnhancedViews(options: EnhancedViewOptions): Promise<void> {
 	const initialState: ViewState = {
 		type: options.initialView,
-		selectedTask: options.selectedTask,
-		tasks: options.tasks,
+		selectedState: options.selectedState,
+		states: options.states,
 		filter: options.filter,
 	};
 
@@ -48,9 +48,9 @@ export async function runEnhancedViews(options: EnhancedViewOptions): Promise<vo
 	// Function to switch to a specific view
 	const switchToView = async (state: ViewState): Promise<void> => {
 		switch (state.type) {
-			case "task-list":
-			case "task-detail":
-				await switchToTaskView(state);
+			case "state-list":
+			case "state-detail":
+				await switchToStateView(state);
 				break;
 			case "kanban":
 				await switchToKanbanView(state);
@@ -58,29 +58,29 @@ export async function runEnhancedViews(options: EnhancedViewOptions): Promise<vo
 		}
 	};
 
-	// Function to handle switching to task view
-	const switchToTaskView = async (state: ViewState): Promise<void> => {
-		if (!state.tasks || state.tasks.length === 0) {
-			console.log("No tasks available.");
+	// Function to handle switching to state view
+	const switchToStateView = async (state: ViewState): Promise<void> => {
+		if (!state.states || state.states.length === 0) {
+			console.log("No states available.");
 			return;
 		}
 
-		const taskToView = state.selectedTask || state.tasks[0];
-		if (!taskToView) return;
+		const stateToView = state.selectedState || state.states[0];
+		if (!stateToView) return;
 
-		// Create enhanced task viewer with Tab switching
-		await viewTaskEnhancedWithSwitching(taskToView, {
-			tasks: state.tasks,
+		// Create enhanced state viewer with Tab switching
+		await viewStateEnhancedWithSwitching(stateToView, {
+			states: state.states,
 			core: options.core,
 			title: state.filter?.title,
 			filterDescription: state.filter?.filterDescription,
-			startWithDetailFocus: state.type === "task-detail",
+			startWithDetailFocus: state.type === "state-detail",
 			viewSwitcher,
-			onTaskChange: (newTask) => {
-				// Update state when user navigates to different task
+			onStateChange: (newState) => {
+				// Update state when user navigates to different state
 				viewSwitcher?.updateState({
-					selectedTask: newTask,
-					type: newTask ? "task-detail" : "task-list",
+					selectedState: newState,
+					type: newState ? "state-detail" : "state-list",
 				});
 			},
 		});
@@ -98,16 +98,16 @@ export async function runEnhancedViews(options: EnhancedViewOptions): Promise<vo
 				// Wait for kanban data to load
 				const result = await viewSwitcher?.getKanbanData();
 				if (!result) throw new Error("Failed to get kanban data");
-				const { tasks, statuses } = result;
+				const { states, statuses } = result;
 				loadingScreen?.close();
 
 				// Now show the kanban board
-				await renderBoardTuiWithSwitching(tasks, statuses, {
+				await renderBoardTuiWithSwitching(states, statuses, {
 					viewSwitcher,
-					onTaskSelect: (task) => {
-						// When user selects a task in kanban, prepare for potential switch back
+					onStateSelect: (state) => {
+						// When user selects a state in kanban, prepare for potential switch back
 						viewSwitcher?.updateState({
-							selectedTask: task,
+							selectedState: state,
 						});
 					},
 				});
@@ -119,11 +119,11 @@ export async function runEnhancedViews(options: EnhancedViewOptions): Promise<vo
 			console.error("Error loading kanban board:", state.kanbanData.loadError);
 		} else {
 			// Data is ready, show kanban board immediately
-			await renderBoardTuiWithSwitching(state.kanbanData.tasks, state.kanbanData.statuses, {
+			await renderBoardTuiWithSwitching(state.kanbanData.states, state.kanbanData.statuses, {
 				viewSwitcher,
-				onTaskSelect: (task) => {
+				onStateSelect: (state) => {
 					viewSwitcher?.updateState({
-						selectedTask: task,
+						selectedState: state,
 					});
 				},
 			});
@@ -135,34 +135,34 @@ export async function runEnhancedViews(options: EnhancedViewOptions): Promise<vo
 }
 
 /**
- * Enhanced task viewer that supports view switching
+ * Enhanced state viewer that supports view switching
  */
-async function viewTaskEnhancedWithSwitching(
-	task: Task,
+async function viewStateEnhancedWithSwitching(
+	state: State,
 	options: {
-		tasks?: Task[];
+		states?: State[];
 		core: Core;
 		title?: string;
 		filterDescription?: string;
 		startWithDetailFocus?: boolean;
 		viewSwitcher?: ViewSwitcher;
-		onTaskChange?: (task: Task) => void;
+		onStateChange?: (state: State) => void;
 	},
 ): Promise<void> {
-	// Import the original viewTaskEnhanced function
-	const { viewTaskEnhanced } = await import("./task-viewer-with-search.ts");
+	// Import the original viewStateEnhanced function
+	const { viewStateEnhanced } = await import("./state-viewer-with-search.ts");
 
 	// For now, use the original function but we'll need to modify it to support Tab switching
-	// This is a placeholder - we'll need to modify the actual task-viewer-with-search.ts
-	return viewTaskEnhanced(task, {
-		tasks: options.tasks,
+	// This is a placeholder - we'll need to modify the actual state-viewer-with-search.ts
+	return viewStateEnhanced(state, {
+		states: options.states,
 		core: options.core,
 		title: options.title,
 		filterDescription: options.filterDescription,
 		startWithDetailFocus: options.startWithDetailFocus,
 		// Add view switcher support
 		viewSwitcher: options.viewSwitcher,
-		onTaskChange: options.onTaskChange,
+		onStateChange: options.onStateChange,
 	});
 }
 
@@ -170,22 +170,22 @@ async function viewTaskEnhancedWithSwitching(
  * Enhanced kanban board that supports view switching
  */
 async function renderBoardTuiWithSwitching(
-	tasks: Task[],
+	states: State[],
 	statuses: string[],
 	_options: {
 		viewSwitcher?: ViewSwitcher;
-		onTaskSelect?: (task: Task) => void;
+		onStateSelect?: (state: State) => void;
 	},
 ): Promise<void> {
 	// Get config for layout and column width
-	const core = new (await import("../core/backlog.ts")).Core(process.cwd());
+	const core = new (await import("../core/roadmap.ts")).Core(process.cwd());
 	const config = await core.filesystem.loadConfig();
 	const layout = "horizontal" as const; // Default layout
 	const maxColumnWidth = config?.maxColumnWidth || 20;
 
 	// For now, use the original function but we'll need to modify it to support Tab switching
 	// This is a placeholder - we'll need to modify the actual board.ts
-	return renderBoardTui(tasks, statuses, layout, maxColumnWidth);
+	return renderBoardTui(states, statuses, layout, maxColumnWidth);
 }
 
 // Re-export for convenience

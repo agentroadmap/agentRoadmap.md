@@ -2,22 +2,22 @@ import { type FSWatcher, watch } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import type { FileSystem } from "../file-system/operations.ts";
-import { parseDecision, parseDocument, parseTask } from "../markdown/parser.ts";
-import type { Decision, Document, Task, TaskListFilter } from "../types/index.ts";
-import { normalizeTaskId, normalizeTaskIdentity, taskIdsEqual } from "../utils/task-path.ts";
-import { sortByTaskId } from "../utils/task-sorting.ts";
+import { parseDecision, parseDocument, parseState } from "../markdown/parser.ts";
+import type { Decision, Document, State, StateListFilter } from "../types/index.ts";
+import { normalizeStateId, normalizeStateIdentity, stateIdsEqual } from "../utils/state-path.ts";
+import { sortByStateId } from "../utils/state-sorting.ts";
 
 interface ContentSnapshot {
-	tasks: Task[];
+	states: State[];
 	documents: Document[];
 	decisions: Decision[];
 }
 
-type ContentStoreEventType = "ready" | "tasks" | "documents" | "decisions";
+type ContentStoreEventType = "ready" | "states" | "documents" | "decisions";
 
 export type ContentStoreEvent =
 	| { type: "ready"; snapshot: ContentSnapshot; version: number }
-	| { type: "tasks"; tasks: Task[]; snapshot: ContentSnapshot; version: number }
+	| { type: "states"; states: State[]; snapshot: ContentSnapshot; version: number }
 	| { type: "documents"; documents: Document[]; snapshot: ContentSnapshot; version: number }
 	| { type: "decisions"; decisions: Decision[]; snapshot: ContentSnapshot; version: number };
 
@@ -32,11 +32,11 @@ export class ContentStore {
 	private initializing: Promise<void> | null = null;
 	private version = 0;
 
-	private readonly tasks = new Map<string, Task>();
+	private readonly states = new Map<string, State>();
 	private readonly documents = new Map<string, Document>();
 	private readonly decisions = new Map<string, Decision>();
 
-	private cachedTasks: Task[] = [];
+	private cachedStates: State[] = [];
 	private cachedDocuments: Document[] = [];
 	private cachedDecisions: Decision[] = [];
 
@@ -57,7 +57,7 @@ export class ContentStore {
 
 	constructor(
 		private readonly filesystem: FileSystem,
-		private readonly taskLoader?: () => Promise<Task[]>,
+		private readonly stateLoader?: () => Promise<State[]>,
 		private readonly enableWatchers = false,
 	) {
 		this.patchFilesystem();
@@ -93,39 +93,39 @@ export class ContentStore {
 		return this.getSnapshot();
 	}
 
-	getTasks(filter?: TaskListFilter): Task[] {
+	getStates(filter?: StateListFilter): State[] {
 		if (!this.initialized) {
 			throw new Error("ContentStore not initialized. Call ensureInitialized() first.");
 		}
 
-		let tasks = this.cachedTasks;
+		let states = this.cachedStates;
 		if (filter?.status) {
 			const statusLower = filter.status.toLowerCase();
-			tasks = tasks.filter((task) => task.status.toLowerCase() === statusLower);
+			states = states.filter((state) => state.status.toLowerCase() === statusLower);
 		}
 		if (filter?.assignee) {
 			const assignee = filter.assignee;
-			tasks = tasks.filter((task) => task.assignee.includes(assignee));
+			states = states.filter((state) => state.assignee.includes(assignee));
 		}
 		if (filter?.priority) {
 			const priority = filter.priority.toLowerCase();
-			tasks = tasks.filter((task) => (task.priority ?? "").toLowerCase() === priority);
+			states = states.filter((state) => (state.priority ?? "").toLowerCase() === priority);
 		}
-		if (filter?.parentTaskId) {
-			const parentFilter = filter.parentTaskId;
-			tasks = tasks.filter((task) => task.parentTaskId && taskIdsEqual(parentFilter, task.parentTaskId));
+		if (filter?.parentStateId) {
+			const parentFilter = filter.parentStateId;
+			states = states.filter((state) => state.parentStateId && stateIdsEqual(parentFilter, state.parentStateId));
 		}
 
-		return tasks.slice();
+		return states.slice();
 	}
 
-	upsertTask(task: Task): void {
+	upsertState(state: State): void {
 		if (!this.initialized) {
 			return;
 		}
-		this.tasks.set(task.id, task);
-		this.cachedTasks = sortByTaskId(Array.from(this.tasks.values()));
-		this.notify("tasks");
+		this.states.set(state.id, state);
+		this.cachedStates = sortByStateId(Array.from(this.states.values()));
+		this.notify("states");
 	}
 
 	getDocuments(): Document[] {
@@ -144,7 +144,7 @@ export class ContentStore {
 
 	getSnapshot(): ContentSnapshot {
 		return {
-			tasks: this.cachedTasks.slice(),
+			states: this.cachedStates.slice(),
 			documents: this.cachedDocuments.slice(),
 			decisions: this.cachedDecisions.slice(),
 		};
@@ -176,8 +176,8 @@ export class ContentStore {
 		this.version += 1;
 		const snapshot = this.getSnapshot();
 
-		if (type === "tasks") {
-			this.emit({ type, tasks: snapshot.tasks, snapshot, version: this.version });
+		if (type === "states") {
+			this.emit({ type, states: snapshot.states, snapshot, version: this.version });
 			return;
 		}
 
@@ -195,17 +195,17 @@ export class ContentStore {
 	}
 
 	private async loadInitialData(): Promise<void> {
-		await this.filesystem.ensureBacklogStructure();
+		await this.filesystem.ensureRoadmapStructure();
 
-		// Use custom task loader if provided (e.g., loadTasks for cross-branch support)
+		// Use custom state loader if provided (e.g., loadStates for cross-branch support)
 		// Otherwise fall back to filesystem-only loading
-		const [tasks, documents, decisions] = await Promise.all([
-			this.loadTasksWithLoader(),
+		const [states, documents, decisions] = await Promise.all([
+			this.loadStatesWithLoader(),
 			this.filesystem.listDocuments(),
 			this.filesystem.listDecisions(),
 		]);
 
-		this.replaceTasks(tasks);
+		this.replaceStates(states);
 		this.replaceDocuments(documents);
 		this.replaceDecisions(decisions);
 
@@ -221,10 +221,10 @@ export class ContentStore {
 		this.watchersInitialized = true;
 
 		try {
-			this.watchers.push(this.createTaskWatcher());
+			this.watchers.push(this.createStateWatcher());
 		} catch (error) {
 			if (process.env.DEBUG) {
-				console.error("Failed to initialize task watcher", error);
+				console.error("Failed to initialize state watcher", error);
 			}
 		}
 
@@ -288,7 +288,7 @@ export class ContentStore {
 				}
 				this.enqueue(async () => {
 					this.filesystem.invalidateConfigCache();
-					this.notify("tasks");
+					this.notify("states");
 				});
 			});
 			this.attachWatcherErrorHandler(watcher, "config");
@@ -306,73 +306,73 @@ export class ContentStore {
 		}
 	}
 
-	private createTaskWatcher(): WatchHandle {
-		const tasksDir = this.filesystem.tasksDir;
-		const watcher: FSWatcher = watch(tasksDir, { recursive: false }, (eventType, filename) => {
+	private createStateWatcher(): WatchHandle {
+		const statesDir = this.filesystem.statesDir;
+		const watcher: FSWatcher = watch(statesDir, { recursive: false }, (eventType, filename) => {
 			const file = this.normalizeFilename(filename);
-			// Accept any prefix pattern (task-, jira-, etc.) followed by ID and ending in .md
+			// Accept any prefix pattern (state-, jira-, etc.) followed by ID and ending in .md
 			if (!file || !/^[a-zA-Z]+-/.test(file) || !file.endsWith(".md")) {
 				this.enqueue(async () => {
-					await this.refreshTasksFromDisk();
+					await this.refreshStatesFromDisk();
 				});
 				return;
 			}
 
 			this.enqueue(async () => {
-				const [taskId] = file.split(" ");
-				if (!taskId) return;
-				const normalizedTaskId = normalizeTaskId(taskId);
+				const [stateId] = file.split(" ");
+				if (!stateId) return;
+				const normalizedStateId = normalizeStateId(stateId);
 
-				const fullPath = join(tasksDir, file);
+				const fullPath = join(statesDir, file);
 				const exists = await Bun.file(fullPath).exists();
 
 				if (!exists && eventType === "rename") {
-					if (this.tasks.delete(normalizedTaskId)) {
-						this.cachedTasks = sortByTaskId(Array.from(this.tasks.values()));
-						this.notify("tasks");
+					if (this.states.delete(normalizedStateId)) {
+						this.cachedStates = sortByStateId(Array.from(this.states.values()));
+						this.notify("states");
 					}
 					return;
 				}
 
 				if (eventType === "rename" && exists) {
-					await this.refreshTasksFromDisk();
+					await this.refreshStatesFromDisk();
 					return;
 				}
 
-				const previous = this.tasks.get(normalizedTaskId);
-				const task = await this.retryRead(
+				const previous = this.states.get(normalizedStateId);
+				const state = await this.retryRead(
 					async () => {
 						const stillExists = await Bun.file(fullPath).exists();
 						if (!stillExists) {
 							return null;
 						}
 						const content = await Bun.file(fullPath).text();
-						return normalizeTaskIdentity(parseTask(content));
+						return normalizeStateIdentity(parseState(content));
 					},
 					(result) => {
 						if (!result) {
 							return false;
 						}
-						if (!taskIdsEqual(result.id, normalizedTaskId)) {
+						if (!stateIdsEqual(result.id, normalizedStateId)) {
 							return false;
 						}
 						if (!previous) {
 							return true;
 						}
-						return this.hasTaskChanged(previous, result);
+						return this.hasStateChanged(previous, result);
 					},
 				);
-				if (!task) {
-					await this.refreshTasksFromDisk(normalizedTaskId, previous);
+				if (!state) {
+					await this.refreshStatesFromDisk(normalizedStateId, previous);
 					return;
 				}
 
-				this.tasks.set(task.id, task);
-				this.cachedTasks = sortByTaskId(Array.from(this.tasks.values()));
-				this.notify("tasks");
+				this.states.set(state.id, state);
+				this.cachedStates = sortByStateId(Array.from(this.states.values()));
+				this.notify("states");
 			});
 		});
-		this.attachWatcherErrorHandler(watcher, "tasks");
+		this.attachWatcherErrorHandler(watcher, "states");
 
 		return {
 			stop() {
@@ -401,7 +401,7 @@ export class ContentStore {
 
 				if (!exists && eventType === "rename") {
 					if (this.decisions.delete(idPart)) {
-						this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
+						this.cachedDecisions = sortByStateId(Array.from(this.decisions.values()));
 						this.notify("decisions");
 					}
 					return;
@@ -440,7 +440,7 @@ export class ContentStore {
 					return;
 				}
 				this.decisions.set(decision.id, decision);
-				this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
+				this.cachedDecisions = sortByStateId(Array.from(this.decisions.values()));
 				this.notify("decisions");
 			});
 		});
@@ -577,12 +577,12 @@ export class ContentStore {
 		);
 	}
 
-	private replaceTasks(tasks: Task[]): void {
-		this.tasks.clear();
-		for (const task of tasks) {
-			this.tasks.set(task.id, task);
+	private replaceStates(states: State[]): void {
+		this.states.clear();
+		for (const state of states) {
+			this.states.set(state.id, state);
 		}
-		this.cachedTasks = sortByTaskId(Array.from(this.tasks.values()));
+		this.cachedStates = sortByStateId(Array.from(this.states.values()));
 	}
 
 	private replaceDocuments(documents: Document[]): void {
@@ -598,7 +598,7 @@ export class ContentStore {
 		for (const decision of decisions) {
 			this.decisions.set(decision.id, decision);
 		}
-		this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
+		this.cachedDecisions = sortByStateId(Array.from(this.decisions.values()));
 	}
 
 	private patchFilesystem(): void {
@@ -606,15 +606,15 @@ export class ContentStore {
 			return;
 		}
 
-		const originalSaveTask = this.filesystem.saveTask;
+		const originalSaveState = this.filesystem.saveState;
 		const originalSaveDocument = this.filesystem.saveDocument;
 		const originalSaveDecision = this.filesystem.saveDecision;
 
-		this.filesystem.saveTask = (async (task: Task): Promise<string> => {
-			const result = await originalSaveTask.call(this.filesystem, task);
-			await this.handleTaskWrite(task.id);
+		this.filesystem.saveState = (async (state: State): Promise<string> => {
+			const result = await originalSaveState.call(this.filesystem, state);
+			await this.handleStateWrite(state.id);
 			return result;
-		}) as FileSystem["saveTask"];
+		}) as FileSystem["saveState"];
 
 		this.filesystem.saveDocument = (async (document: Document, subPath = ""): Promise<string> => {
 			const result = await originalSaveDocument.call(this.filesystem, document, subPath);
@@ -628,17 +628,17 @@ export class ContentStore {
 		}) as FileSystem["saveDecision"];
 
 		this.restoreFilesystemPatch = () => {
-			this.filesystem.saveTask = originalSaveTask;
+			this.filesystem.saveState = originalSaveState;
 			this.filesystem.saveDocument = originalSaveDocument;
 			this.filesystem.saveDecision = originalSaveDecision;
 		};
 	}
 
-	private async handleTaskWrite(taskId: string): Promise<void> {
+	private async handleStateWrite(stateId: string): Promise<void> {
 		if (!this.initialized) {
 			return;
 		}
-		await this.updateTaskFromDisk(taskId);
+		await this.updateStateFromDisk(stateId);
 	}
 
 	private async handleDocumentWrite(documentId: string): Promise<void> {
@@ -648,7 +648,7 @@ export class ContentStore {
 		await this.refreshDocumentsFromDisk(documentId, this.documents.get(documentId));
 	}
 
-	private hasTaskChanged(previous: Task, next: Task): boolean {
+	private hasStateChanged(previous: State, next: State): boolean {
 		return JSON.stringify(previous) !== JSON.stringify(next);
 	}
 
@@ -660,28 +660,28 @@ export class ContentStore {
 		return JSON.stringify(previous) !== JSON.stringify(next);
 	}
 
-	private async refreshTasksFromDisk(expectedId?: string, previous?: Task): Promise<void> {
-		const tasks = await this.retryRead(
-			async () => this.loadTasksWithLoader(),
+	private async refreshStatesFromDisk(expectedId?: string, previous?: State): Promise<void> {
+		const states = await this.retryRead(
+			async () => this.loadStatesWithLoader(),
 			(expected) => {
 				if (!expectedId) {
 					return true;
 				}
-				const match = expected.find((task) => taskIdsEqual(task.id, expectedId));
+				const match = expected.find((state) => stateIdsEqual(state.id, expectedId));
 				if (!match) {
 					return false;
 				}
-				if (previous && !this.hasTaskChanged(previous, match)) {
+				if (previous && !this.hasStateChanged(previous, match)) {
 					return false;
 				}
 				return true;
 			},
 		);
-		if (!tasks) {
+		if (!states) {
 			return;
 		}
-		this.replaceTasks(tasks);
-		this.notify("tasks");
+		this.replaceStates(states);
+		this.notify("states");
 	}
 
 	private async refreshDocumentsFromDisk(expectedId?: string, previous?: Document): Promise<void> {
@@ -739,19 +739,19 @@ export class ContentStore {
 		await this.updateDecisionFromDisk(decisionId);
 	}
 
-	private async updateTaskFromDisk(taskId: string): Promise<void> {
-		const normalizedTaskId = normalizeTaskId(taskId);
-		const previous = this.tasks.get(normalizedTaskId);
-		const task = await this.retryRead(
-			async () => this.filesystem.loadTask(taskId),
-			(result) => result !== null && (!previous || this.hasTaskChanged(previous, result)),
+	private async updateStateFromDisk(stateId: string): Promise<void> {
+		const normalizedStateId = normalizeStateId(stateId);
+		const previous = this.states.get(normalizedStateId);
+		const state = await this.retryRead(
+			async () => this.filesystem.loadState(stateId),
+			(result) => result !== null && (!previous || this.hasStateChanged(previous, result)),
 		);
-		if (!task) {
+		if (!state) {
 			return;
 		}
-		this.tasks.set(task.id, task);
-		this.cachedTasks = sortByTaskId(Array.from(this.tasks.values()));
-		this.notify("tasks");
+		this.states.set(state.id, state);
+		this.cachedStates = sortByStateId(Array.from(this.states.values()));
+		this.notify("states");
 	}
 
 	private async updateDecisionFromDisk(decisionId: string): Promise<void> {
@@ -764,7 +764,7 @@ export class ContentStore {
 			return;
 		}
 		this.decisions.set(decision.id, decision);
-		this.cachedDecisions = sortByTaskId(Array.from(this.decisions.values()));
+		this.cachedDecisions = sortByStateId(Array.from(this.decisions.values()));
 		this.notify("decisions");
 	}
 
@@ -891,11 +891,11 @@ export class ContentStore {
 			});
 	}
 
-	private async loadTasksWithLoader(): Promise<Task[]> {
-		if (this.taskLoader) {
-			return await this.taskLoader();
+	private async loadStatesWithLoader(): Promise<State[]> {
+		if (this.stateLoader) {
+			return await this.stateLoader();
 		}
-		return await this.filesystem.listTasks();
+		return await this.filesystem.listStates();
 	}
 }
 

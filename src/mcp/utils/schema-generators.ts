@@ -1,11 +1,11 @@
 import { DEFAULT_STATUSES } from "../../constants/index.ts";
-import type { BacklogConfig } from "../../types/index.ts";
+import type { RoadmapConfig } from "../../types/index.ts";
 import type { JsonSchema } from "../validation/validators.ts";
 
 /**
  * Generates a status field schema with dynamic enum values sourced from config.
  */
-export function generateStatusFieldSchema(config: BacklogConfig): JsonSchema {
+export function generateStatusFieldSchema(config: RoadmapConfig): JsonSchema {
 	const configuredStatuses =
 		config.statuses && config.statuses.length > 0 ? [...config.statuses] : [...DEFAULT_STATUSES];
 	const normalizedStatuses = configuredStatuses.map((status) => status.trim());
@@ -25,9 +25,9 @@ export function generateStatusFieldSchema(config: BacklogConfig): JsonSchema {
 }
 
 /**
- * Generates the task_create input schema with dynamic status enum
+ * Generates the state_create input schema with dynamic status enum
  */
-export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
+export function generateStateCreateSchema(config: RoadmapConfig): JsonSchema {
 	return {
 		type: "object",
 		properties: {
@@ -78,7 +78,7 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 					type: "string",
 					maxLength: 500,
 				},
-				description: "Reference URLs or file paths related to this task",
+				description: "Reference URLs or file paths related to this state",
 			},
 			documentation: {
 				type: "array",
@@ -86,12 +86,12 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 					type: "string",
 					maxLength: 500,
 				},
-				description: "Documentation URLs or file paths for understanding this task",
+				description: "Documentation URLs or file paths for understanding this state",
 			},
 			finalSummary: {
 				type: "string",
 				maxLength: 20000,
-				description: "Final summary for PR-style completion notes. Write this only when the task is complete.",
+				description: "Final summary for PR-style completion notes. Write this only when the state is complete.",
 			},
 			acceptanceCriteria: {
 				type: "array",
@@ -107,14 +107,14 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 					maxLength: 500,
 				},
 				description:
-					"Task-specific Definition of Done items to append for this task only. Do not copy project defaults here.",
+					"State-specific Definition of Done items to append for this state only. Do not copy project defaults here.",
 			},
 			disableDefinitionOfDoneDefaults: {
 				type: "boolean",
 				description:
-					"Disable project-level Definition of Done defaults for this task creation. Use definition_of_done_defaults_upsert to change project defaults.",
+					"Disable project-level Definition of Done defaults for this state creation. Use definition_of_done_defaults_upsert to change project defaults.",
 			},
-			parentTaskId: {
+			parentStateId: {
 				type: "string",
 				maxLength: 50,
 			},
@@ -125,9 +125,9 @@ export function generateTaskCreateSchema(config: BacklogConfig): JsonSchema {
 }
 
 /**
- * Generates the task_edit input schema with dynamic status enum and MCP-specific operations.
+ * Generates the state_edit input schema with dynamic status enum and MCP-specific operations.
  */
-export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
+export function generateStateEditSchema(config: RoadmapConfig): JsonSchema {
 	return {
 		type: "object",
 		properties: {
@@ -231,7 +231,7 @@ export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
 			finalSummary: {
 				type: "string",
 				maxLength: 20000,
-				description: "Final summary for PR-style completion notes. Write this only when the task is complete.",
+				description: "Final summary for PR-style completion notes. Write this only when the state is complete.",
 			},
 			finalSummaryAppend: {
 				type: "array",
@@ -322,7 +322,7 @@ export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
 				},
 				maxItems: 50,
 				description:
-					"Task-specific Definition of Done items to add for this task only. Use definition_of_done_defaults_upsert to change project defaults.",
+					"State-specific Definition of Done items to add for this state only. Use definition_of_done_defaults_upsert to change project defaults.",
 			},
 			definitionOfDoneRemove: {
 				type: "array",
@@ -331,7 +331,7 @@ export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
 					minimum: 1,
 				},
 				maxItems: 50,
-				description: "Remove task-specific Definition of Done items by 1-based index on this task.",
+				description: "Remove state-specific Definition of Done items by 1-based index on this state.",
 			},
 			definitionOfDoneCheck: {
 				type: "array",
@@ -340,7 +340,7 @@ export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
 					minimum: 1,
 				},
 				maxItems: 50,
-				description: "Mark task-specific Definition of Done items as complete by 1-based index on this task.",
+				description: "Mark state-specific Definition of Done items as complete by 1-based index on this state.",
 			},
 			definitionOfDoneUncheck: {
 				type: "array",
@@ -349,7 +349,7 @@ export function generateTaskEditSchema(config: BacklogConfig): JsonSchema {
 					minimum: 1,
 				},
 				maxItems: 50,
-				description: "Mark task-specific Definition of Done items as incomplete by 1-based index on this task.",
+				description: "Mark state-specific Definition of Done items as incomplete by 1-based index on this state.",
 			},
 		},
 		required: ["id"],

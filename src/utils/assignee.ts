@@ -1,7 +1,7 @@
-export function normalizeAssignee(task: { assignee?: string | string[] }): void {
-	if (typeof task.assignee === "string") {
-		task.assignee = [task.assignee];
-	} else if (!Array.isArray(task.assignee)) {
-		task.assignee = [];
+export function normalizeAssignee(state: { assignee?: string | string[] }): void {
+	if (typeof state.assignee === "string") {
+		state.assignee = [state.assignee];
+	} else if (!Array.isArray(state.assignee)) {
+		state.assignee = [];
 	}
 }

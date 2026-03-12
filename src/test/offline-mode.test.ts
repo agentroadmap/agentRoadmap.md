@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRemoteTasks } from "../core/task-loader.ts";
+import { loadRemoteStates } from "../core/state-loader.ts";
 import type { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
-import type { BacklogConfig } from "../types/index.ts";
+import type { RoadmapConfig } from "../types/index.ts";
 
 describe("Offline Mode Configuration", () => {
 	let tempDir: string;
@@ -13,10 +13,10 @@ describe("Offline Mode Configuration", () => {
 	let _mockFileSystem: FileSystem;
 
 	beforeEach(async () => {
-		tempDir = await mkdtemp(join(tmpdir(), "backlog-offline-test-"));
+		tempDir = await mkdtemp(join(tmpdir(), "roadmap-offline-test-"));
 		gitOps = new GitOperations(tempDir);
 		_mockFileSystem = {
-			loadConfig: async () => ({ backlogDirectory: "backlog" }),
+			loadConfig: async () => ({ roadmapDirectory: "roadmap" }),
 		} as unknown as FileSystem;
 	});
 
@@ -28,7 +28,7 @@ describe("Offline Mode Configuration", () => {
 
 	describe("GitOperations.fetch()", () => {
 		it("should skip fetch when remoteOperations is false", async () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -62,7 +62,7 @@ describe("Offline Mode Configuration", () => {
 		});
 
 		it("should proceed with fetch when remoteOperations is true", async () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -84,7 +84,7 @@ describe("Offline Mode Configuration", () => {
 		});
 
 		it("should handle network errors gracefully", async () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -125,7 +125,7 @@ describe("Offline Mode Configuration", () => {
 
 	describe("Network Error Detection", () => {
 		it("should detect various network error patterns", () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -165,9 +165,9 @@ describe("Offline Mode Configuration", () => {
 		});
 	});
 
-	describe("loadRemoteTasks with offline config", () => {
+	describe("loadRemoteStates with offline config", () => {
 		it("should skip remote operations when remoteOperations is false", async () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -187,14 +187,14 @@ describe("Offline Mode Configuration", () => {
 				listRecentRemoteBranches: async (_daysAgo: number) => [],
 			} as unknown as GitOperations;
 
-			const remoteTasks = await loadRemoteTasks(mockGitOperations, config, onProgress);
+			const remoteStates = await loadRemoteStates(mockGitOperations, config, onProgress);
 
-			expect(remoteTasks).toEqual([]);
-			expect(progressMessages).toContain("Remote operations disabled - skipping remote tasks");
+			expect(remoteStates).toEqual([]);
+			expect(progressMessages).toContain("Remote operations disabled - skipping remote states");
 		});
 
 		it("should proceed with remote operations when remoteOperations is true", async () => {
-			const config: BacklogConfig = {
+			const config: RoadmapConfig = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -215,10 +215,10 @@ describe("Offline Mode Configuration", () => {
 				listRecentRemoteBranches: async (_daysAgo: number) => [],
 			} as unknown as GitOperations;
 
-			const remoteTasks = await loadRemoteTasks(mockGitOperations, config, onProgress);
+			const remoteStates = await loadRemoteStates(mockGitOperations, config, onProgress);
 
 			expect(fetchCalled).toBe(true);
-			expect(remoteTasks).toEqual([]);
+			expect(remoteStates).toEqual([]);
 			expect(progressMessages).toContain("Fetching remote branches...");
 		});
 
@@ -235,17 +235,17 @@ describe("Offline Mode Configuration", () => {
 				listRecentRemoteBranches: async (_daysAgo: number) => [],
 			} as unknown as GitOperations;
 
-			const remoteTasks = await loadRemoteTasks(mockGitOperations, null, onProgress);
+			const remoteStates = await loadRemoteStates(mockGitOperations, null, onProgress);
 
 			expect(fetchCalled).toBe(true);
-			expect(remoteTasks).toEqual([]);
+			expect(remoteStates).toEqual([]);
 			expect(progressMessages).toContain("Fetching remote branches...");
 		});
 	});
 
 	describe("Config Management", () => {
 		it("should handle missing remoteOperations field as default true", () => {
-			const configWithoutRemoteOps: Partial<BacklogConfig> = {
+			const configWithoutRemoteOps: Partial<RoadmapConfig> = {
 				projectName: "Test",
 				statuses: ["To Do", "Done"],
 				labels: [],
@@ -254,7 +254,7 @@ describe("Offline Mode Configuration", () => {
 				// remoteOperations field is missing
 			};
 
-			gitOps.setConfig(configWithoutRemoteOps as BacklogConfig);
+			gitOps.setConfig(configWithoutRemoteOps as RoadmapConfig);
 
 			// Should default to allowing remote operations when field is missing
 			// This tests backward compatibility

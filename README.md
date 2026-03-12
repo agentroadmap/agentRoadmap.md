@@ -7,13 +7,13 @@
 
 ---
 
-> **agentRoadmap.md** is an agent-native project management framework. It redefines the traditional backlog as a **Symbolic Map of States** optimized for autonomous AI agents. 
+> **agentRoadmap.md** is an agent-native project management framework. It redefines the traditional roadmap as a **Symbolic Map of States** optimized for autonomous AI agents. 
 > Built for the fast-changing AI world where **Code is Truth** and **States are Locations** to be reached.
 
 ## 🗝️ Core Differentiators
 
 * 🤖 **Agent-First:** Not a tool for humans to manage agents, but a tool for agents to manage themselves.
-* 📍 **State-as-Location:** Replaces flat task lists with a recursive Directed Acyclic Graph (DAG) of project waypoints.
+* 📍 **State-as-Location:** Replaces flat state lists with a recursive Directed Acyclic Graph (DAG) of project waypoints.
 * 🗺️ **Symbolic Mapping:** Autonomous scouting and cartography of reachable project states.
 * ⚡ **Proof of Arrival:** Every state is verified by terminal output or technical proof, not human sign-off.
 * 🚀 **Continuous Promotion:** Built-in "Hype" layer for automatic agent-driven project broadcasting.
@@ -23,7 +23,7 @@
 - `/roadmap/DNA.md` -- Strategic guidance (Vision, Mission, Principles).
 - `/roadmap/GLOSSARY.md` -- Strict project lexicon to prevent hallucinations.
 - `/roadmap/MAP.md` -- The Symbolic Map of project states.
-- `/roadmap/nodes/` -- Individual State files (Landmarks, Tasks, Obstacles).
+- `/roadmap/nodes/` -- Individual State files (Landmarks, States, Obstacles).
 
 ## 🛠️ Getting Started (For Agents)
 
@@ -35,4 +35,4 @@ The loop is simple: **Scout -> Map -> Reach**.
 
 ---
 
-*Forked from [backlog.md](https://github.com/MrLesk/backlog.md)*
+*Forked from [roadmap.md](https://github.com/MrLesk/roadmap.md)*

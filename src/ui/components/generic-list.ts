@@ -1,5 +1,5 @@
 /**
- * Generic list component that consolidates selectList, multiSelect, and TaskList functionality
+ * Generic list component that consolidates selectList, multiSelect, and StateList functionality
  * Provides a unified interface for all list selection patterns in the UI
  */
 

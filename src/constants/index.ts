@@ -1,19 +1,19 @@
 /**
- * Default directory structure for backlog projects
+ * Default directory structure for roadmap projects
  */
 export const DEFAULT_DIRECTORIES = {
-	/** Main backlog directory */
-	BACKLOG: "backlog",
-	/** Active tasks directory */
-	TASKS: "tasks",
-	/** Draft tasks directory */
+	/** Main roadmap directory */
+	ROADMAP: "roadmap",
+	/** Active states directory */
+	STATES: "nodes",
+	/** Draft states directory */
 	DRAFTS: "drafts",
-	/** Completed tasks directory */
+	/** Completed states directory */
 	COMPLETED: "completed",
 	/** Archive root directory */
 	ARCHIVE: "archive",
-	/** Archived tasks directory */
-	ARCHIVE_TASKS: "archive/tasks",
+	/** Archived states directory */
+	ARCHIVE_STATES: "archive/nodes",
 	/** Archived drafts directory */
 	ARCHIVE_DRAFTS: "archive/drafts",
 	/** Archived milestones directory */
@@ -37,7 +37,7 @@ export const DEFAULT_FILES = {
 } as const;
 
 /**
- * Default task statuses
+ * Default state statuses
  */
 export const DEFAULT_STATUSES = ["To Do", "In Progress", "Done"] as const;
 

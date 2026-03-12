@@ -10,7 +10,7 @@ const CLI_PATH = join(process.cwd(), "src", "cli.ts");
 
 describe("CLI Splash (bare run)", () => {
 	beforeEach(async () => {
-		TEST_DIR = await mkdtemp(join(tmpdir(), "backlog-splash-"));
+		TEST_DIR = await mkdtemp(join(tmpdir(), "roadmap-splash-"));
 		await mkdir(TEST_DIR, { recursive: true });
 	});
 
@@ -22,9 +22,9 @@ describe("CLI Splash (bare run)", () => {
 		const result = await $`bun ${CLI_PATH}`.cwd(TEST_DIR).quiet();
 		const out = result.stdout.toString();
 		expect(result.exitCode).toBe(0);
-		expect(out).toContain("Backlog.md v");
-		expect(out).toContain("Docs: https://backlog.md");
-		expect(out).toContain("backlog init");
+		expect(out).toContain("Roadmap.md v");
+		expect(out).toContain("Docs: https://roadmap.md");
+		expect(out).toContain("roadmap init");
 	});
 
 	it("prints quickstart (initialized repo)", async () => {
@@ -39,23 +39,23 @@ describe("CLI Splash (bare run)", () => {
 		const out = result.stdout.toString();
 		expect(result.exitCode).toBe(0);
 		expect(out).toContain("Quickstart");
-		expect(out).toContain("backlog task create");
-		expect(out).toContain("backlog board");
-		expect(out).not.toContain("backlog init");
+		expect(out).toContain("roadmap state create");
+		expect(out).toContain("roadmap board");
+		expect(out).not.toContain("roadmap init");
 	});
 
 	it("--help shows commander help, not splash", async () => {
 		const result = await $`bun ${CLI_PATH} --help`.cwd(TEST_DIR).quiet();
 		const out = result.stdout.toString();
 		expect(result.exitCode).toBe(0);
-		expect(out).toMatch(/Usage: .*backlog/);
+		expect(out).toMatch(/Usage: .*roadmap/);
 	});
 
 	it("--plain forces minimal splash", async () => {
 		const result = await $`bun ${CLI_PATH} --plain`.cwd(TEST_DIR).quiet();
 		const out = result.stdout.toString();
 		expect(result.exitCode).toBe(0);
-		expect(out).toContain("Backlog.md v");
-		expect(out).toContain("Docs: https://backlog.md");
+		expect(out).toContain("Roadmap.md v");
+		expect(out).toContain("Docs: https://roadmap.md");
 	});
 });

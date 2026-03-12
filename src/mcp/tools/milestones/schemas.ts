@@ -41,9 +41,9 @@ export const milestoneRenameSchema: JsonSchema = {
 			maxLength: 100,
 			description: "New milestone name (trimmed; case-insensitive uniqueness)",
 		},
-		updateTasks: {
+		updateStates: {
 			type: "boolean",
-			description: "Whether to update local tasks that reference the milestone (default: true)",
+			description: "Whether to update local states that reference the milestone (default: true)",
 			default: true,
 		},
 	},
@@ -60,16 +60,16 @@ export const milestoneRemoveSchema: JsonSchema = {
 			maxLength: 100,
 			description: "Milestone name to remove (case-insensitive match)",
 		},
-		taskHandling: {
+		stateHandling: {
 			type: "string",
 			enum: ["clear", "keep", "reassign"],
-			description: "What to do with local tasks currently set to this milestone: clear (default), keep, or reassign",
+			description: "What to do with local states currently set to this milestone: clear (default), keep, or reassign",
 			default: "clear",
 		},
 		reassignTo: {
 			type: "string",
 			maxLength: 100,
-			description: "Target milestone name when taskHandling is reassign (must exist as an active milestone file)",
+			description: "Target milestone name when stateHandling is reassign (must exist as an active milestone file)",
 		},
 	},
 	required: ["name"],

@@ -30,7 +30,7 @@ export class DefinitionOfDoneHandlers {
 	private async loadConfigOrThrow() {
 		const config = await this.core.filesystem.loadConfig();
 		if (!config) {
-			throw new McpError("Backlog config not found. Initialize Backlog.md first.", "NOT_FOUND");
+			throw new McpError("Roadmap config not found. Initialize Roadmap.md first.", "NOT_FOUND");
 		}
 		return config;
 	}

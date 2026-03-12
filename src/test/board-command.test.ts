@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 let TEST_DIR: string;
@@ -30,13 +30,13 @@ describe("Board command integration", () => {
 			await core.filesystem.saveConfig(config);
 		}
 
-		// Create some test tasks
-		const tasksDir = core.filesystem.tasksDir;
+		// Create some test states
+		const statesDir = core.filesystem.statesDir;
 		await writeFile(
-			join(tasksDir, "task-1 - Test Task One.md"),
+			join(statesDir, "state-1 - Test State One.md"),
 			`---
-id: task-1
-title: Test Task One
+id: state-1
+title: Test State One
 status: To Do
 assignee: []
 created_date: '2025-07-05'
@@ -46,14 +46,14 @@ dependencies: []
 
 ## Description
 
-This is a test task for board testing.`,
+This is a test state for board testing.`,
 		);
 
 		await writeFile(
-			join(tasksDir, "task-2 - Test Task Two.md"),
+			join(statesDir, "state-2 - Test State Two.md"),
 			`---
-id: task-2
-title: Test Task Two
+id: state-2
+title: Test State Two
 status: In Progress
 assignee: []
 created_date: '2025-07-05'
@@ -63,7 +63,7 @@ dependencies: []
 
 ## Description
 
-This is another test task for board testing.`,
+This is another test state for board testing.`,
 		);
 	});
 
@@ -80,49 +80,49 @@ This is another test task for board testing.`,
 	describe("Board loading", () => {
 		it("should load board without errors", async () => {
 			// This test verifies that the board command data loading works correctly
-			const tasks = await core.filesystem.listTasks();
-			expect(tasks.length).toBe(2);
+			const states = await core.filesystem.listStates();
+			expect(states.length).toBe(2);
 
 			// Test that we can prepare the board data without running the interactive UI
 			expect(() => {
 				const options = {
 					core,
 					initialView: "kanban" as const,
-					tasks: tasks.map((t) => ({ ...t, status: t.status || "" })),
+					states: states.map((t) => ({ ...t, status: t.status || "" })),
 				};
 
 				// Verify board options are valid
 				expect(options.core).toBeDefined();
 				expect(options.initialView).toBe("kanban");
-				expect(options.tasks).toBeDefined();
-				expect(options.tasks.length).toBe(2);
-				expect(options.tasks[0]?.status).toBe("To Do");
-				expect(options.tasks[1]?.status).toBe("In Progress");
+				expect(options.states).toBeDefined();
+				expect(options.states.length).toBe(2);
+				expect(options.states[0]?.status).toBe("To Do");
+				expect(options.states[1]?.status).toBe("In Progress");
 			}).not.toThrow();
 		});
 
-		it("should handle empty task list gracefully", async () => {
-			// Remove test tasks
-			const tasksDir = core.filesystem.tasksDir;
-			await rm(join(tasksDir, "task-1 - Test Task One.md")).catch(() => {});
-			await rm(join(tasksDir, "task-2 - Test Task Two.md")).catch(() => {});
+		it("should handle empty state list gracefully", async () => {
+			// Remove test states
+			const statesDir = core.filesystem.statesDir;
+			await rm(join(statesDir, "state-1 - Test State One.md")).catch(() => {});
+			await rm(join(statesDir, "state-2 - Test State Two.md")).catch(() => {});
 
-			const tasks = await core.filesystem.listTasks();
-			expect(tasks.length).toBe(0);
+			const states = await core.filesystem.listStates();
+			expect(states.length).toBe(0);
 
-			// Should handle empty task list properly
+			// Should handle empty state list properly
 			expect(() => {
 				const options = {
 					core,
 					initialView: "kanban" as const,
-					tasks: [],
+					states: [],
 				};
 
-				// Verify empty task list is handled correctly
+				// Verify empty state list is handled correctly
 				expect(options.core).toBeDefined();
 				expect(options.initialView).toBe("kanban");
-				expect(options.tasks).toBeDefined();
-				expect(options.tasks.length).toBe(0);
+				expect(options.states).toBeDefined();
+				expect(options.states.length).toBe(0);
 			}).not.toThrow();
 		});
 
@@ -133,7 +133,7 @@ This is another test task for board testing.`,
 			const initialState = {
 				type: "kanban" as const,
 				kanbanData: {
-					tasks: [],
+					states: [],
 					statuses: [],
 					isLoading: true,
 				},
@@ -159,7 +159,7 @@ This is another test task for board testing.`,
 			const initialState = {
 				type: "kanban" as const,
 				kanbanData: {
-					tasks: [],
+					states: [],
 					statuses: [],
 					isLoading: true,
 				},
@@ -177,7 +177,7 @@ This is another test task for board testing.`,
 					const config = await core.filesystem.loadConfig();
 					const statuses = config?.statuses || ["To Do", "In Progress"];
 					return {
-						tasks: await core.filesystem.listTasks(),
+						states: await core.filesystem.listStates(),
 						statuses: statuses || [],
 					};
 				};
@@ -186,7 +186,7 @@ This is another test task for board testing.`,
 				await expect(async () => {
 					const kanbanData = await viewSwitcher.getKanbanData();
 					expect(kanbanData).toBeDefined();
-					expect(Array.isArray(kanbanData.tasks)).toBe(true);
+					expect(Array.isArray(kanbanData.states)).toBe(true);
 					expect(Array.isArray(kanbanData.statuses)).toBe(true);
 				}).not.toThrow();
 			} finally {
@@ -196,17 +196,17 @@ This is another test task for board testing.`,
 		});
 	});
 
-	describe("Cross-branch task resolution", () => {
-		it("should handle getLatestTaskStatesForIds with proper parameters", async () => {
+	describe("Cross-branch state resolution", () => {
+		it("should handle getLatestStateStatesForIds with proper parameters", async () => {
 			// Test the function that was missing the filesystem parameter
-			const { getLatestTaskStatesForIds } = await import("../core/cross-branch-tasks.ts");
+			const { getLatestStateStatesForIds } = await import("../core/cross-branch-states.ts");
 
-			const tasks = await core.filesystem.listTasks();
-			const taskIds = tasks.map((t) => t.id);
+			const states = await core.filesystem.listStates();
+			const stateIds = states.map((t) => t.id);
 
 			// This should not throw "fs is not defined"
 			await expect(async () => {
-				const result = await getLatestTaskStatesForIds(core.gitOps, core.filesystem, taskIds);
+				const result = await getLatestStateStatesForIds(core.gitOps, core.filesystem, stateIds);
 				expect(result).toBeInstanceOf(Map);
 			}).not.toThrow();
 		});

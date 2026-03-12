@@ -9,7 +9,7 @@ import {
 	ListToolsRequestSchema,
 	ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { Core } from "../core/backlog.ts";
+import { Core } from "../core/roadmap.ts";
 import { getPackageName } from "../utils/app-info.ts";
 import { getVersion } from "../utils/version.ts";
 import { registerInitRequiredResource } from "./resources/init-required/index.ts";
@@ -17,7 +17,7 @@ import { registerWorkflowResources } from "./resources/workflow/index.ts";
 import { registerDefinitionOfDoneTools } from "./tools/definition-of-done/index.ts";
 import { registerDocumentTools } from "./tools/documents/index.ts";
 import { registerMilestoneTools } from "./tools/milestones/index.ts";
-import { registerTaskTools } from "./tools/tasks/index.ts";
+import { registerStateTools } from "./tools/states/index.ts";
 import { registerWorkflowTools } from "./tools/workflow/index.ts";
 import type {
 	CallToolResult,
@@ -35,16 +35,16 @@ import type {
 /**
  * Minimal MCP server implementation for stdio transport.
  *
- * The Backlog.md MCP server is intentionally local-only and exposes tools,
+ * The Roadmap.md MCP server is intentionally local-only and exposes tools,
  * resources, and prompts through the stdio transport so that desktop editors
  * (e.g. Claude Code) can interact with a project without network exposure.
  */
 const APP_NAME = getPackageName();
 const APP_VERSION = await getVersion();
 const INSTRUCTIONS_NORMAL =
-	"At the beginning of each session, read the backlog://workflow/overview resource to understand when and how to use Backlog.md for task management. Additional detailed guides are available as resources when needed.";
+	"At the beginning of each session, read the roadmap://workflow/overview resource to understand when and how to use Roadmap.md for state management. Additional detailed guides are available as resources when needed.";
 const INSTRUCTIONS_FALLBACK =
-	"Backlog.md is not initialized in this directory. Read the backlog://init-required resource for setup instructions.";
+	"Roadmap.md is not initialized in this directory. Read the roadmap://init-required resource for setup instructions.";
 
 type ServerInitOptions = {
 	debug?: boolean;
@@ -262,9 +262,9 @@ export class McpServer extends Core {
 /**
  * Factory that bootstraps a fully configured MCP server instance.
  *
- * If backlog is not initialized in the project directory, the server will start
- * successfully but only provide the backlog://init-required resource to guide
- * users to run `backlog init`.
+ * If roadmap is not initialized in the project directory, the server will start
+ * successfully but only provide the roadmap://init-required resource to guide
+ * users to run `roadmap init`.
  */
 export async function createMcpServer(projectRoot: string, options: ServerInitOptions = {}): Promise<McpServer> {
 	// We need to check config first to determine which instructions to use
@@ -281,7 +281,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 		registerInitRequiredResource(server);
 
 		if (options.debug) {
-			console.error("MCP server initialised in fallback mode (backlog not initialized in this directory).");
+			console.error("MCP server initialised in fallback mode (roadmap not initialized in this directory).");
 		}
 
 		return server;
@@ -290,7 +290,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 	// Normal mode: full tools and resources
 	registerWorkflowResources(server);
 	registerWorkflowTools(server);
-	registerTaskTools(server, config);
+	registerStateTools(server, config);
 	registerMilestoneTools(server);
 	registerDefinitionOfDoneTools(server);
 	registerDocumentTools(server, config);

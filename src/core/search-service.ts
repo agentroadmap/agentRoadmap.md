@@ -8,7 +8,7 @@ import type {
 	SearchPriorityFilter,
 	SearchResult,
 	SearchResultType,
-	Task,
+	State,
 } from "../types/index.ts";
 import type { ContentStore, ContentStoreEvent } from "./content-store.ts";
 
@@ -19,9 +19,9 @@ interface BaseSearchEntity {
 	readonly bodyText: string;
 }
 
-interface TaskSearchEntity extends BaseSearchEntity {
-	readonly type: "task";
-	readonly task: Task;
+interface StateSearchEntity extends BaseSearchEntity {
+	readonly type: "state";
+	readonly state: State;
 	readonly statusLower: string;
 	readonly priorityLower?: SearchPriorityFilter;
 	readonly labelsLower: string[];
@@ -39,7 +39,7 @@ interface DecisionSearchEntity extends BaseSearchEntity {
 	readonly decision: Decision;
 }
 
-type SearchEntity = TaskSearchEntity | DocumentSearchEntity | DecisionSearchEntity;
+type SearchEntity = StateSearchEntity | DocumentSearchEntity | DecisionSearchEntity;
 
 type NormalizedFilters = {
 	statuses?: string[];
@@ -51,7 +51,7 @@ type NormalizedFilters = {
 const PREFIX_PATTERN = /^[a-zA-Z]+-/i;
 
 /**
- * Extract prefix from an ID if present (e.g., "task-" from "task-123")
+ * Extract prefix from an ID if present (e.g., "state-" from "state-123")
  */
 function extractPrefix(id: string): string | null {
 	const match = id.match(PREFIX_PATTERN);
@@ -59,13 +59,13 @@ function extractPrefix(id: string): string | null {
 }
 
 /**
- * Strip any prefix from an ID (e.g., "task-123" -> "123", "JIRA-456" -> "456")
+ * Strip any prefix from an ID (e.g., "state-123" -> "123", "JIRA-456" -> "456")
  */
 function stripPrefix(id: string): string {
 	return id.replace(PREFIX_PATTERN, "");
 }
 
-function parseTaskIdSegments(value: string): number[] | null {
+function parseStateIdSegments(value: string): number[] | null {
 	const withoutPrefix = stripPrefix(value.toLowerCase());
 	if (!/^[0-9]+(?:\.[0-9]+)*$/.test(withoutPrefix)) {
 		return null;
@@ -73,10 +73,10 @@ function parseTaskIdSegments(value: string): number[] | null {
 	return withoutPrefix.split(".").map((segment) => Number.parseInt(segment, 10));
 }
 
-function createTaskIdVariants(id: string): string[] {
+function createStateIdVariants(id: string): string[] {
 	const lowerId = id.toLowerCase();
-	const segments = parseTaskIdSegments(id);
-	const prefix = extractPrefix(id) ?? "task-"; // Default to task- if no prefix
+	const segments = parseStateIdSegments(id);
+	const prefix = extractPrefix(id) ?? "state-"; // Default to state- if no prefix
 
 	if (!segments) {
 		// Non-numeric ID - just return the ID and its lowercase variant
@@ -97,7 +97,7 @@ function createTaskIdVariants(id: string): string[] {
 	// Add just the numeric part
 	variants.add(canonicalSuffix);
 
-	// Also add individual numeric segments for short-query matching (e.g., "7" matching "TASK-0007")
+	// Also add individual numeric segments for short-query matching (e.g., "7" matching "STATE-0007")
 	for (const segment of segments) {
 		variants.add(String(segment));
 	}
@@ -110,7 +110,7 @@ export class SearchService {
 	private initializing: Promise<void> | null = null;
 	private unsubscribe?: () => void;
 	private fuse: Fuse<SearchEntity> | null = null;
-	private tasks: TaskSearchEntity[] = [];
+	private states: StateSearchEntity[] = [];
 	private documents: DocumentSearchEntity[] = [];
 	private decisions: DecisionSearchEntity[] = [];
 	private collection: SearchEntity[] = [];
@@ -140,7 +140,7 @@ export class SearchService {
 		}
 		this.fuse = null;
 		this.collection = [];
-		this.tasks = [];
+		this.states = [];
 		this.documents = [];
 		this.decisions = [];
 		this.initialized = false;
@@ -156,7 +156,7 @@ export class SearchService {
 
 		const trimmedQuery = query.trim();
 		const allowedTypes = new Set<SearchResultType>(
-			types && types.length > 0 ? types : ["task", "document", "decision"],
+			types && types.length > 0 ? types : ["state", "document", "decision"],
 		);
 		const normalizedFilters = this.normalizeFilters(filters);
 
@@ -178,7 +178,7 @@ export class SearchService {
 				continue;
 			}
 
-			if (entity.type === "task" && !this.matchesTaskFilters(entity, normalizedFilters)) {
+			if (entity.type === "state" && !this.matchesStateFilters(entity, normalizedFilters)) {
 				continue;
 			}
 
@@ -193,7 +193,7 @@ export class SearchService {
 
 	private async initialize(): Promise<void> {
 		const snapshot = await this.store.ensureInitialized();
-		this.applySnapshot(snapshot.tasks, snapshot.documents, snapshot.decisions);
+		this.applySnapshot(snapshot.states, snapshot.documents, snapshot.decisions);
 
 		if (!this.unsubscribe) {
 			this.unsubscribe = this.store.subscribe((event) => {
@@ -210,21 +210,21 @@ export class SearchService {
 			return;
 		}
 		this.version = event.version;
-		this.applySnapshot(event.snapshot.tasks, event.snapshot.documents, event.snapshot.decisions);
+		this.applySnapshot(event.snapshot.states, event.snapshot.documents, event.snapshot.decisions);
 	}
 
-	private applySnapshot(tasks: Task[], documents: Document[], decisions: Decision[]): void {
-		this.tasks = tasks.map((task) => ({
-			id: task.id,
-			type: "task",
-			title: task.title,
-			bodyText: buildTaskBodyText(task),
-			task,
-			statusLower: task.status.toLowerCase(),
-			priorityLower: task.priority ? (task.priority.toLowerCase() as SearchPriorityFilter) : undefined,
-			labelsLower: (task.labels || []).map((label) => label.toLowerCase()),
-			idVariants: createTaskIdVariants(task.id),
-			dependencyIds: (task.dependencies ?? []).flatMap((dependency) => createTaskIdVariants(dependency)),
+	private applySnapshot(states: State[], documents: Document[], decisions: Decision[]): void {
+		this.states = states.map((state) => ({
+			id: state.id,
+			type: "state",
+			title: state.title,
+			bodyText: buildStateBodyText(state),
+			state,
+			statusLower: state.status.toLowerCase(),
+			priorityLower: state.priority ? (state.priority.toLowerCase() as SearchPriorityFilter) : undefined,
+			labelsLower: (state.labels || []).map((label) => label.toLowerCase()),
+			idVariants: createStateIdVariants(state.id),
+			dependencyIds: (state.dependencies ?? []).flatMap((dependency) => createStateIdVariants(dependency)),
 		}));
 
 		this.documents = documents.map((document) => ({
@@ -243,7 +243,7 @@ export class SearchService {
 			decision,
 		}));
 
-		this.collection = [...this.tasks, ...this.documents, ...this.decisions];
+		this.collection = [...this.states, ...this.documents, ...this.decisions];
 		this.rebuildFuse();
 	}
 
@@ -276,9 +276,9 @@ export class SearchService {
 	): SearchResult[] {
 		const results: SearchResult[] = [];
 
-		if (allowedTypes.has("task")) {
-			const tasks = this.applyTaskFilters(this.tasks, filters);
-			for (const entity of tasks) {
+		if (allowedTypes.has("state")) {
+			const states = this.applyStateFilters(this.states, filters);
+			for (const entity of states) {
 				results.push(this.mapEntityToResult(entity));
 				if (limit && results.length >= limit) {
 					return results;
@@ -307,51 +307,51 @@ export class SearchService {
 		return results;
 	}
 
-	private applyTaskFilters(tasks: TaskSearchEntity[], filters: NormalizedFilters): TaskSearchEntity[] {
-		let filtered = tasks;
+	private applyStateFilters(states: StateSearchEntity[], filters: NormalizedFilters): StateSearchEntity[] {
+		let filtered = states;
 		if (filters.statuses && filters.statuses.length > 0) {
 			const allowedStatuses = new Set(filters.statuses);
-			filtered = filtered.filter((task) => allowedStatuses.has(task.statusLower));
+			filtered = filtered.filter((state) => allowedStatuses.has(state.statusLower));
 		}
 		if (filters.priorities && filters.priorities.length > 0) {
 			const allowedPriorities = new Set(filters.priorities);
-			filtered = filtered.filter((task) => {
-				if (!task.priorityLower) {
+			filtered = filtered.filter((state) => {
+				if (!state.priorityLower) {
 					return false;
 				}
-				return allowedPriorities.has(task.priorityLower);
+				return allowedPriorities.has(state.priorityLower);
 			});
 		}
 		if (filters.labels && filters.labels.length > 0) {
 			const requiredLabels = new Set(filters.labels);
-			filtered = filtered.filter((task) => {
-				if (!task.labelsLower || task.labelsLower.length === 0) {
+			filtered = filtered.filter((state) => {
+				if (!state.labelsLower || state.labelsLower.length === 0) {
 					return false;
 				}
-				return task.labelsLower.some((label) => requiredLabels.has(label));
+				return state.labelsLower.some((label) => requiredLabels.has(label));
 			});
 		}
 		return filtered;
 	}
 
-	private matchesTaskFilters(task: TaskSearchEntity, filters: NormalizedFilters): boolean {
+	private matchesStateFilters(state: StateSearchEntity, filters: NormalizedFilters): boolean {
 		if (filters.statuses && filters.statuses.length > 0) {
-			if (!filters.statuses.includes(task.statusLower)) {
+			if (!filters.statuses.includes(state.statusLower)) {
 				return false;
 			}
 		}
 
 		if (filters.priorities && filters.priorities.length > 0) {
-			if (!task.priorityLower || !filters.priorities.includes(task.priorityLower)) {
+			if (!state.priorityLower || !filters.priorities.includes(state.priorityLower)) {
 				return false;
 			}
 		}
 
 		if (filters.labels && filters.labels.length > 0) {
-			if (!task.labelsLower || task.labelsLower.length === 0) {
+			if (!state.labelsLower || state.labelsLower.length === 0) {
 				return false;
 			}
-			const labelSet = new Set(task.labelsLower);
+			const labelSet = new Set(state.labelsLower);
 			const anyMatch = filters.labels.some((label) => labelSet.has(label));
 			if (!anyMatch) {
 				return false;
@@ -420,11 +420,11 @@ export class SearchService {
 		const score = result?.score ?? null;
 		const matches = this.mapMatches(result?.matches);
 
-		if (entity.type === "task") {
+		if (entity.type === "state") {
 			return {
-				type: "task",
+				type: "state",
 				score,
-				task: entity.task,
+				state: entity.state,
 				matches,
 			};
 		}
@@ -458,26 +458,26 @@ export class SearchService {
 		}));
 	}
 }
-function buildTaskBodyText(task: Task): string {
+function buildStateBodyText(state: State): string {
 	const parts: string[] = [];
 
-	if (task.description) {
-		parts.push(task.description);
+	if (state.description) {
+		parts.push(state.description);
 	}
 
-	if (Array.isArray(task.acceptanceCriteriaItems) && task.acceptanceCriteriaItems.length > 0) {
-		const lines = [...task.acceptanceCriteriaItems]
+	if (Array.isArray(state.acceptanceCriteriaItems) && state.acceptanceCriteriaItems.length > 0) {
+		const lines = [...state.acceptanceCriteriaItems]
 			.sort((a, b) => a.index - b.index)
 			.map((criterion) => `- [${criterion.checked ? "x" : " "}] ${criterion.text}`);
 		parts.push(lines.join("\n"));
 	}
 
-	if (task.implementationPlan) {
-		parts.push(task.implementationPlan);
+	if (state.implementationPlan) {
+		parts.push(state.implementationPlan);
 	}
 
-	if (task.implementationNotes) {
-		parts.push(task.implementationNotes);
+	if (state.implementationNotes) {
+		parts.push(state.implementationNotes);
 	}
 
 	return parts.join("\n\n");

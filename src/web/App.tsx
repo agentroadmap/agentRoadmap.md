@@ -4,12 +4,12 @@ import Layout from './components/Layout';
 import BoardPage from './components/BoardPage';
 import DocumentationDetail from './components/DocumentationDetail';
 import DecisionDetail from './components/DecisionDetail';
-import TaskList from './components/TaskList';
+import StateList from './components/StateList';
 import DraftsList from './components/DraftsList';
 import Settings from './components/Settings';
 import Statistics from './components/Statistics';
 import MilestonesPage from './components/MilestonesPage';
-import TaskDetailsModal from './components/TaskDetailsModal';
+import StateDetailsModal from './components/StateDetailsModal';
 import InitializationScreen from './components/InitializationScreen';
 import { SuccessToast } from './components/SuccessToast';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -18,11 +18,11 @@ import {
 	type DecisionSearchResult,
 	type Document,
 	type DocumentSearchResult,
-	type BacklogConfig,
+	type RoadmapConfig,
 	type Milestone,
 	type SearchResult,
-	type Task,
-	type TaskSearchResult,
+	type State,
+	type StateSearchResult,
 } from '../types';
 import { apiClient } from './lib/api';
 import { useHealthCheckContext } from './contexts/HealthCheckContext';
@@ -162,23 +162,23 @@ const canonicalizeMilestone = (value: string | null | undefined, aliasMap?: Map<
 
 function App() {
   const [showModal, setShowModal] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editingState, setEditingState] = useState<State | null>(null);
   const [isDraftMode, setIsDraftMode] = useState(false);
   const [statuses, setStatuses] = useState<string[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [projectName, setProjectName] = useState<string>('');
-  const [config, setConfig] = useState<BacklogConfig | null>(null);
+  const [config, setConfig] = useState<RoadmapConfig | null>(null);
   const [milestones, setMilestones] = useState<string[]>([]);
   const [milestoneEntities, setMilestoneEntities] = useState<Milestone[]>([]);
   const [archivedMilestones, setArchivedMilestones] = useState<Milestone[]>([]);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
-  const [taskConfirmation, setTaskConfirmation] = useState<{task: Task, isDraft: boolean} | null>(null);
+  const [stateConfirmation, setStateConfirmation] = useState<{state: State, isDraft: boolean} | null>(null);
   
   // Initialization state
   const [isInitialized, setIsInitialized] = useState<boolean | null>(null);
   
   // Centralized data state
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [states, setStates] = useState<State[]>([]);
   const [docs, setDocs] = useState<Document[]>([]);
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -191,7 +191,7 @@ function App() {
   React.useEffect(() => {
     getWebVersion().then(version => {
       if (version) {
-        document.body.setAttribute('data-version', `Backlog.md - v${version}`);
+        document.body.setAttribute('data-version', `Roadmap.md - v${version}`);
       }
     });
   }, []);
@@ -220,39 +220,39 @@ function App() {
     archivedMilestoneKeys?: Set<string>,
     milestoneAliases?: Map<string, string>,
   ) => {
-    const taskResults = results.filter((result): result is TaskSearchResult => result.type === 'task');
+    const stateResults = results.filter((result): result is StateSearchResult => result.type === 'state');
     const documentResults = results.filter((result): result is DocumentSearchResult => result.type === 'document');
     const decisionResults = results.filter((result): result is DecisionSearchResult => result.type === 'decision');
 
-    const tasksList = taskResults.map((result) => result.task);
-    const normalizedTasks =
+    const statesList = stateResults.map((result) => result.state);
+    const normalizedStates =
       archivedMilestoneKeys && archivedMilestoneKeys.size > 0
-        ? tasksList.map((task) => {
-            const canonicalMilestone = canonicalizeMilestone(task.milestone, milestoneAliases);
+        ? statesList.map((state) => {
+            const canonicalMilestone = canonicalizeMilestone(state.milestone, milestoneAliases);
             const key = milestoneKey(canonicalMilestone);
             if (!key || !archivedMilestoneKeys.has(key)) {
-              if (task.milestone === canonicalMilestone) {
-                return task;
+              if (state.milestone === canonicalMilestone) {
+                return state;
               }
-              return { ...task, milestone: canonicalMilestone || undefined };
+              return { ...state, milestone: canonicalMilestone || undefined };
             }
-            return { ...task, milestone: undefined };
+            return { ...state, milestone: undefined };
           })
-        : tasksList.map((task) => {
-            const canonicalMilestone = canonicalizeMilestone(task.milestone, milestoneAliases);
-            if (task.milestone === canonicalMilestone) {
-              return task;
+        : statesList.map((state) => {
+            const canonicalMilestone = canonicalizeMilestone(state.milestone, milestoneAliases);
+            if (state.milestone === canonicalMilestone) {
+              return state;
             }
-            return { ...task, milestone: canonicalMilestone || undefined };
+            return { ...state, milestone: canonicalMilestone || undefined };
           });
     const docsList = documentResults.map((result) => result.document);
     const decisionsList = decisionResults.map((result) => result.decision);
 
-    setTasks(normalizedTasks);
+    setStates(normalizedStates);
     setDocs(docsList);
     setDecisions(decisionsList);
 
-    return { tasks: normalizedTasks, docs: docsList, decisions: decisionsList };
+    return { states: normalizedStates, docs: docsList, decisions: decisionsList };
   }, []);
 
   const loadAllData = useCallback(async () => {
@@ -268,7 +268,7 @@ function App() {
 
       const archivedKeys = new Set(collectArchivedMilestoneKeys(archivedMilestonesData, milestonesData));
       const milestoneAliases = buildMilestoneAliasMap(milestonesData, archivedMilestonesData);
-      const { tasks: tasksList } = applySearchResults(searchResults, archivedKeys, milestoneAliases);
+      const { states: statesList } = applySearchResults(searchResults, archivedKeys, milestoneAliases);
 
       setStatuses(statusesData);
       setProjectName(configData.projectName);
@@ -277,7 +277,7 @@ function App() {
       setMilestoneEntities(milestonesData);
       setArchivedMilestones(archivedMilestonesData);
       setMilestones(
-        collectMilestoneIds(tasksList, milestonesData, archivedMilestonesData).filter(
+        collectMilestoneIds(statesList, milestonesData, archivedMilestonesData).filter(
           (milestone) => !archivedKeys.has(milestoneKey(milestone)),
         ),
       );
@@ -308,11 +308,11 @@ function App() {
           ]);
           const archivedKeys = new Set(collectArchivedMilestoneKeys(archivedMilestonesData, milestonesData));
           const milestoneAliases = buildMilestoneAliasMap(milestonesData, archivedMilestonesData);
-          const { tasks: tasksList } = applySearchResults(results, archivedKeys, milestoneAliases);
+          const { states: statesList } = applySearchResults(results, archivedKeys, milestoneAliases);
           setMilestoneEntities(milestonesData);
           setArchivedMilestones(archivedMilestonesData);
           setMilestones(
-            collectMilestoneIds(tasksList, milestonesData, archivedMilestonesData).filter(
+            collectMilestoneIds(statesList, milestonesData, archivedMilestonesData).filter(
               (milestone) => !archivedKeys.has(milestoneKey(milestone)),
             ),
           );
@@ -327,7 +327,7 @@ function App() {
   // Update document title when project name changes
   React.useEffect(() => {
     if (projectName) {
-      document.title = `${projectName} - Task Management`;
+      document.title = `${projectName} - State Management`;
     }
   }, [projectName]);
 
@@ -357,27 +357,27 @@ function App() {
     previousOnlineRef.current = isOnline;
   }, [isOnline]);
 
-  const handleNewTask = () => {
-    setEditingTask(null);
+  const handleNewState = () => {
+    setEditingState(null);
     setIsDraftMode(false);
     setShowModal(true);
   };
 
   const handleNewDraft = () => {
-    // Create a draft task (same as new task but with status 'Draft')
-    setEditingTask(null);
+    // Create a draft state (same as new state but with status 'Draft')
+    setEditingState(null);
     setIsDraftMode(true);
     setShowModal(true);
   };
 
-  const handleEditTask = (task: Task) => {
-    setEditingTask(task);
+  const handleEditState = (state: State) => {
+    setEditingState(state);
     setShowModal(true);
   };
 
   const handleCloseModal = () => {
     setShowModal(false);
-    setEditingTask(null);
+    setEditingState(null);
     setIsDraftMode(false);
   };
 
@@ -385,22 +385,22 @@ function App() {
     await loadAllData();
   }, [loadAllData]);
 
-  // Sync editingTask with refreshed tasks data to prevent stale state
+  // Sync editingState with refreshed states data to prevent stale state
   // This fixes the bug where acceptance criteria disappears after save (GitHub #467)
   useEffect(() => {
-    if (editingTask && showModal) {
-      const updatedTask = tasks.find(t => t.id === editingTask.id);
-      if (updatedTask && updatedTask !== editingTask) {
-        setEditingTask(updatedTask);
+    if (editingState && showModal) {
+      const updatedState = states.find(t => t.id === editingState.id);
+      if (updatedState && updatedState !== editingState) {
+        setEditingState(updatedState);
       }
     }
-  }, [tasks, editingTask, showModal]);
+  }, [states, editingState, showModal]);
 
   useEffect(() => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(`${protocol}//${window.location.host}`);
     ws.onmessage = (event) => {
-      if (event.data === "tasks-updated") {
+      if (event.data === "states-updated") {
         refreshData();
       } else if (event.data === "config-updated") {
         // Reload statuses when config changes
@@ -410,23 +410,23 @@ function App() {
     return () => ws.close();
   }, [refreshData, loadAllData]);
 
-  const handleSubmitTask = async (taskData: Partial<Task>) => {
-    // Don't catch errors here - let TaskDetailsModal handle them
-    if (editingTask) {
-      await apiClient.updateTask(editingTask.id, taskData);
+  const handleSubmitState = async (stateData: Partial<State>) => {
+    // Don't catch errors here - let StateDetailsModal handle them
+    if (editingState) {
+      await apiClient.updateState(editingState.id, stateData);
     } else {
       // Set status to 'Draft' if in draft mode
-      const finalTaskData = isDraftMode
-        ? { ...taskData, status: 'Draft' }
-        : taskData;
-      const createdTask = await apiClient.createTask(finalTaskData as Omit<Task, "id" | "createdDate">);
+      const finalStateData = isDraftMode
+        ? { ...stateData, status: 'Draft' }
+        : stateData;
+      const createdState = await apiClient.createState(finalStateData as Omit<State, "id" | "createdDate">);
 
-      // Show task creation confirmation
-      setTaskConfirmation({ task: createdTask, isDraft: isDraftMode });
+      // Show state creation confirmation
+      setStateConfirmation({ state: createdState, isDraft: isDraftMode });
 
       // Auto-dismiss after 4 seconds
       setTimeout(() => {
-        setTaskConfirmation(null);
+        setStateConfirmation(null);
       }, 4000);
     }
     handleCloseModal();
@@ -439,13 +439,13 @@ function App() {
     }
   };
 
-  const handleArchiveTask = async (taskId: string) => {
+  const handleArchiveState = async (stateId: string) => {
     try {
-      await apiClient.archiveTask(taskId);
+      await apiClient.archiveState(stateId);
       handleCloseModal();
       await refreshData();
     } catch (error) {
-      console.error('Failed to archive task:', error);
+      console.error('Failed to archive state:', error);
     }
   };
 
@@ -480,7 +480,7 @@ function App() {
                 projectName={projectName}
                 showSuccessToast={showSuccessToast}
                 onDismissToast={() => setShowSuccessToast(false)}
-                tasks={tasks}
+                states={states}
                 docs={docs}
                 decisions={decisions}
                 isLoading={isLoading}
@@ -492,9 +492,9 @@ function App() {
               index
               element={
                 <BoardPage
-                  onEditTask={handleEditTask}
-                  onNewTask={handleNewTask}
-                tasks={tasks}
+                  onEditState={handleEditState}
+                  onNewState={handleNewState}
+                states={states}
                 onRefreshData={refreshData}
                 statuses={statuses}
                 milestones={milestones}
@@ -505,12 +505,12 @@ function App() {
             }
           />
             <Route
-              path="tasks"
+              path="states"
               element={
-	                <TaskList
-	                  onEditTask={handleEditTask}
-	                  onNewTask={handleNewTask}
-	                  tasks={tasks}
+	                <StateList
+	                  onEditState={handleEditState}
+	                  onNewState={handleNewState}
+	                  states={states}
 	                  availableStatuses={statuses}
 	                  availableLabels={availableLabels}
 	                  availableMilestones={milestones}
@@ -524,34 +524,34 @@ function App() {
               path="milestones"
               element={
               <MilestonesPage
-                tasks={tasks}
+                states={states}
                 statuses={statuses}
                 milestoneEntities={milestoneEntities}
                 archivedMilestones={archivedMilestones}
-                onEditTask={handleEditTask}
+                onEditState={handleEditState}
                 onRefreshData={refreshData}
               />
             }
           />
-            <Route path="drafts" element={<DraftsList onEditTask={handleEditTask} onNewDraft={handleNewDraft} />} />
+            <Route path="drafts" element={<DraftsList onEditState={handleEditState} onNewDraft={handleNewDraft} />} />
             <Route path="documentation" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} />} />
             <Route path="documentation/:id" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} />} />
             <Route path="documentation/:id/:title" element={<DocumentationDetail docs={docs} onRefreshData={refreshData} />} />
             <Route path="decisions" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} />} />
             <Route path="decisions/:id" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} />} />
             <Route path="decisions/:id/:title" element={<DecisionDetail decisions={decisions} onRefreshData={refreshData} />} />
-            <Route path="statistics" element={<Statistics tasks={tasks} isLoading={isLoading} onEditTask={handleEditTask} projectName={projectName} />} />
+            <Route path="statistics" element={<Statistics states={states} isLoading={isLoading} onEditState={handleEditState} projectName={projectName} />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
 
-        <TaskDetailsModal
-          task={editingTask || undefined}
+        <StateDetailsModal
+          state={editingState || undefined}
           isOpen={showModal}
           onClose={handleCloseModal}
           onSaved={refreshData}
-          onSubmit={handleSubmitTask}
-          onArchive={editingTask ? () => handleArchiveTask(editingTask.id) : undefined}
+          onSubmit={handleSubmitState}
+          onArchive={editingState ? () => handleArchiveState(editingState.id) : undefined}
           availableStatuses={isDraftMode ? ['Draft', ...statuses] : statuses}
           availableMilestones={milestones}
           milestoneEntities={milestoneEntities}
@@ -560,11 +560,11 @@ function App() {
           definitionOfDoneDefaults={config?.definitionOfDone ?? []}
         />
 
-        {/* Task Creation Confirmation Toast */}
-        {taskConfirmation && (
+        {/* State Creation Confirmation Toast */}
+        {stateConfirmation && (
           <SuccessToast
-            message={`${taskConfirmation.isDraft ? 'Draft' : 'Task'} "${taskConfirmation.task.title}" created successfully! (${taskConfirmation.task.id.replace('task-', '')})`}
-            onDismiss={() => setTaskConfirmation(null)}
+            message={`${stateConfirmation.isDraft ? 'Draft' : 'State'} "${stateConfirmation.state.title}" created successfully! (${stateConfirmation.state.id.replace('state-', '')})`}
+            onDismiss={() => setStateConfirmation(null)}
             icon={
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

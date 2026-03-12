@@ -15,7 +15,7 @@ describe("MCP Server Fallback Mode", () => {
 	let tempDir: string;
 
 	beforeEach(() => {
-		// Create a temporary directory without backlog initialization
+		// Create a temporary directory without roadmap initialization
 		tempDir = mkdtempSync(join(tmpdir(), "mcp-fallback-test-"));
 	});
 
@@ -24,7 +24,7 @@ describe("MCP Server Fallback Mode", () => {
 		rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	test("should start successfully in non-backlog directory", async () => {
+	test("should start successfully in non-roadmap directory", async () => {
 		// Should not throw an error
 		const server = await createMcpServer(tempDir, { debug: false });
 
@@ -32,34 +32,34 @@ describe("MCP Server Fallback Mode", () => {
 		expect(server.getServer()).toBeDefined();
 	});
 
-	test("should provide backlog://init-required resource in fallback mode", async () => {
+	test("should provide roadmap://init-required resource in fallback mode", async () => {
 		const server = await createMcpServer(tempDir, { debug: false });
 
 		const resources = await server.testInterface.listResources();
 
 		expect(resources.resources).toHaveLength(1);
-		expect(resources.resources[0]?.uri).toBe("backlog://init-required");
-		expect(resources.resources[0]?.name).toBe("Backlog.md Not Initialized");
+		expect(resources.resources[0]?.uri).toBe("roadmap://init-required");
+		expect(resources.resources[0]?.name).toBe("Roadmap.md Not Initialized");
 	});
 
-	test("should be able to read backlog://init-required resource", async () => {
+	test("should be able to read roadmap://init-required resource", async () => {
 		const server = await createMcpServer(tempDir, { debug: false });
 
 		const result = await server.testInterface.readResource({
-			params: { uri: "backlog://init-required" },
+			params: { uri: "roadmap://init-required" },
 		});
 
 		expect(result.contents).toHaveLength(1);
-		expect(result.contents[0]?.uri).toBe("backlog://init-required");
+		expect(result.contents[0]?.uri).toBe("roadmap://init-required");
 		expect(getContentsText(result.contents)).toBe(MCP_INIT_REQUIRED_GUIDE);
 	});
 
-	test("should not provide task tools in fallback mode", async () => {
+	test("should not provide state tools in fallback mode", async () => {
 		const server = await createMcpServer(tempDir, { debug: false });
 
 		const tools = await server.testInterface.listTools();
 
-		// In fallback mode, no task tools should be registered
+		// In fallback mode, no state tools should be registered
 		expect(tools.tools).toHaveLength(0);
 	});
 });

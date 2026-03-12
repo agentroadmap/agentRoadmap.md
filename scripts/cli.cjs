@@ -17,7 +17,7 @@ const cleanedArgs = rawArgs.filter((arg) => {
 	if (arg === binaryPath) return false;
 	// Filter any accidental deep path to our platform package binary
 	try {
-		const pattern = /node_modules[/\\]backlog\.md-(darwin|linux|windows)-[^/\\]+[/\\]backlog(\.exe)?$/i;
+		const pattern = /node_modules[/\\]roadmap\.md-(darwin|linux|windows)-[^/\\]+[/\\]roadmap(\.exe)?$/i;
 		return !pattern.test(arg);
 	} catch {
 		return true;
@@ -41,7 +41,7 @@ child.on("error", (err) => {
 		console.error(`Binary not found: ${binaryPath}`);
 		console.error(`Please ensure you have the correct version for your platform (${process.platform}-${process.arch})`);
 	} else {
-		console.error("Failed to start backlog:", err);
+		console.error("Failed to start roadmap:", err);
 	}
 	process.exit(1);
 });

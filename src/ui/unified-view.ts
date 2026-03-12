@@ -1,25 +1,25 @@
 /**
- * Unified view manager that handles Tab switching between task views and kanban board
+ * Unified view manager that handles Tab switching between state views and kanban board
  */
 
-import type { Core } from "../core/backlog.ts";
-import type { Milestone, Task } from "../types/index.ts";
+import type { Core } from "../core/roadmap.ts";
+import type { Milestone, State } from "../types/index.ts";
 import { watchConfig } from "../utils/config-watcher.ts";
 import { collectAvailableLabels } from "../utils/label-filter.ts";
 import { hasAnyPrefix } from "../utils/prefix-config.ts";
-import { applySharedTaskFilters, createTaskSearchIndex } from "../utils/task-search.ts";
-import { watchTasks } from "../utils/task-watcher.ts";
+import { applySharedStateFilters, createStateSearchIndex } from "../utils/state-search.ts";
+import { watchStates } from "../utils/state-watcher.ts";
 import { renderBoardTui } from "./board.ts";
 import { createLoadingScreen } from "./loading.ts";
-import { buildTaskViewerMilestoneFilterModel, viewTaskEnhanced } from "./task-viewer-with-search.ts";
+import { buildStateViewerMilestoneFilterModel, viewStateEnhanced } from "./state-viewer-with-search.ts";
 import { type ViewState, ViewSwitcher, type ViewType } from "./view-switcher.ts";
 
 export interface UnifiedViewOptions {
 	core: Core;
 	initialView: ViewType;
-	selectedTask?: Task;
-	tasks?: Task[];
-	tasksLoader?: (updateProgress: (message: string) => void) => Promise<{ tasks: Task[]; statuses: string[] }>;
+	selectedState?: State;
+	states?: State[];
+	statesLoader?: (updateProgress: (message: string) => void) => Promise<{ states: State[]; statuses: string[] }>;
 	loadingScreenFactory?: (initialMessage: string) => Promise<LoadingScreen | null>;
 	title?: string;
 	filter?: {
@@ -32,10 +32,10 @@ export interface UnifiedViewOptions {
 		title?: string;
 		filterDescription?: string;
 		searchQuery?: string;
-		parentTaskId?: string;
+		parentStateId?: string;
 	};
 	preloadedKanbanData?: {
-		tasks: Task[];
+		states: State[];
 		statuses: string[];
 	};
 	milestoneMode?: boolean;
@@ -48,7 +48,7 @@ type LoadingScreen = {
 };
 
 export interface UnifiedViewLoadResult {
-	tasks: Task[];
+	states: State[];
 	statuses: string[];
 }
 
@@ -76,23 +76,23 @@ export function createKanbanSharedFilters(filters: UnifiedViewFilters): KanbanSh
 	};
 }
 
-export function filterTasksForKanban(
-	tasks: Task[],
+export function filterStatesForKanban(
+	states: State[],
 	filters: KanbanSharedFilters,
 	resolveMilestoneLabel?: (milestone: string) => string,
-): Task[] {
+): State[] {
 	if (
 		!filters.searchQuery.trim() &&
 		!filters.priorityFilter &&
 		filters.labelFilter.length === 0 &&
 		!filters.milestoneFilter
 	) {
-		return [...tasks];
+		return [...states];
 	}
 
-	const searchIndex = createTaskSearchIndex(tasks);
-	return applySharedTaskFilters(
-		tasks,
+	const searchIndex = createStateSearchIndex(states);
+	return applySharedStateFilters(
+		states,
 		{
 			query: filters.searchQuery,
 			priority: filters.priorityFilter as "high" | "medium" | "low" | undefined,
@@ -125,31 +125,31 @@ export function mergeUnifiedViewFilters(current: UnifiedViewFilters, update: Uni
 	};
 }
 
-export async function loadTasksForUnifiedView(
+export async function loadStatesForUnifiedView(
 	core: Core,
-	options: Pick<UnifiedViewOptions, "tasks" | "tasksLoader" | "loadingScreenFactory">,
+	options: Pick<UnifiedViewOptions, "states" | "statesLoader" | "loadingScreenFactory">,
 ): Promise<UnifiedViewLoadResult> {
-	if (options.tasks && options.tasks.length > 0) {
+	if (options.states && options.states.length > 0) {
 		const config = await core.filesystem.loadConfig();
 		return {
-			tasks: options.tasks,
+			states: options.states,
 			statuses: config?.statuses || ["To Do", "In Progress", "Done"],
 		};
 	}
 
 	const loader =
-		options.tasksLoader ||
-		(async (updateProgress: (message: string) => void): Promise<{ tasks: Task[]; statuses: string[] }> => {
-			const tasks = await core.loadTasks(updateProgress);
+		options.statesLoader ||
+		(async (updateProgress: (message: string) => void): Promise<{ states: State[]; statuses: string[] }> => {
+			const states = await core.loadStates(updateProgress);
 			const config = await core.filesystem.loadConfig();
 			return {
-				tasks,
+				states,
 				statuses: config?.statuses || ["To Do", "In Progress", "Done"],
 			};
 		});
 
 	const loadingScreenFactory = options.loadingScreenFactory || createLoadingScreen;
-	const loadingScreen = await loadingScreenFactory("Loading tasks");
+	const loadingScreen = await loadingScreenFactory("Loading states");
 
 	try {
 		const result = await loader((message) => {
@@ -157,7 +157,7 @@ export async function loadTasksForUnifiedView(
 		});
 
 		return {
-			tasks: result.tasks,
+			states: result.states,
 			statuses: result.statuses,
 		};
 	} finally {
@@ -172,36 +172,36 @@ type ViewResult = "switch" | "exit";
  */
 export async function runUnifiedView(options: UnifiedViewOptions): Promise<void> {
 	try {
-		const { tasks: loadedTasks, statuses: loadedStatuses } = await loadTasksForUnifiedView(options.core, {
-			tasks: options.tasks,
-			tasksLoader: options.tasksLoader,
+		const { states: loadedStates, statuses: loadedStatuses } = await loadStatesForUnifiedView(options.core, {
+			states: options.states,
+			statesLoader: options.statesLoader,
 			loadingScreenFactory: options.loadingScreenFactory,
 		});
 
-		const baseTasks = (loadedTasks || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
-		if (baseTasks.length === 0) {
-			if (options.filter?.parentTaskId) {
-				console.log(`No child tasks found for parent task ${options.filter.parentTaskId}.`);
+		const baseStates = (loadedStates || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
+		if (baseStates.length === 0) {
+			if (options.filter?.parentStateId) {
+				console.log(`No child states found for parent state ${options.filter.parentStateId}.`);
 			} else {
-				console.log("No tasks found.");
+				console.log("No states found.");
 			}
 			return;
 		}
 		const initialConfig = await options.core.filesystem.loadConfig();
 		let configuredLabels = initialConfig?.labels ?? [];
 		let milestoneEntities = await options.core.filesystem.listMilestones();
-		let milestoneFilterModel = buildTaskViewerMilestoneFilterModel(milestoneEntities);
+		let milestoneFilterModel = buildStateViewerMilestoneFilterModel(milestoneEntities);
 		let currentFilters = createUnifiedViewFilters(options.filter);
 		const initialState: ViewState = {
 			type: options.initialView,
-			selectedTask: options.selectedTask,
-			tasks: baseTasks,
+			selectedState: options.selectedState,
+			states: baseStates,
 			filter: options.filter,
 			// Initialize kanban data if starting with kanban view
 			kanbanData:
 				options.initialView === "kanban"
 					? {
-							tasks: baseTasks,
+							states: baseStates,
 							statuses: loadedStatuses,
 							isLoading: false,
 						}
@@ -211,18 +211,18 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 		let isRunning = true;
 		let viewSwitcher: ViewSwitcher | null = null;
 		let currentView: ViewType = options.initialView;
-		let selectedTask: Task | undefined = options.selectedTask;
-		let tasks = baseTasks;
+		let selectedState: State | undefined = options.selectedState;
+		let states = baseStates;
 		let kanbanStatuses = loadedStatuses ?? [];
-		let boardUpdater: ((nextTasks: Task[], nextStatuses: string[]) => void) | null = null;
+		let boardUpdater: ((nextStates: State[], nextStatuses: string[]) => void) | null = null;
 
-		const getRenderableTasks = () => tasks.filter((task) => task.id && task.id.trim() !== "" && hasAnyPrefix(task.id));
-		const getBoardAvailableLabels = () => collectAvailableLabels(getRenderableTasks(), configuredLabels);
+		const getRenderableStates = () => states.filter((state) => state.id && state.id.trim() !== "" && hasAnyPrefix(state.id));
+		const getBoardAvailableLabels = () => collectAvailableLabels(getRenderableStates(), configuredLabels);
 		const getBoardAvailableMilestones = () => [...milestoneFilterModel.availableMilestoneTitles];
 
 		const emitBoardUpdate = () => {
 			if (!boardUpdater) return;
-			boardUpdater(getRenderableTasks(), kanbanStatuses);
+			boardUpdater(getRenderableStates(), kanbanStatuses);
 		};
 		let isInitialLoad = true; // Track if this is the first view load
 
@@ -231,39 +231,39 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 			core: options.core,
 			initialState,
 		});
-		const watcher = watchTasks(options.core, {
-			onTaskAdded(task) {
-				tasks.push(task);
+		const watcher = watchStates(options.core, {
+			onStateAdded(state) {
+				states.push(state);
 				const state = viewSwitcher?.getState();
 				viewSwitcher?.updateState({
-					tasks,
-					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+					states,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, states } : undefined,
 				});
 				emitBoardUpdate();
 			},
-			onTaskChanged(task) {
-				const idx = tasks.findIndex((t) => t.id === task.id);
+			onStateChanged(state) {
+				const idx = states.findIndex((t) => t.id === state.id);
 				if (idx >= 0) {
-					tasks[idx] = task;
+					states[idx] = state;
 				} else {
-					tasks.push(task);
+					states.push(state);
 				}
 				const state = viewSwitcher?.getState();
 				viewSwitcher?.updateState({
-					tasks,
-					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+					states,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, states } : undefined,
 				});
 				emitBoardUpdate();
 			},
-			onTaskRemoved(taskId) {
-				tasks = tasks.filter((t) => t.id !== taskId);
-				if (selectedTask?.id === taskId) {
-					selectedTask = tasks[0];
+			onStateRemoved(stateId) {
+				states = states.filter((t) => t.id !== stateId);
+				if (selectedState?.id === stateId) {
+					selectedState = states[0];
 				}
 				const state = viewSwitcher?.getState();
 				viewSwitcher?.updateState({
-					tasks,
-					kanbanData: state?.kanbanData ? { ...state.kanbanData, tasks } : undefined,
+					states,
+					kanbanData: state?.kanbanData ? { ...state.kanbanData, states } : undefined,
 				});
 				emitBoardUpdate();
 			},
@@ -280,30 +280,30 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 
 		process.on("exit", () => configWatcher.stop());
 
-		// Function to show task view
-		const showTaskView = async (): Promise<ViewResult> => {
-			const availableTasks = tasks.filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
+		// Function to show state view
+		const showStateView = async (): Promise<ViewResult> => {
+			const availableStates = states.filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
 
-			if (availableTasks.length === 0) {
-				console.log("No tasks available.");
+			if (availableStates.length === 0) {
+				console.log("No states available.");
 				return "exit";
 			}
 
-			// Find the task to view - if selectedTask has an ID, find it in available tasks
-			let taskToView: Task | undefined;
-			if (selectedTask?.id) {
-				const foundTask = availableTasks.find((t) => t.id === selectedTask?.id);
-				taskToView = foundTask || availableTasks[0];
+			// Find the state to view - if selectedState has an ID, find it in available states
+			let stateToView: State | undefined;
+			if (selectedState?.id) {
+				const foundState = availableStates.find((t) => t.id === selectedState?.id);
+				stateToView = foundState || availableStates[0];
 			} else {
-				taskToView = availableTasks[0];
+				stateToView = availableStates[0];
 			}
 
-			if (!taskToView) {
-				console.log("No task selected.");
+			if (!stateToView) {
+				console.log("No state selected.");
 				return "exit";
 			}
 
-			// Show enhanced task viewer with view switching support
+			// Show enhanced state viewer with view switching support
 			return new Promise<ViewResult>((resolve) => {
 				let result: ViewResult = "exit"; // Default to exit
 
@@ -313,13 +313,13 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 
 				// Determine initial focus based on where we're coming from
 				// - If we have a search query on initial load, focus search
-				// - If currentView is task-detail, focus detail
-				// - Otherwise (including when coming from kanban), focus task list
+				// - If currentView is state-detail, focus detail
+				// - Otherwise (including when coming from kanban), focus state list
 				const hasSearchQuery = options.filter ? "searchQuery" in options.filter : false;
 				const shouldFocusSearch = isInitialLoad && hasSearchQuery;
 
-				viewTaskEnhanced(taskToView, {
-					tasks: availableTasks,
+				viewStateEnhanced(stateToView, {
+					states: availableStates,
 					core: options.core,
 					title: options.filter?.title,
 					filterDescription: options.filter?.filterDescription,
@@ -328,11 +328,11 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 					priorityFilter: currentFilters.priorityFilter,
 					labelFilter: currentFilters.labelFilter,
 					milestoneFilter: currentFilters.milestoneFilter,
-					startWithDetailFocus: currentView === "task-detail",
+					startWithDetailFocus: currentView === "state-detail",
 					startWithSearchFocus: shouldFocusSearch,
-					onTaskChange: (newTask) => {
-						selectedTask = newTask;
-						currentView = "task-detail";
+					onStateChange: (newState) => {
+						selectedState = newState;
+						currentView = "state-detail";
 					},
 					onFilterChange: (filters) => {
 						currentFilters = mergeUnifiedViewFilters(currentFilters, filters);
@@ -355,8 +355,8 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 			const layout = "horizontal" as const;
 			const maxColumnWidth = config?.maxColumnWidth || 20;
 			milestoneEntities = await options.core.filesystem.listMilestones();
-			milestoneFilterModel = buildTaskViewerMilestoneFilterModel(milestoneEntities);
-			const kanbanTasks = getRenderableTasks();
+			milestoneFilterModel = buildStateViewerMilestoneFilterModel(milestoneEntities);
+			const kanbanStates = getRenderableStates();
 			const statuses = kanbanStatuses;
 
 			// Show kanban board with view switching support
@@ -367,9 +367,9 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 					result = "switch";
 				};
 
-				renderBoardTui(kanbanTasks, statuses, layout, maxColumnWidth, {
-					onTaskSelect: (task) => {
-						selectedTask = task;
+				renderBoardTui(kanbanStates, statuses, layout, maxColumnWidth, {
+					onStateSelect: (state) => {
+						selectedState = state;
 					},
 					onTabPress,
 					filters: createKanbanSharedFilters(currentFilters),
@@ -406,9 +406,9 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 			// Show the current view and get the result
 			let result: ViewResult;
 			switch (currentView) {
-				case "task-list":
-				case "task-detail":
-					result = await showTaskView();
+				case "state-list":
+				case "state-detail":
+					result = await showStateView();
 					break;
 				case "kanban":
 					result = await showKanbanView();
@@ -424,13 +424,13 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 			if (result === "switch") {
 				// User pressed Tab, switch to the next view
 				switch (currentView) {
-					case "task-list":
-					case "task-detail":
+					case "state-list":
+					case "state-detail":
 						currentView = "kanban";
 						break;
 					case "kanban":
-						// Always go to task-list view when switching from board, keeping selected task highlighted
-						currentView = "task-list";
+						// Always go to state-list view when switching from board, keeping selected state highlighted
+						currentView = "state-list";
 						break;
 				}
 			} else {

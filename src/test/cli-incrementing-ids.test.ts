@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
-import { Core } from "../core/backlog.ts";
-import type { Decision, Document, Task } from "../types";
+import { Core } from "../core/roadmap.ts";
+import type { Decision, Document, State } from "../types";
 import { createUniqueTestDir, safeCleanup } from "./test-utils.ts";
 
 const CLI_PATH = join(process.cwd(), "src", "cli.ts");
@@ -34,27 +34,27 @@ describe("CLI ID Incrementing Behavior", () => {
 		}
 	});
 
-	test("should increment task IDs correctly", async () => {
-		const task1: Task = {
-			id: "task-1",
-			title: "First Task",
+	test("should increment state IDs correctly", async () => {
+		const state1: State = {
+			id: "state-1",
+			title: "First State",
 			status: "To Do",
 			assignee: [],
 			createdDate: "2025-01-01",
 			labels: [],
 			dependencies: [],
-			description: "A test task.",
+			description: "A test state.",
 		};
-		await core.createTask(task1);
+		await core.createState(state1);
 
-		const result = await $`bun ${CLI_PATH} task create "Second Task"`.cwd(TEST_DIR).quiet();
+		const result = await $`bun ${CLI_PATH} state create "Second State"`.cwd(TEST_DIR).quiet();
 
 		expect(result.exitCode).toBe(0);
-		expect(result.stdout.toString()).toContain("Created task TASK-2");
+		expect(result.stdout.toString()).toContain("Created state STATE-2");
 
-		const task2 = await core.filesystem.loadTask("task-2");
-		expect(task2).toBeDefined();
-		expect(task2?.title).toBe("Second Task");
+		const state2 = await core.filesystem.loadState("state-2");
+		expect(state2).toBeDefined();
+		expect(state2?.title).toBe("Second State");
 	});
 
 	test("should increment document IDs correctly", async () => {

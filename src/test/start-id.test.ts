@@ -14,7 +14,7 @@ async function initGitRepo(dir: string) {
 	await $`git config user.email test@example.com`.cwd(dir).quiet();
 }
 
-describe("task id generation", () => {
+describe("state id generation", () => {
 	beforeEach(async () => {
 		TEST_DIR = createUniqueTestDir("test-start-id");
 		await rm(TEST_DIR, { recursive: true, force: true }).catch(() => {});
@@ -32,12 +32,12 @@ describe("task id generation", () => {
 		}
 	});
 
-	it("starts numbering tasks at 1", async () => {
-		const result = await $`bun ${CLI_PATH} task create First`.cwd(TEST_DIR).quiet();
+	it("starts numbering states at 1", async () => {
+		const result = await $`bun ${CLI_PATH} state create First`.cwd(TEST_DIR).quiet();
 		expect(result.exitCode).toBe(0);
 
-		const files = await readdir(join(TEST_DIR, "backlog", "tasks"));
-		const first = files.find((f) => f.startsWith("task-1 -"));
+		const files = await readdir(join(TEST_DIR, "roadmap", "nodes"));
+		const first = files.find((f) => f.startsWith("state-1 -"));
 		expect(first).toBeDefined();
 	});
 });

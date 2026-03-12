@@ -2,18 +2,18 @@
  * Simplified unified view that manages a single screen for Tab switching
  */
 
-import type { Core } from "../core/backlog.ts";
-import type { Task } from "../types/index.ts";
+import type { Core } from "../core/roadmap.ts";
+import type { State } from "../types/index.ts";
 import { hasAnyPrefix } from "../utils/prefix-config.ts";
 import { renderBoardTui } from "./board.ts";
-import { viewTaskEnhanced } from "./task-viewer-with-search.ts";
+import { viewStateEnhanced } from "./state-viewer-with-search.ts";
 import type { ViewType } from "./view-switcher.ts";
 
 export interface SimpleUnifiedViewOptions {
 	core: Core;
 	initialView: ViewType;
-	selectedTask?: Task;
-	tasks?: Task[];
+	selectedState?: State;
+	states?: State[];
 	filter?: {
 		status?: string;
 		assignee?: string;
@@ -23,7 +23,7 @@ export interface SimpleUnifiedViewOptions {
 		filterDescription?: string;
 	};
 	preloadedKanbanData?: {
-		tasks: Task[];
+		states: State[];
 		statuses: string[];
 	};
 }
@@ -33,7 +33,7 @@ export interface SimpleUnifiedViewOptions {
  */
 export async function runSimpleUnifiedView(options: SimpleUnifiedViewOptions): Promise<void> {
 	let currentView = options.initialView;
-	let selectedTask = options.selectedTask;
+	let selectedState = options.selectedState;
 	let isRunning = true;
 
 	// Simple state management without complex ViewSwitcher
@@ -41,47 +41,47 @@ export async function runSimpleUnifiedView(options: SimpleUnifiedViewOptions): P
 		if (!isRunning) return;
 
 		switch (currentView) {
-			case "task-list":
-			case "task-detail":
+			case "state-list":
+			case "state-detail":
 				// Switch to kanban
 				currentView = "kanban";
 				await showKanbanBoard();
 				break;
 			case "kanban":
-				// Always go to task-list view when switching from board, keeping selected task highlighted
-				currentView = "task-list";
-				await showTaskView();
+				// Always go to state-list view when switching from board, keeping selected state highlighted
+				currentView = "state-list";
+				await showStateView();
 				break;
 		}
 	};
 
-	const showTaskView = async (): Promise<void> => {
-		// Extra safeguard: filter out any tasks without proper IDs
-		const validTasks = (options.tasks || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
+	const showStateView = async (): Promise<void> => {
+		// Extra safeguard: filter out any states without proper IDs
+		const validStates = (options.states || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
 
-		if (!validTasks || validTasks.length === 0) {
-			console.log("No tasks available.");
+		if (!validStates || validStates.length === 0) {
+			console.log("No states available.");
 			isRunning = false;
 			return;
 		}
 
-		const taskToView = selectedTask || validTasks[0];
-		if (!taskToView) {
+		const stateToView = selectedState || validStates[0];
+		if (!stateToView) {
 			isRunning = false;
 			return;
 		}
 
-		// Show task viewer with simple view switching
-		await viewTaskEnhanced(taskToView, {
-			tasks: validTasks,
+		// Show state viewer with simple view switching
+		await viewStateEnhanced(stateToView, {
+			states: validStates,
 			core: options.core,
 			title: options.filter?.title,
 			filterDescription: options.filter?.filterDescription,
-			startWithDetailFocus: currentView === "task-detail",
+			startWithDetailFocus: currentView === "state-detail",
 			// Use a simple callback instead of complex ViewSwitcher
-			onTaskChange: (newTask) => {
-				selectedTask = newTask;
-				currentView = "task-detail";
+			onStateChange: (newState) => {
+				selectedState = newState;
+				currentView = "state-detail";
 			},
 			// Custom Tab handler
 			onTabPress: async () => {
@@ -93,17 +93,17 @@ export async function runSimpleUnifiedView(options: SimpleUnifiedViewOptions): P
 	};
 
 	const showKanbanBoard = async (): Promise<void> => {
-		let kanbanTasks: Task[];
+		let kanbanStates: State[];
 		let statuses: string[];
 
 		if (options.preloadedKanbanData) {
-			// Use preloaded data but filter for valid tasks
-			kanbanTasks = options.preloadedKanbanData.tasks.filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
+			// Use preloaded data but filter for valid states
+			kanbanStates = options.preloadedKanbanData.states.filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
 			statuses = options.preloadedKanbanData.statuses;
 		} else {
 			// This shouldn't happen in practice since CLI preloads, but fallback
-			const validKanbanTasks = (options.tasks || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
-			kanbanTasks = validKanbanTasks.map((t) => ({ ...t, source: "local" as const }));
+			const validKanbanStates = (options.states || []).filter((t) => t.id && t.id.trim() !== "" && hasAnyPrefix(t.id));
+			kanbanStates = validKanbanStates.map((t) => ({ ...t, source: "local" as const }));
 			const config = await options.core.filesystem.loadConfig();
 			statuses = config?.statuses || [];
 		}
@@ -113,9 +113,9 @@ export async function runSimpleUnifiedView(options: SimpleUnifiedViewOptions): P
 		const maxColumnWidth = config?.maxColumnWidth || 20;
 
 		// Show kanban board with simple view switching
-		await renderBoardTui(kanbanTasks, statuses, layout, maxColumnWidth, {
-			onTaskSelect: (task) => {
-				selectedTask = task;
+		await renderBoardTui(kanbanStates, statuses, layout, maxColumnWidth, {
+			onStateSelect: (state) => {
+				selectedState = state;
 			},
 			// Custom Tab handler
 			onTabPress: async () => {
@@ -128,9 +128,9 @@ export async function runSimpleUnifiedView(options: SimpleUnifiedViewOptions): P
 
 	// Start with the initial view
 	switch (options.initialView) {
-		case "task-list":
-		case "task-detail":
-			await showTaskView();
+		case "state-list":
+		case "state-detail":
+			await showStateView();
 			break;
 		case "kanban":
 			await showKanbanBoard();

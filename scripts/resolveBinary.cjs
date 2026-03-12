@@ -21,12 +21,12 @@ function mapArch(arch = process.arch) {
 }
 
 function getPackageName(platform = process.platform, arch = process.arch) {
-	return `backlog.md-${mapPlatform(platform)}-${mapArch(arch)}`;
+	return `roadmap.md-${mapPlatform(platform)}-${mapArch(arch)}`;
 }
 
 function resolveBinaryPath(platform = process.platform, arch = process.arch) {
 	const packageName = getPackageName(platform, arch);
-	const binary = `backlog${platform === "win32" ? ".exe" : ""}`;
+	const binary = `roadmap${platform === "win32" ? ".exe" : ""}`;
 	return require.resolve(`${packageName}/${binary}`);
 }
 

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import type { Task } from "../types/index.ts";
+import type { State } from "../types/index.ts";
 import {
 	createKanbanSharedFilters,
 	createUnifiedViewFilters,
-	filterTasksForKanban,
+	filterStatesForKanban,
 	mergeUnifiedViewFilters,
 	type UnifiedViewFilters,
 } from "../ui/unified-view.ts";
-import { applyTaskFilters } from "../utils/task-search.ts";
+import { applyStateFilters } from "../utils/state-search.ts";
 
 describe("unified view filter state", () => {
 	it("initializes milestone filter from options", () => {
@@ -68,10 +68,10 @@ describe("unified view filter state", () => {
 		expect("statusFilter" in shared).toBe(false);
 	});
 
-	it("keeps shared filter results consistent between task list and kanban", () => {
-		const tasks: Task[] = [
+	it("keeps shared filter results consistent between state list and kanban", () => {
+		const states: State[] = [
 			{
-				id: "task-1",
+				id: "state-1",
 				title: "UI polish",
 				status: "To Do",
 				priority: "high",
@@ -82,7 +82,7 @@ describe("unified view filter state", () => {
 				dependencies: [],
 			},
 			{
-				id: "task-2",
+				id: "state-2",
 				title: "UI review",
 				status: "Done",
 				priority: "high",
@@ -93,7 +93,7 @@ describe("unified view filter state", () => {
 				dependencies: [],
 			},
 			{
-				id: "task-3",
+				id: "state-3",
 				title: "Backend migration",
 				status: "To Do",
 				priority: "low",
@@ -117,23 +117,23 @@ describe("unified view filter state", () => {
 			milestoneFilter: "Sprint 1",
 		};
 
-		const kanbanResults = filterTasksForKanban(tasks, sharedFilters, resolveMilestoneLabel).map((task) => task.id);
-		const listSharedResults = applyTaskFilters(tasks, {
+		const kanbanResults = filterStatesForKanban(states, sharedFilters, resolveMilestoneLabel).map((state) => state.id);
+		const listSharedResults = applyStateFilters(states, {
 			priority: "high",
 			labels: ["ui"],
 			milestone: "Sprint 1",
 			resolveMilestoneLabel,
-		}).map((task) => task.id);
-		const listStatusResults = applyTaskFilters(tasks, {
+		}).map((state) => state.id);
+		const listStatusResults = applyStateFilters(states, {
 			status: "To Do",
 			priority: "high",
 			labels: ["ui"],
 			milestone: "Sprint 1",
 			resolveMilestoneLabel,
-		}).map((task) => task.id);
+		}).map((state) => state.id);
 
-		expect(kanbanResults).toEqual(["task-1", "task-2"]);
-		expect(listSharedResults).toEqual(["task-1", "task-2"]);
-		expect(listStatusResults).toEqual(["task-1"]);
+		expect(kanbanResults).toEqual(["state-1", "state-2"]);
+		expect(listSharedResults).toEqual(["state-1", "state-2"]);
+		expect(listStatusResults).toEqual(["state-1"]);
 	});
 });
