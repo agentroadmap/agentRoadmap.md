@@ -234,10 +234,10 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 		const watcher = watchStates(options.core, {
 			onStateAdded(state) {
 				states.push(state);
-				const state = viewSwitcher?.getState();
+				const viewState = viewSwitcher?.getState();
 				viewSwitcher?.updateState({
 					states,
-					kanbanData: state?.kanbanData ? { ...state.kanbanData, states } : undefined,
+					kanbanData: viewState?.kanbanData ? { ...viewState.kanbanData, states } : undefined,
 				});
 				emitBoardUpdate();
 			},
@@ -248,10 +248,10 @@ export async function runUnifiedView(options: UnifiedViewOptions): Promise<void>
 				} else {
 					states.push(state);
 				}
-				const state = viewSwitcher?.getState();
+				const viewState = viewSwitcher?.getState();
 				viewSwitcher?.updateState({
 					states,
-					kanbanData: state?.kanbanData ? { ...state.kanbanData, states } : undefined,
+					kanbanData: viewState?.kanbanData ? { ...viewState.kanbanData, states } : undefined,
 				});
 				emitBoardUpdate();
 			},
