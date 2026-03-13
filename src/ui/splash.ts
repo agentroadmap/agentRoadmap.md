@@ -17,20 +17,36 @@ const bold = (c: boolean | undefined, s: string) => colorize(c, "1", s);
 const dim = (c: boolean | undefined, s: string) => colorize(c, "2", s);
 const cyan = (c: boolean | undefined, s: string) => colorize(c, "36", s);
 const green = (c: boolean | undefined, s: string) => colorize(c, "32", s);
+const yellow = (c: boolean | undefined, s: string) => colorize(c, "33", s);
+const blue = (c: boolean | undefined, s: string) => colorize(c, "34", s);
 const _magenta = (c: boolean | undefined, s: string) => colorize(c, "35", s);
+const red = (c: boolean | undefined, s: string) => colorize(c, "31", s);
 
 // Removed terminal theme heuristics; keep splash accent simple and consistent
 
-function getWideLogoLines(): string[] {
-	// 79 columns wide banner using block characters (fits 80x24)
-	return [
-		"██████╗  █████╗  █████╗ ██╗  ██╗██╗      █████╗  ██████╗    ███╗   ███╗██████╗ ",
-		"██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝██║     ██╔══██╗██╔════╝    ████╗ ████║██╔══██╗",
-		"██████╦╝███████║██║  ╚═╝█████═╝ ██║     ██║  ██║██║  ██╗    ██╔████╔██║██║  ██║",
-		"██╔══██╗██╔══██║██║  ██╗██╔═██╗ ██║     ██║  ██║██║  ╚██╗   ██║╚██╔╝██║██║  ██║",
-		"██████╦╝██║  ██║╚█████╔╝██║ ╚██╗███████╗╚█████╔╝╚██████╔╝██╗██║ ╚═╝ ██║██████╔╝",
-		"╚═════╝ ╚═╝  ╚═╝ ╚════╝ ╚═╝  ╚═╝╚══════╝ ╚════╝  ╚═════╝ ╚═╝╚═╝     ╚═╝╚═════╝ ",
+function getWideLogoLines(color: boolean | undefined): string[] {
+	// 65 columns wide banner using block characters
+	const letters = [
+		["██████╗ ", "██╔══██╗", "██████╔╝", "██╔══██╗", "██║  ██║", "╚═╝  ╚═╝"], // R
+		[" ██████╗ ", "██╔═══██╗", "██║   ██║", "██║   ██║", "╚██████╔╝", " ╚═════╝ "], // O
+		["  █████╗ ", " ██╔══██╗", " ███████║", " ██╔══██║", " ██║  ██║", " ╚═╝  ╚═╝"], // A
+		[" ██████╗ ", " ██╔══██╗", " ██║  ██║", " ██╔══██╗", " ██████╔╝", " ╚═════╝ "], // D
+		[" ███╗   ███╗", " ████╗ ████║", " ██╔████╔██║", " ██║╚██╔╝██║", " ██║ ╚═╝ ██║", " ╚═╝     ╚═╝"], // M
+		["  █████╗ ", " ██╔══██╗", " ███████║", " ██╔══██║", " ██║  ██║", " ╚═╝  ╚═╝"], // A
+		[" ██████╗ ", " ██╔══██╗", " ██████╔╝", " ██╔═══╝ ", " ██║     ", " ╚═╝     "], // P
 	];
+
+	const colors = [red, yellow, green, cyan, blue, _magenta, red];
+
+	const lines = ["", "", "", "", "", ""];
+	for (let i = 0; i < letters.length; i++) {
+		const letter = letters[i];
+		const colorFn = colors[i];
+		for (let j = 0; j < 6; j++) {
+			lines[j] += colorFn(color, letter[j]);
+		}
+	}
+	return lines;
 }
 
 function getNarrowLogoLines(color: boolean | undefined): string[] {
@@ -61,7 +77,7 @@ export async function printSplash(opts: SplashOptions): Promise<void> {
 	if (useWide) {
 		// Add an empty line before the logo for breathing room
 		lines.push("");
-		lines.push(...getWideLogoLines());
+		lines.push(...getWideLogoLines(color));
 		lines.push("");
 		lines.push(`${bold(color, "Roadmap.md")} ${dim(color, `v${version}`)}`);
 	} else if (!plain && (width === 0 || width >= 20)) {
