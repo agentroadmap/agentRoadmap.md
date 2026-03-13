@@ -1,10 +1,11 @@
 ---
 id: 001
 type: transitional
-status: active
+status: reached
 assigned_role: executor
 requires: [000]
-unlocks: [002, 003]
+unlocks: [002]
+milestone: m-0
 ---
 # State: Core Terminology & Structure Refactor
 
@@ -17,7 +18,7 @@ The codebase currently uses "roadmap" as the primary term. This must be refactor
 - [x] Global terminology refactor: `roadmap` -> `roadmap`, `State` -> `State` (aliased).
 - [x] `package.json` name updated to `agent-roadmap` and bin to `roadmap`.
 - [x] `State` interface updated with `type`, `hype`, `requires`, and `unlocks`.
-- [ ] Terminal test: `roadmap status` works in a repo with a `roadmap/` folder.
+- [x] Terminal test: `roadmap board` works in a repo with a `roadmap/` folder.
 
 ## Hype
 > Standardized the project core around "Roadmaps" instead of "Roadmaps". The agent-native foundation is solidifying. 🏗️

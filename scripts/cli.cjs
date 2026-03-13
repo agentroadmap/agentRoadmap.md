@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 
 const { spawn } = require("node:child_process");
+const path = require("node:path");
+const fs = require("node:fs");
 const { resolveBinaryPath } = require("./resolveBinary.cjs");
 
 let binaryPath;
-try {
-	binaryPath = resolveBinaryPath();
-} catch {
-	console.error(`Binary package not installed for ${process.platform}-${process.arch}.`);
-	process.exit(1);
+
+// Try to use the bundled binary in dist/ first
+const bundledBinary = path.join(__dirname, "..", "dist", `roadmap${process.platform === "win32" ? ".exe" : ""}`);
+if (fs.existsSync(bundledBinary)) {
+	binaryPath = bundledBinary;
+} else {
+	try {
+		binaryPath = resolveBinaryPath();
+	} catch {
+		console.error(`Binary package not installed for ${process.platform}-${process.arch}.`);
+		process.exit(1);
+	}
 }
 
 // Clean up unexpected args some global shims pass (e.g. bun) like the binary path itself
