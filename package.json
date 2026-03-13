@@ -1,22 +1,27 @@
 {
 	"name": "agent-roadmap",
-	"version": "1.35.7",
+	"version": "1.35.8",
 	"type": "module",
 	"module": "src/cli.ts",
 	"files": [
-		"scripts/*.cjs",
+		"src",
+		"roadmap",
+		"completions",
+		"scripts",
+		"dist",
 		"README.md",
-		"LICENSE"
+		"LICENSE",
+		"package.json"
 	],
 	"bin": {
 		"roadmap": "scripts/cli.cjs"
 	},
 	"optionalDependencies": {
-		"roadmap.md-darwin-arm64": "*",
-		"roadmap.md-darwin-x64": "*",
-		"roadmap.md-linux-arm64": "*",
-		"roadmap.md-linux-x64": "*",
-		"roadmap.md-windows-x64": "*"
+		"agent-roadmap-darwin-arm64": "*",
+		"agent-roadmap-darwin-x64": "*",
+		"agent-roadmap-linux-arm64": "*",
+		"agent-roadmap-linux-x64": "*",
+		"agent-roadmap-windows-x64": "*"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",
