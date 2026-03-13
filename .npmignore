@@ -4,13 +4,13 @@ scripts/
 test-npm-package/
 
 # Build artifacts
-backlog
+roadmap
 *.bun-build
 .*.bun-build
 
 # Development files
 .github/
-.backlog/
+.roadmap/
 .claude/
 .git/
 .gitignore
