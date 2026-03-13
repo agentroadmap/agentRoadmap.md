@@ -1,92 +1,92 @@
 {
-	"name": "agent-roadmap",
-	"version": "0.1.1",
-	"type": "module",
-	"module": "src/cli.ts",
-	"files": [
-		"src",
-		"roadmap",
-		"completions",
-		"scripts",
-		"README.md",
-		"LICENSE",
-		"package.json"
-	],
-	"bin": {
-		"roadmap": "scripts/cli.cjs"
-	},
-	"devDependencies": {
-		"@biomejs/biome": "2.3.11",
-		"@clack/core": "1.0.1",
-		"@clack/prompts": "1.0.1",
-		"@modelcontextprotocol/sdk": "1.26.0",
-		"@tailwindcss/cli": "4.1.18",
-		"@types/bun": "1.3.6",
-		"@types/jsdom": "27.0.0",
-		"@types/react": "19.2.8",
-		"@types/react-dom": "19.2.3",
-		"@types/react-router-dom": "5.3.3",
-		"@uiw/react-markdown-preview": "5.1.5",
-		"@uiw/react-md-editor": "4.0.11",
-		"commander": "14.0.2",
-		"fuse.js": "7.1.0",
-		"gray-matter": "4.0.3",
-		"install": "0.13.0",
-		"jsdom": "27.4.0",
-		"mermaid": "11.12.2",
-		"neo-neo-bblessed": "1.0.9",
-		"picocolors": "1.1.1",
-		"react": "19.2.3",
-		"react-dom": "19.2.3",
-		"react-router-dom": "7.12.0",
-		"react-tooltip": "5.30.0",
-		"tailwindcss": "4.1.18"
-	},
-	"optionalDependencies": {
-		"agent-roadmap-linux-x64": "0.1.1",
-		"agent-roadmap-linux-arm64": "0.1.1",
-		"agent-roadmap-darwin-x64": "0.1.1",
-		"agent-roadmap-darwin-arm64": "0.1.1",
-		"agent-roadmap-windows-x64": "0.1.1"
-	},
-	"scripts": {
-		"test": "bun test",
-		"format": "biome format --write .",
-		"lint": "biome lint --write .",
-		"check": "biome check .",
-		"check:types": "bunx tsc --noEmit",
-		"build:css": "bun ./node_modules/@tailwindcss/cli/dist/index.mjs -i src/web/styles/source.css -o src/web/styles/style.css --minify",
-		"build": "bun run build:css && bun build --production --compile --minify --define __EMBEDDED_VERSION__=\"\\\"$npm_package_version\\\"\" --outfile=dist/roadmap src/cli.ts",
-		"cli": "bun run build:css && bun src/cli.ts",
-		"mcp": "bun src/cli.ts mcp start",
-		"update-nix": "sh scripts/update-nix.sh",
-		"release": "git push github main --tags && git push origin main --tags",
-		"release:patch": "npm version patch && npm run sync-deps && npm run release",
-		"release:minor": "npm version minor && npm run sync-deps && npm run release",
-		"release:major": "npm version major && npm run release",
-		"sync-deps": "TAG=$(jq -r .version package.json) && jq --arg v \"$TAG\" '.optionalDependencies |= with_entries(.value = $v)' package.json > tmp.json && mv tmp.json package.json && git add package.json && git commit --amend --no-edit"
-	},
-	"author": "Alex Gavrilescu (https://github.com/MrLesk)",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/MrLesk/agentRoadmap.md.git"
-	},
-	"bugs": {
-		"url": "https://github.com/MrLesk/agentRoadmap.md/issues"
-	},
-	"homepage": "https://roadmap.md",
-	"keywords": [
-		"cli",
-		"markdown",
-		"kanban",
-		"state",
-		"project-management",
-		"roadmap",
-		"agents"
-	],
-	"license": "MIT",
-	"trustedDependencies": [
-		"@biomejs/biome",
-		"node-pty"
-	]
+  "name": "agent-roadmap",
+  "version": "0.1.2",
+  "type": "module",
+  "module": "src/cli.ts",
+  "files": [
+    "src",
+    "roadmap",
+    "completions",
+    "scripts",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "bin": {
+    "roadmap": "scripts/cli.cjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.11",
+    "@clack/core": "1.0.1",
+    "@clack/prompts": "1.0.1",
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "@tailwindcss/cli": "4.1.18",
+    "@types/bun": "1.3.6",
+    "@types/jsdom": "27.0.0",
+    "@types/react": "19.2.8",
+    "@types/react-dom": "19.2.3",
+    "@types/react-router-dom": "5.3.3",
+    "@uiw/react-markdown-preview": "5.1.5",
+    "@uiw/react-md-editor": "4.0.11",
+    "commander": "14.0.2",
+    "fuse.js": "7.1.0",
+    "gray-matter": "4.0.3",
+    "install": "0.13.0",
+    "jsdom": "27.4.0",
+    "mermaid": "11.12.2",
+    "neo-neo-bblessed": "1.0.9",
+    "picocolors": "1.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "7.12.0",
+    "react-tooltip": "5.30.0",
+    "tailwindcss": "4.1.18"
+  },
+  "optionalDependencies": {
+    "agent-roadmap-linux-x64": "0.1.2",
+    "agent-roadmap-linux-arm64": "0.1.2",
+    "agent-roadmap-darwin-x64": "0.1.2",
+    "agent-roadmap-darwin-arm64": "0.1.2",
+    "agent-roadmap-windows-x64": "0.1.2"
+  },
+  "scripts": {
+    "test": "bun test",
+    "format": "biome format --write .",
+    "lint": "biome lint --write .",
+    "check": "biome check .",
+    "check:types": "bunx tsc --noEmit",
+    "build:css": "bun ./node_modules/@tailwindcss/cli/dist/index.mjs -i src/web/styles/source.css -o src/web/styles/style.css --minify",
+    "build": "bun run build:css && bun build --production --compile --minify --define __EMBEDDED_VERSION__=\"\\\"$npm_package_version\\\"\" --outfile=dist/roadmap src/cli.ts",
+    "cli": "bun run build:css && bun src/cli.ts",
+    "mcp": "bun src/cli.ts mcp start",
+    "update-nix": "sh scripts/update-nix.sh",
+    "release": "git push github main --tags && git push origin main --tags",
+    "release:patch": "npm version patch && npm run sync-deps && npm run release",
+    "release:minor": "npm version minor && npm run sync-deps && npm run release",
+    "release:major": "npm version major && npm run release",
+    "sync-deps": "TAG=$(jq -r .version package.json) && jq --arg v \"$TAG\" '.optionalDependencies |= with_entries(.value = $v)' package.json > tmp.json && mv tmp.json package.json && git add package.json && git commit --amend --no-edit"
+  },
+  "author": "Alex Gavrilescu (https://github.com/MrLesk)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrLesk/agentRoadmap.md.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MrLesk/agentRoadmap.md/issues"
+  },
+  "homepage": "https://roadmap.md",
+  "keywords": [
+    "cli",
+    "markdown",
+    "kanban",
+    "state",
+    "project-management",
+    "roadmap",
+    "agents"
+  ],
+  "license": "MIT",
+  "trustedDependencies": [
+    "@biomejs/biome",
+    "node-pty"
+  ]
 }
