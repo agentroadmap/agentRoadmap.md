@@ -33,6 +33,47 @@ The loop is simple: **Scout -> Map -> Reach**.
 2. **Map:** Create a new node and link it in the map graph.
 3. **Reach:** Perform the work and provide "Proof of Arrival".
 
+## 🤖 Multi-Agent Orchestration Pattern
+
+For efficient local collaboration between multiple agents (e.g., a swarm on a single machine), we recommend the **Hierarchical Worktree Pattern**. This leverages Git's native isolation to prevent agents from stomping on each other while maintaining a shared strategic roadmap.
+
+### The Architecture
+```text
+main (Shared Gateway)
+ └── coordinator (orchestrator agent)
+      ├── agent-1  → worktree /work/agent-1  (feature-auth)
+      ├── agent-2  → worktree /work/agent-2  (feature-api)
+      ├── agent-3  → worktree /work/agent-3  (feature-ui)
+      └── tester   → worktree /work/tester   (reads all, merges to staging)
+```
+
+### Why It Works
+*   **Isolation:** Agents work in clean sandboxes. Each worktree has its own working directory state.
+*   **No Context Switching:** Agents don't need to stash/restore; their specific branch is always ready.
+*   **True Parallelism:** Agents work simultaneously, sharing the object store but not the index.
+*   **Clear Ownership:** Every output is auditable. You can diff exactly what an agent produced before merging.
+*   **Total Visibility:** The Coordinator can run `git worktree list`, inspect any branch, and run cross-agent diffs instantly.
+
+### The Tester / Coordinator Role
+The **Tester Agent** acts as the quality gate:
+1.  Pulls each agent's branch into a staging merge.
+2.  Runs verification tests.
+3.  Signals the **Coordinator** to merge to `main` if successful.
+4.  Rejects and re-tasks the responsible agent if a branch fails.
+5.  Handles merge conflicts as a dedicated responsibility (freeing up executors).
+
+### Implementation Mapping
+This pattern is ideal for:
+*   **Claude Code / Gemini CLI:** Multiple instances, each in its own worktree.
+*   **Agent Frameworks:** LangGraph, CrewAI, or any swarm where agents are long-running processes.
+*   **Shared Gateway:** A local filesystem or server that all agents can access for real-time signaling.
+
+### Rough Concerns to Plan For
+*   **Merge Conflicts:** Agents working on overlapping files will create conflicts. The Coordinator needs a robust resolution strategy beyond simple merge commands.
+*   **Long-running Agents:** Branches diverge over time. Periodic rebases onto `main` help but increase orchestration complexity.
+*   **Shared Dependencies:** If multiple agents modify `package.json` or config files, conflicts are almost guaranteed.
+*   **Worktree Cleanup:** Completed agent branches and worktrees need pruning to prevent storage accumulation.
+
 ---
 
 *Forked from [roadmap.md](https://github.com/MrLesk/roadmap.md)*

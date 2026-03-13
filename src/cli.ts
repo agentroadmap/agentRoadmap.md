@@ -318,7 +318,7 @@ try {
 	if (isBare && !wantsHelp && !wantsVersion) {
 		const isTTY = !!process.stdout.isTTY;
 		const forcePlain = rawArgs.includes("--plain");
-		const noColor = !!process.env.NO_COLOR || !isTTY;
+		const noColor = !!process.env.NO_COLOR;
 
 		let initialized = false;
 		try {
@@ -334,9 +334,9 @@ try {
 		}
 
 		const { printSplash } = await import("./ui/splash.ts");
-		// Auto-fallback to plain when non-TTY, or explicit --plain, or if terminal very narrow
+		// Auto-fallback to plain when explicit --plain, or if terminal very narrow
 		const termWidth = Math.max(0, Number(process.stdout.columns || 0));
-		const autoPlain = !isTTY || (termWidth > 0 && termWidth < 60);
+		const autoPlain = termWidth > 0 && termWidth < 60;
 		await printSplash({
 			version,
 			initialized,
