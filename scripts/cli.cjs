@@ -8,6 +8,7 @@ const { resolveBinaryPath } = require("./resolveBinary.cjs");
 let binaryPath;
 
 // Try to use the bundled binary in dist/ first
+// Handle both 'scripts/cli.cjs' (dev) and global install paths
 const bundledBinary = path.join(__dirname, "..", "dist", `roadmap${process.platform === "win32" ? ".exe" : ""}`);
 if (fs.existsSync(bundledBinary)) {
 	binaryPath = bundledBinary;
