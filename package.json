@@ -1,5 +1,5 @@
 {
-	"name": "agentroadmap",
+	"name": "@agentroadmap/agentroadmap",
 	"version": "1.35.7",
 	"type": "module",
 	"module": "src/cli.ts",
