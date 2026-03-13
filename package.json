@@ -1,6 +1,6 @@
 {
   "name": "agent-roadmap",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "module": "src/cli.ts",
   "files": [
