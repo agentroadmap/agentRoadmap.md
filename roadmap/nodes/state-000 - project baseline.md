@@ -5,6 +5,7 @@ status: reached
 assigned_role: manager
 requires: []
 unlocks: [001]
+milestone: m-0
 ---
 # State: Project Redefinition & Repository Setup
 

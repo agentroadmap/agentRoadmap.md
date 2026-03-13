@@ -2,19 +2,23 @@
 
 ## Project Graph
 ```text
-[000-START] (reached)
+[m-0: Foundation]
   |
-  v
-[001-CORE-REFACTOR] (active) --> [002-DAG-MODEL] (potential)
-  |                                |
-  +--------------------------------+
-  |
-  v
-[003-TERMINAL-PROOF] (potential) --> [004-HYPE-LAYER] (potential)
+  +-- [000-START] (reached)
+  |     |
+  |     v
+  +-- [001-CORE-REFACTOR] (reached)
+  |     |
+  |     v
+  +-- [002-MILESTONE-ALIGN] (reached)
+        |
+        v
+[m-1: CLI Enhancements]
+        |
+        +-- [003-ADVANCED-TUI] (potential)
 ```
-
-## Current Frontier (Ready States)
-- [001-CORE-REFACTOR]: Standardize terminology and directory structure in code.
 
 ## Achievement Log (Reached States)
 - [000-START]: Initialized agentRoadmap.md project structure and DNA.
+- [001-CORE-REFACTOR]: Standardize terminology and directory structure in code.
+- [002-MILESTONE-ALIGN]: Defined 6 strategic milestones and mapped initial states.

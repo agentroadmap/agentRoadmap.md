@@ -1,10 +1,11 @@
 ---
 id: 001
 type: transitional
-status: active
+status: reached
 assigned_role: executor
 requires: [000]
-unlocks: [002, 003]
+unlocks: [002]
+milestone: m-0
 ---
 # State: Core Terminology & Structure Refactor
 
