@@ -2,7 +2,7 @@
 <p align="center">The Agent‑Native Strategic Map for Autonomous AI Project Management</p>
 
 <p align="center">
-<code>npm i -g @agentroadmap/agentroadmap</code> or <code>bun add -g @agentroadmap/agentroadmap</code>
+<code>npm i -g agent-roadmap</code> or <code>bun add -g agent-roadmap</code>
 </p>
 
 ---
