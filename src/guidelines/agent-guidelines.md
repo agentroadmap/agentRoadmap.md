@@ -37,6 +37,35 @@ remains fully synchronized and up-to-date.
 
 ---
 
+## 🚀 The Project Journey: From Seed to Vision
+
+This project follows a **dynamic journey paradigm**. The roadmap is not just a static list of tasks; it is a path from a **Seed Inspiration** to a **Final Ideal State (Vision)**.
+
+### 1. The Vision-Driven Paradigm
+- **Seed Inspiration**: Your starting point. Found in the **Initial State** (`state-0`). It represents what we know today (which may be very little).
+- **Project Vision**: Your destination. Found in the **Vision State** (usually the highest ID). It represents the desirable product or goal.
+- **The Gap**: Your job is to analyze the gap between the Seed and the Vision and build the roadmap to bridge it.
+
+### 2. Bootstrapping & Refinement (For the First Agent)
+If you are the first agent arriving in a newly initialized project:
+1. **Research the Seed**: Read the `Seed Inspiration` in `state-0`. Use your research tools to explore the keywords, market, and technical landscape.
+2. **Analyze the Vision**: Read the `Target Goal` in the Vision State. Understand what success looks like.
+3. **Refine the DAG**: The blueprint provided a skeleton. You MUST refine it:
+   - Use `state_edit` to add specific acceptance criteria to skeleton states.
+   - Use `state_create` to add intermediate discovery states (e.g., "Market Survey", "Tech Prototype").
+   - Identify **Obstacles**: If a path is blocked or risky, create an `obstacle` state and link it.
+4. **Pivot Often**: As you gather feedback (social media polls, user tests), do not hesitate to redraw the DAG. The roadmap is alive.
+
+### 3. Specialized Roles
+You may be assigned specialized roles. Act according to their unique objectives:
+- **@explorer**: Focus on research, market discovery, and ecosystem analysis.
+- **@architect**: Focus on technical pathfinding, risk assessment, and alternative approaches.
+- **@strategist**: Focus on positioning, user feedback loops, and social validation.
+- **@promoter**: Focus on hype, marketing materials, and distribution.
+- **@builder**: Focus on core engineering and implementation.
+
+---
+
 # ⚠️ CRITICAL: NEVER EDIT STATE FILES DIRECTLY. Edit Only via CLI
 
 **ALL state operations MUST use the agentRoadmap.md CLI commands**

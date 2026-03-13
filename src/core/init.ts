@@ -6,8 +6,9 @@ import {
 	installClaudeAgent,
 } from "../agent-instructions.ts";
 import { DEFAULT_INIT_CONFIG } from "../constants/index.ts";
-import type { RoadmapConfig } from "../types/index.ts";
+import type { RoadmapConfig, State } from "../types/index.ts";
 import type { Core } from "./roadmap.ts";
+import { BLUEPRINTS, type BlueprintType } from "./blueprints.ts";
 
 export const MCP_SERVER_NAME = "roadmap";
 export const MCP_GUIDE_URL = "https://github.com/MrLesk/Roadmap.md#-mcp-integration-model-context-protocol";
@@ -17,6 +18,8 @@ export type McpClient = "claude" | "codex" | "gemini" | "kiro" | "guide";
 
 export interface InitializeProjectOptions {
 	projectName: string;
+	description?: string;
+	blueprint?: BlueprintType;
 	integrationMode: IntegrationMode;
 	mcpClients?: McpClient[];
 	agentInstructions?: AgentInstructionFile[];
@@ -42,9 +45,15 @@ export interface InitializeProjectOptions {
 export interface InitializeProjectResult {
 	success: boolean;
 	projectName: string;
+	description?: string;
+	blueprint?: BlueprintType;
 	isReInitialization: boolean;
 	config: RoadmapConfig;
 	mcpResults?: Record<string, string>;
+	initialStates?: {
+		id: string;
+		title: string;
+	}[];
 }
 
 async function runMcpClientCommand(label: string, command: string, args: string[]): Promise<string> {
@@ -77,6 +86,8 @@ export async function initializeProject(
 ): Promise<InitializeProjectResult> {
 	const {
 		projectName,
+		description,
+		blueprint: blueprintType,
 		integrationMode,
 		mcpClients = [],
 		agentInstructions = [],
@@ -161,6 +172,70 @@ export async function initializeProject(
 		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(config);
 		await core.ensureConfigLoaded();
+	}
+
+	const initialStates: { id: string; title: string }[] = [];
+
+	// Create initial DAG based on blueprint or single baseline if description provided
+	if (!isReInitialization && (blueprintType || description)) {
+		const statePrefix = config.prefixes?.state || "state";
+		const blueprint = blueprintType ? BLUEPRINTS[blueprintType] : undefined;
+
+		if (blueprint) {
+			// Map blueprint local IDs to canonical roadmap IDs
+			const idMap = new Map<string, string>();
+			for (const bs of blueprint.states) {
+				const canonicalId = config.zeroPaddedIds
+					? `${statePrefix}-${bs.id.padStart(config.zeroPaddedIds, "0")}`
+					: `${statePrefix}-${bs.id}`;
+				idMap.set(bs.id, canonicalId);
+			}
+
+			// Create states
+			for (const bs of blueprint.states) {
+				const canonicalId = idMap.get(bs.id)!;
+				const dependsOn = (bs.dependsOnIds ?? []).map((id) => idMap.get(id)).filter(Boolean) as string[];
+
+				let finalDescription = bs.description;
+
+				// Inject user description into initial and final states
+				if (description) {
+					if (bs.isVision) {
+						finalDescription = `${bs.description}\n\n## Target Goal\n${description}`;
+					} else if (bs.isInitial) {
+						finalDescription = `${bs.description}\n\n## Seed Inspiration\n${description}`;
+					}
+				}
+
+				await core.createState({
+					id: canonicalId,
+					title: bs.title,
+					description: finalDescription,
+					status: config.defaultStatus || "To Do",
+					assignee: bs.assignee ?? [],
+					labels: bs.labels ?? [],
+					createdDate: new Date().toISOString().slice(0, 10),
+					rawContent: "",
+					dependencies: dependsOn,
+				});
+				initialStates.push({ id: canonicalId, title: bs.title });
+			}
+		} else if (description) {
+			// Single baseline fallback
+			const id = config.zeroPaddedIds ? `${statePrefix}-${"0".repeat(config.zeroPaddedIds - 1)}0` : `${statePrefix}-0`;
+			await core.createState({
+				id,
+				title: "Project Baseline & Requirements",
+				description,
+				status: config.defaultStatus || "To Do",
+				assignee: [],
+				labels: ["baseline"],
+				createdDate: new Date().toISOString().slice(0, 10),
+				rawContent: "",
+				dependencies: [],
+			});
+			initialStates.push({ id, title: "Project Baseline & Requirements" });
+		}
 	}
 
 	const mcpResults: Record<string, string> = {};
@@ -257,8 +332,10 @@ export async function initializeProject(
 	return {
 		success: true,
 		projectName,
+		description,
 		isReInitialization,
 		config,
+		initialStates,
 		mcpResults: Object.keys(mcpResults).length > 0 ? mcpResults : undefined,
 	};
 }

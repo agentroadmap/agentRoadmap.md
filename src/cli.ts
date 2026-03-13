@@ -410,8 +410,9 @@ program
 	.version(version, "-v, --version", "display version number");
 
 program
-	.command("init [projectName]")
+	.command("init [projectName] [description]")
 	.description("initialize roadmap project in the current repository")
+	.option("-b, --blueprint <type>", "project blueprint (software, research, content, versatile)")
 	.option(
 		"--agent-instructions <instructions>",
 		"comma-separated agent instructions to create. Valid: claude, agents, gemini, copilot, cursor (alias of agents), none. Use 'none' to skip; when combined with others, 'none' is ignored.",
@@ -431,7 +432,9 @@ program
 	.action(
 		async (
 			projectName: string | undefined,
+			description: string | undefined,
 			options: {
+				blueprint?: string;
 				agentInstructions?: string;
 				checkBranches?: string;
 				includeRemote?: string;
@@ -504,6 +507,7 @@ program
 
 				// Non-interactive mode when any flag is provided or --defaults is used
 				const isNonInteractive = !!(
+					options.blueprint ||
 					options.agentInstructions ||
 					options.defaults ||
 					options.checkBranches ||
@@ -551,28 +555,48 @@ program
 					}
 				}
 
-				// Get state prefix (first-time init only, preserved on re-init)
-				let statePrefix = options.statePrefix;
-				if (!statePrefix && !isNonInteractive && !isReInitialization) {
-					const enteredPrefix = await clack.text({
-						message: "State prefix (default: state):",
-						validate: (value) => {
-							const normalized = String(value ?? "").trim();
-							if (!normalized) {
-								return undefined;
-							}
-							if (!/^[a-zA-Z]+$/.test(normalized)) {
-								return "State prefix must contain only letters (a-z, A-Z).";
-							}
-							return undefined;
-						},
+				// Get project description
+				let desc = description;
+				if (!desc && !isNonInteractive && !isReInitialization) {
+					const enteredDesc = await clack.text({
+						message: "Project description (seed inspiration):",
+						placeholder: "e.g., Build a modern blog platform with React and Bun",
 					});
-					if (clack.isCancel(enteredPrefix)) {
+					if (clack.isCancel(enteredDesc)) {
 						abortInitialization();
 						return;
 					}
-					statePrefix = String(enteredPrefix ?? "").trim();
+					desc = String(enteredDesc ?? "").trim();
 				}
+
+				// Get project blueprint
+				const { BLUEPRINTS } = await import("./core/blueprints.ts");
+				let blueprintType = options.blueprint as BlueprintType | undefined;
+				if (!blueprintType && !isNonInteractive && !isReInitialization) {
+					const selectedBlueprint = await clack.select({
+						message: "Select a project blueprint (DAG structure):",
+						options: [
+							{ label: "None (Empty Roadmap)", value: "none" },
+							...Object.values(BLUEPRINTS).map((b) => ({
+								label: `${b.name} — ${b.description}`,
+								value: b.type,
+							})),
+						],
+						initialValue: "none",
+					});
+
+					if (clack.isCancel(selectedBlueprint)) {
+						abortInitialization();
+						return;
+					}
+
+					if (selectedBlueprint !== "none") {
+						blueprintType = selectedBlueprint as BlueprintType;
+					}
+				}
+
+				// Get state prefix (first-time init only, preserved on re-init)
+				let statePrefix = options.statePrefix || "state";
 				// Validate state prefix if provided
 				if (statePrefix && !/^[a-zA-Z]+$/.test(statePrefix)) {
 					console.error("State prefix must contain only letters (a-z, A-Z).");
@@ -911,37 +935,32 @@ program
 					installClaudeAgentSelection =
 						integrationMode === "cli" ? parseBoolean(options.installClaudeAgent, false) : false;
 				} else {
-					const advancedPrompt = await clack.confirm({
-						message: "Configure advanced settings now? (Runs the advanced roadmap config wizard)",
-						initialValue: false,
-					});
-					if (clack.isCancel(advancedPrompt)) {
-						abortInitialization();
-						return;
-					}
+					// User explicitly wants advanced config if they used the flags, otherwise skip to keep init fast.
+					const hasAdvancedFlags = Boolean(
+						options.checkBranches ||
+						options.includeRemote ||
+						options.branchDays ||
+						options.bypassGitHooks ||
+						options.zeroPaddedIds ||
+						options.defaultEditor ||
+						options.webPort ||
+						options.autoOpenBrowser
+					);
 
-					if (advancedPrompt) {
-						const wizardResult = await runAdvancedConfigWizard({
-							existingConfig,
-							cancelMessage: "Aborting initialization.",
-							includeClaudePrompt: integrationMode === "cli",
-						});
-						advancedConfig = { ...defaultAdvancedConfig, ...wizardResult.config };
-						installClaudeAgentSelection = integrationMode === "cli" ? wizardResult.installClaudeAgent : false;
-						installShellCompletionsSelection = wizardResult.installShellCompletions;
-						if (wizardResult.installShellCompletions) {
-							try {
-								completionInstallResult = await installCompletion();
-							} catch (error) {
-								completionInstallError = error instanceof Error ? error.message : String(error);
-							}
-						}
-						advancedConfigured = true;
+					if (hasAdvancedFlags) {
+						advancedConfig = applyAdvancedOptionOverrides();
+						installClaudeAgentSelection = integrationMode === "cli" ? parseBoolean(options.installClaudeAgent, false) : false;
+					} else {
+						// Skip advanced wizard to keep init simple and fast ("log default").
+						advancedConfig = { ...defaultAdvancedConfig };
+						installClaudeAgentSelection = false;
 					}
 				}
 				// Call shared core init function
 				const initResult = await initializeProject(core, {
 					projectName: name,
+					description: desc,
+					blueprint: blueprintType,
 					integrationMode: integrationMode || "none",
 					mcpClients: [], // MCP clients are handled separately in CLI with interactive prompts
 					agentInstructions: agentFiles,
@@ -995,6 +1014,18 @@ program
 						})
 						.join("\n");
 				const summaryLines: string[] = [`${label("Project Name:")} ${colorize("1", config.projectName)}`];
+				if (initResult.description) {
+					summaryLines.push(`${label("Description:")} ${initResult.description}`);
+				}
+				if (initResult.blueprint) {
+					summaryLines.push(`${label("Blueprint:")} ${initResult.blueprint}`);
+				}
+				if (initResult.initialStates && initResult.initialStates.length > 0) {
+					summaryLines.push(label("Initial Roadmap:"));
+					for (const state of initResult.initialStates) {
+						summaryLines.push(`  - ${good(state.id)}: ${state.title}`);
+					}
+				}
 				if (integrationMode === "cli") {
 					summaryLines.push(`${label("AI Integration:")} ${muted("CLI commands (legacy)")}`);
 					if (agentFiles.length > 0) {

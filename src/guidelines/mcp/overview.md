@@ -63,6 +63,12 @@ Roadmap tracks **commitments** (what will be built). Use your judgment to distin
 - `state_edit` — update state metadata, status, plan, notes, final summary, acceptance criteria, state-level Definition of Done (`definitionOfDoneAdd/Remove/Check/Uncheck`) for **exceptional** per-state updates, and dependencies
 - DoD is not acceptance criteria: acceptance criteria define scope/behavior, while DoD tracks completion hygiene
 - `state_complete` — move a Done state to the completed folder (periodic cleanup, not immediate)
-- `state_archive` — archive a state that should not be completed (duplicate, canceled, invalid). Note: archived state IDs can be reused by new states (soft delete behavior).
+- `state_archive` — archive a state that should not be comple### The Project Journey Paradigm
+
+Roadmap.md projects follow a **dynamic journey paradigm** from a **Seed Inspiration** to a **Project Vision**.
+
+- **Seed Inspiration**: Found in the **Initial State** (`state-0`). Research this first.
+- **Project Vision**: Found in the **Vision State** (highest ID). This is your destination.
+- **Your Role**: Use the skeleton DAG provided by the blueprint as a starting point. Your first task is to research the Seed, analyze the Vision, and **refine the intermediate states** with specific technical plans and acceptance criteria.
 
 **Always operate through MCP tools. Never edit markdown files directly so relationships, metadata, and history stay consistent.**
