@@ -12,3 +12,4 @@ bypass_git_hooks: false
 check_active_branches: true
 active_branch_days: 30
 state_prefix: "state"
+default_editor: "vi"

@@ -961,6 +961,75 @@ export async function renderBoardTui(
 			screen.render();
 		});
 
+		const openQuickEdit = async (state: State, field: "title" | "assignee" | "labels") => {
+			if (popupOpen || filterPopupOpen || currentFocus === "filters" || moveOp) return;
+			
+			const { promptText } = await import("./tui.ts");
+			let message = "";
+			let defaultValue = "";
+			
+			if (field === "title") {
+				message = "New Title:";
+				defaultValue = state.title;
+			} else if (field === "assignee") {
+				message = "Assignee (comma-separated):";
+				defaultValue = state.assignee?.join(", ") ?? "";
+			} else if (field === "labels") {
+				message = "Labels (comma-separated):";
+				defaultValue = state.labels?.join(", ") ?? "";
+			}
+
+			// Suspend screen to allow promptText (readline) to work
+			screen.leave();
+			const newValue = await promptText(message, defaultValue);
+			screen.enter();
+			
+			if (newValue === defaultValue) {
+				renderView();
+				return;
+			}
+
+			try {
+				const core = new Core(process.cwd());
+				const updateInput: any = {};
+				if (field === "title") updateInput.title = newValue;
+				else if (field === "assignee") updateInput.assignee = newValue.split(",").map(s => s.trim()).filter(Boolean);
+				else if (field === "labels") updateInput.labels = newValue.split(",").map(s => s.trim()).filter(Boolean);
+
+				const updated = await core.editState(state.id, updateInput);
+				currentStates = currentStates.map(s => s.id === state.id ? updated : s);
+				showTransientFooter(` {green-fg}Updated ${field} for ${state.id}{/}`);
+				renderView();
+			} catch (error) {
+				showTransientFooter(` {red-fg}Failed to update ${field}: ${error}{/}`);
+				renderView();
+			}
+		};
+
+		screen.key(["t", "T"], async () => {
+			const column = columns[currentCol];
+			if (!column) return;
+			const idx = column.list.selected ?? 0;
+			const state = column.states[idx];
+			if (state) await openQuickEdit(state, "title");
+		});
+
+		screen.key(["a", "A"], async () => {
+			const column = columns[currentCol];
+			if (!column) return;
+			const idx = column.list.selected ?? 0;
+			const state = column.states[idx];
+			if (state) await openQuickEdit(state, "assignee");
+		});
+
+		screen.key(["l", "L"], async () => {
+			const column = columns[currentCol];
+			if (!column) return;
+			const idx = column.list.selected ?? 0;
+			const state = column.states[idx];
+			if (state) await openQuickEdit(state, "labels");
+		});
+
 		screen.key(["e", "E", "S-e"], async () => {
 			if (popupOpen || filterPopupOpen || currentFocus === "filters") return;
 			const column = columns[currentCol];

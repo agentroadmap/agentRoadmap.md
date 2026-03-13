@@ -30,3 +30,8 @@ This project is an **Agent-First** roadmap system. It uses a Directed Acyclic Gr
 - Favor minimal APIs and single implementations for similar concerns.
 - Retrospectively simplify code after completing a task.
 - Avoid unnecessary abstraction layers (services, normalizers) unless immediately required.
+
+## Agent Interaction
+- **Non-Interactive First:** Agents MUST use CLI flags (e.g., `roadmap state edit --title "..."`) for all modifications.
+- **No Editors:** Never attempt to use interactive editors (Vim/Nano) or TUI modes for state updates.
+- **Bulk Updates:** Use multiple flags in a single command to update multiple fields efficiently.
