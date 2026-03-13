@@ -21,7 +21,7 @@ function mapArch(arch = process.arch) {
 }
 
 function getPackageName(platform = process.platform, arch = process.arch) {
-	return `roadmap.md-${mapPlatform(platform)}-${mapArch(arch)}`;
+	return `agent-roadmap-${mapPlatform(platform)}-${mapArch(arch)}`;
 }
 
 function resolveBinaryPath(platform = process.platform, arch = process.arch) {
