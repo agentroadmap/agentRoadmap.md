@@ -1,6 +1,6 @@
 {
   "name": "agent-roadmap",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "module": "src/cli.ts",
   "files": [
@@ -42,11 +42,11 @@
     "tailwindcss": "4.1.18"
   },
   "optionalDependencies": {
-    "agent-roadmap-linux-x64": "0.1.4",
-    "agent-roadmap-linux-arm64": "0.1.4",
-    "agent-roadmap-darwin-x64": "0.1.4",
-    "agent-roadmap-darwin-arm64": "0.1.4",
-    "agent-roadmap-windows-x64": "0.1.4"
+    "agent-roadmap-linux-x64": "0.1.5",
+    "agent-roadmap-linux-arm64": "0.1.5",
+    "agent-roadmap-darwin-x64": "0.1.5",
+    "agent-roadmap-darwin-arm64": "0.1.5",
+    "agent-roadmap-windows-x64": "0.1.5"
   },
   "scripts": {
     "test": "bun test",
