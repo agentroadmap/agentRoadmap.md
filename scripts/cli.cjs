@@ -15,8 +15,8 @@ if (fs.existsSync(bundledBinary)) {
 } else {
 	try {
 		binaryPath = resolveBinaryPath();
-	} catch {
-		console.error(`Binary package not installed for ${process.platform}-${process.arch}.`);
+	} catch (e) {
+		console.error(e.message);
 		process.exit(1);
 	}
 }
