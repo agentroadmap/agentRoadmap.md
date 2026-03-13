@@ -40,10 +40,10 @@ function getWideLogoLines(color: boolean | undefined): string[] {
 
 	const lines = ["", "", "", "", "", ""];
 	for (let i = 0; i < letters.length; i++) {
-		const letter = letters[i];
-		const colorFn = colors[i];
+		const letter = letters[i]!;
+		const colorFn = colors[i]!;
 		for (let j = 0; j < 6; j++) {
-			lines[j] += colorFn(color, letter[j]);
+			lines[j] += colorFn(color, letter[j]!);
 		}
 	}
 	return lines;

@@ -3058,6 +3058,22 @@ decisionCmd
 const agentsCmd = program.command("agents");
 
 agentsCmd
+	.command("join <name>")
+	.description("initialize a new agent workspace with a ghost identity")
+	.option("-r, --role <role>", "specify the agent's role (e.g., 'Tester', 'UI-Expert')")
+	.action(async (name, options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const { runAgentJoinCommand } = await import("./commands/orchestrate.ts");
+			await runAgentJoinCommand(core, name, options.role);
+		} catch (err) {
+			console.error("Failed to join agent:", err);
+			process.exit(1);
+		}
+	});
+
+agentsCmd
 	.description("manage agent instruction files")
 	.option(
 		"--update-instructions",
@@ -3112,6 +3128,22 @@ agentsCmd
 		} catch (err) {
 			console.error("Failed to update agent instructions", err);
 			process.exitCode = 1;
+		}
+	});
+
+program
+	.command("orchestrate")
+	.description("setup the Multi-Agent Orchestration environment (Coordinator + Executors)")
+	.option("-a, --agents <count>", "number of executor agents to initialize")
+	.action(async (options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const { runOrchestrateCommand } = await import("./commands/orchestrate.ts");
+			await runOrchestrateCommand(core, options.agents);
+		} catch (err) {
+			console.error("Failed to orchestrate workspace:", err);
+			process.exit(1);
 		}
 	});
 

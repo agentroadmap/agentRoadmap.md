@@ -68,6 +68,15 @@ This pattern is ideal for:
 *   **Agent Frameworks:** LangGraph, CrewAI, or any swarm where agents are long-running processes.
 *   **Shared Gateway:** A local filesystem or server that all agents can access for real-time signaling.
 
+### 👻 Ghost Identity Strategy & Agent Configuration
+Running many agents on a single machine can lead to identity clashes. We use the **Ghost Identity Strategy**:
+*   **System User (Shared):** All agents run under one OS user (e.g., your own login). No SSH/API key nightmares.
+*   **Git User (Unique):** Each agent is given a unique Git identity via local worktree configuration (`git config user.name "Agent-UI"`). This preserves pure, auditable logs.
+*   **Agent Configuration:**
+    *   **Identity & Role:** Assigned per worktree (e.g., Coordinator, Tester, Feature-Developer).
+    *   **Soul & Context:** Pre-loaded system prompts and DNA alignment specific to the agent's role.
+    *   **Memory & Heartbeat:** Handled via the MCP Server (Gateway). The server acts as a shared memory hub and broadcasts heartbeat signals to synchronize state across agents.
+
 ### Rough Concerns to Plan For
 *   **Merge Conflicts:** Agents working on overlapping files will create conflicts. The Coordinator needs a robust resolution strategy beyond simple merge commands.
 *   **Long-running Agents:** Branches diverge over time. Periodic rebases onto `main` help but increase orchestration complexity.
