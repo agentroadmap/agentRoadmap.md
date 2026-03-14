@@ -130,8 +130,12 @@ async function setupAgentWorktree(rootDir: string, worktreesDir: string, agentNa
 		const gitUserName = `${agentName} (${role})`;
 		const gitUserEmail = `${agentName}@agent-roadmap.local`;
 
-		await $`git config user.name "${gitUserName}"`.cwd(agentDir).quiet();
-		await $`git config user.email "${gitUserEmail}"`.cwd(agentDir).quiet();
+		// Enable worktree-specific configuration
+		await $`git config extensions.worktreeConfig true`.cwd(rootDir).quiet();
+		
+		// Set identity only for this specific worktree
+		await $`git config --worktree user.name "${gitUserName}"`.cwd(agentDir).quiet();
+		await $`git config --worktree user.email "${gitUserEmail}"`.cwd(agentDir).quiet();
 
 		// 1. Configure OpenClaw (Identity, Soul, Heartbeat, Memory)
 		const openClawConfig = {

@@ -3145,32 +3145,60 @@ program
 	.description("send a message to the project chat or an agent (@name)")
 	.option("--as <name>", "specify your identity (e.g. 'Coordinator')")
 	.action(async (message, target, options) => {
+		// ... existing talk implementation ...
+	});
+
+program
+	.command("chat [target]")
+	.description("interactive chat session for project or agent (@name)")
+	.option("--as <name>", "specify your identity")
+	.action(async (target, options) => {
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 			const config = await core.filesystem.loadConfig();
-			
-			let type: "public" | "group" | "private" = "group";
+			const { join } = await import("node:path");
+			const { existsSync, readFileSync, watch } = await import("node:fs");
+			const { createInterface } = await import("node:readline/promises");
+
 			let group = "project";
+			if (config?.projectName) group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+			let fileName = `group-${group}.md`;
+			let type: "public" | "group" | "private" = "group";
 			let to: string | undefined;
 
 			if (target) {
 				if (target.startsWith("@")) {
+					const { $ } = await import("bun");
+					const nameResult = await $`git config user.name`.quiet().text();
+					let from = nameResult.trim().replace(/\s*\(.*\)/, "").toLowerCase() || "agent";
+					to = target.substring(1).toLowerCase();
+					const agents = [from, to].sort();
+					fileName = `private-${agents[0]}-${agents[1]}.md`;
 					type = "private";
-					to = target.substring(1);
 				} else if (target === "public") {
+					fileName = "PUBLIC.md";
 					type = "public";
 				} else {
 					group = target;
+					fileName = `group-${target.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
 				}
-			} else if (config?.projectName) {
-				group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
 			}
 
+			let sharedRoadmapDir = join(cwd, "roadmap");
+			try {
+				const { $ } = await import("bun");
+				const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+				if (gitRoot) sharedRoadmapDir = join(gitRoot, "roadmap");
+			} catch {}
+
+			const logPath = join(sharedRoadmapDir, "messages", fileName);
+			
 			// Get sender name
 			let from = options.as;
 			if (!from) {
 				try {
+					const { $ } = await import("bun");
 					const name = await $`git config user.name`.quiet().text();
 					from = name.trim() || "agent";
 				} catch {
@@ -3178,11 +3206,37 @@ program
 				}
 			}
 
-			const filePath = await core.sendMessage({ from, message, type, group, to });
-			console.log(`Message sent to ${group}${to ? ` (to @${to})` : ""}`);
+			process.stdout.write("\x1Bc"); // Clear screen
+			console.log(`💬 Chatting in ${target || group} as ${from} (Ctrl+C to exit)\n`);
+			
+			// Show existing history
+			if (existsSync(logPath)) {
+				console.log(readFileSync(logPath, "utf-8"));
+			}
+
+			// Watch for updates
+			if (existsSync(logPath)) {
+				watch(logPath, (event) => {
+					if (event === "change") {
+						process.stdout.write("\x1Bc");
+						console.log(`💬 Chatting in ${target || group} as ${from} (Ctrl+C to exit)\n`);
+						console.log(readFileSync(logPath, "utf-8"));
+						process.stdout.write("> "); // Re-print prompt
+					}
+				});
+			}
+
+			const rl = createInterface({ input: process.stdin, output: process.stdout });
+			
+			while (true) {
+				const message = await rl.question("> ");
+				if (message.trim()) {
+					await core.sendMessage({ from, message, type, group, to });
+				}
+			}
 		} catch (err) {
-			console.error("Failed to send message:", err);
-			process.exit(1);
+			console.error("Chat session ended:", err);
+			process.exit(0);
 		}
 	});
 
