@@ -112,6 +112,20 @@ async function setupAgentWorktree(rootDir: string, worktreesDir: string, agentNa
 
 		await $`git worktree add ${agentDir} ${branchName}`.cwd(rootDir).quiet();
 
+		// Create shared messages symlink
+		const sharedMessagesDir = join(rootDir, "roadmap", "messages");
+		const agentMessagesDir = join(agentDir, "roadmap", "messages");
+		await mkdir(sharedMessagesDir, { recursive: true });
+		
+		try {
+			const { symlink } = require("node:fs/promises");
+			// Ensure agent roadmap dir exists
+			await mkdir(join(agentDir, "roadmap"), { recursive: true });
+			await symlink(sharedMessagesDir, agentMessagesDir, "dir");
+		} catch (e) {
+			// Ignore if symlink fails (e.g. on Windows without admin)
+		}
+
 		// Configure Git identity locally for the agent's worktree
 		const gitUserName = `${agentName} (${role})`;
 		const gitUserEmail = `${agentName}@agent-roadmap.local`;
@@ -149,6 +163,12 @@ async function setupAgentWorktree(rootDir: string, worktreesDir: string, agentNa
 You are operating as ${gitUserName}.
 Your primary role is: ${role}.
 
+## 🚀 YOUR FIRST MISSION
+1. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
+2. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
+3. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
+4. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
+
 **Directives:**
 - Always check the \`roadmap/\` directory in the project root to understand your objectives.
 - Do NOT push directly to remote origin. Your changes will be synced by the Coordinator.
@@ -159,6 +179,12 @@ Your primary role is: ${role}.
 		const geminiContext = `# Gemini CLI Configuration
 You are operating as ${gitUserName}.
 Your primary role is: ${role}.
+
+## 🚀 YOUR FIRST MISSION
+1. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
+2. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
+3. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
+4. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
 
 **Directives:**
 - Operate strictly within this worktree.

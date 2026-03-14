@@ -3105,6 +3105,48 @@ agentsCmd
 	});
 
 agentsCmd
+	.command("talk <message>")
+	.description("send a message to a communication channel")
+	.option("--public", "send to public announcement channel")
+	.option("--group <name>", "send to a specific group chat channel")
+	.option("--to <agent>", "send a private message to a specific agent")
+	.option("--from <name>", "specify sender name (defaults to git user or 'agent')")
+	.action(async (message, options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			
+			let type: "public" | "group" | "private" = "public";
+			if (options.group) type = "group";
+			else if (options.to) type = "private";
+
+			let from = options.from;
+			if (!from) {
+				try {
+					const { $ } = await import("bun");
+					from = await $`git config user.name`.quiet().text();
+					from = from.trim() || "agent";
+				} catch {
+					from = "agent";
+				}
+			}
+
+			const filePath = await core.sendMessage({
+				from,
+				message,
+				type,
+				group: options.group,
+				to: options.to
+			});
+
+			console.log(`Message sent to ${filePath}`);
+		} catch (err) {
+			console.error("Failed to send message:", err);
+			process.exit(1);
+		}
+	});
+
+agentsCmd
 	.description("manage agent instruction files")
 	.option(
 		"--update-instructions",

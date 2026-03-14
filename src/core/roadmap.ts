@@ -2740,4 +2740,75 @@ export class Core {
 
 		return filteredStates;
 	}
+
+	/**
+	 * Send a message to a communication channel
+	 */
+	async sendMessage(params: {
+		from: string;
+		message: string;
+		type: "public" | "group" | "private";
+		to?: string;
+		group?: string;
+	}): Promise<string> {
+		const { from, message, type, to, group } = params;
+		
+		// Find the true project root (handling worktrees)
+		let sharedRoadmapDir = join(this.filesystem.projectRoot, "roadmap");
+		try {
+			const { $ } = require("bun");
+			const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+			if (gitRoot) {
+				sharedRoadmapDir = join(gitRoot, "roadmap");
+			}
+		} catch {
+			// Fallback to local project root
+		}
+
+		const messagesDir = join(sharedRoadmapDir, "messages");
+		
+		// Ensure the directory exists
+		const fs = require("node:fs");
+		if (!fs.existsSync(messagesDir)) {
+			fs.mkdirSync(messagesDir, { recursive: true });
+		}
+
+		let fileName = "PUBLIC.md";
+		let channelName = "Public Announcement";
+
+		if (type === "group" && group) {
+			fileName = `group-${group.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+			channelName = `Group Chat: #${group}`;
+		} else if (type === "private" && to) {
+			const fromName = from.replace("@", "").toLowerCase();
+			const toName = to.replace("@", "").toLowerCase();
+			const agents = [fromName, toName].sort();
+			fileName = `private-${agents[0]}-${agents[1]}.md`;
+			channelName = `Private DM: ${from} <-> ${to}`;
+		}
+
+		const filePath = join(messagesDir, fileName);
+		const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
+		const logEntry = `[${timestamp}] ${from}: ${message}\n`;
+
+		// Check if file exists, if not add header
+		let content = "";
+		if (fs.existsSync(filePath)) {
+			content = fs.readFileSync(filePath, "utf-8");
+		} else {
+			content = `# ${channelName}\n\n`;
+		}
+		
+		content += logEntry;
+		fs.writeFileSync(filePath, content);
+
+		// Commit if auto-commit is enabled
+		await this.ensureConfigLoaded();
+		if (this.config?.autoCommit) {
+			await this.gitOps.addFiles([filePath]);
+			await this.gitOps.commitChanges(`${from} sent a message to ${channelName}`);
+		}
+
+		return filePath;
+	}
 }
