@@ -16,6 +16,7 @@ import { registerInitRequiredResource } from "./resources/init-required/index.ts
 import { registerWorkflowResources } from "./resources/workflow/index.ts";
 import { registerDefinitionOfDoneTools } from "./tools/definition-of-done/index.ts";
 import { registerDocumentTools } from "./tools/documents/index.ts";
+import { registerMessageTools } from "./tools/messages/index.ts";
 import { registerMilestoneTools } from "./tools/milestones/index.ts";
 import { registerStateTools } from "./tools/states/index.ts";
 import { registerWorkflowTools } from "./tools/workflow/index.ts";
@@ -294,6 +295,7 @@ export async function createMcpServer(projectRoot: string, options: ServerInitOp
 	registerMilestoneTools(server);
 	registerDefinitionOfDoneTools(server);
 	registerDocumentTools(server, config);
+	registerMessageTools(server);
 
 	if (options.debug) {
 		console.error("MCP server initialised (stdio transport only).");

@@ -2786,6 +2786,86 @@ export class Core {
 	}
 
 	/**
+	 * Resolve the shared messages directory (handles worktrees)
+	 */
+	private async getMessagesDir(): Promise<string> {
+		const fs = require("node:fs");
+		let sharedRoadmapDir = join(this.filesystem.rootDir, "roadmap");
+		try {
+			const { $ } = require("bun");
+			const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+			if (gitRoot) sharedRoadmapDir = join(gitRoot, "roadmap");
+		} catch {
+			// Fallback to local project root
+		}
+		const messagesDir = join(sharedRoadmapDir, "messages");
+		if (!fs.existsSync(messagesDir)) fs.mkdirSync(messagesDir, { recursive: true });
+		return messagesDir;
+	}
+
+	/**
+	 * List available message channels
+	 */
+	async listChannels(): Promise<{ name: string; fileName: string; type: "group" | "private" | "public" }[]> {
+		const fs = require("node:fs");
+		const messagesDir = await this.getMessagesDir();
+		if (!fs.existsSync(messagesDir)) return [];
+		const files: string[] = fs.readdirSync(messagesDir).filter((f: string) => f.endsWith(".md"));
+		return files.map((fileName: string) => {
+			if (fileName === "PUBLIC.md") return { name: "public", fileName, type: "public" as const };
+			if (fileName.startsWith("private-")) {
+				const name = fileName.replace("private-", "").replace(".md", "");
+				return { name, fileName, type: "private" as const };
+			}
+			const name = fileName.replace("group-", "").replace(".md", "");
+			return { name, fileName, type: "group" as const };
+		});
+	}
+
+	/**
+	 * Read messages from a channel, optionally filtered by a since timestamp (ISO string)
+	 */
+	async readMessages(params: {
+		channel: string;
+		since?: string;
+	}): Promise<{ channel: string; messages: { timestamp: string; from: string; text: string }[] }> {
+		const fs = require("node:fs");
+		const { channel, since } = params;
+		const messagesDir = await this.getMessagesDir();
+
+		let fileName: string;
+		if (channel === "public") {
+			fileName = "PUBLIC.md";
+		} else if (channel.startsWith("private-") || channel.includes("-")) {
+			// Could be a private channel name like "alice-bob" or "private-alice-bob"
+			fileName = channel.startsWith("private-") ? `${channel}.md` : `private-${channel}.md`;
+		} else {
+			fileName = `group-${channel.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+		}
+
+		const filePath = join(messagesDir, fileName);
+		if (!fs.existsSync(filePath)) {
+			return { channel, messages: [] };
+		}
+
+		const raw: string = fs.readFileSync(filePath, "utf-8");
+		const sinceDate = since ? new Date(since) : null;
+
+		const messages: { timestamp: string; from: string; text: string }[] = [];
+		for (const line of raw.split("\n")) {
+			const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
+			if (!match) continue;
+			const timestamp = match[1] as string;
+			const from = match[2] as string;
+			const text = match[3] as string;
+			if (sinceDate && new Date(timestamp) <= sinceDate) continue;
+			messages.push({ timestamp, from, text });
+		}
+
+		return { channel, messages };
+	}
+
+	/**
 	 * Send a message to a communication channel
 	 */
 	async sendMessage(params: {
@@ -2796,26 +2876,8 @@ export class Core {
 		group?: string;
 	}): Promise<string> {
 		const { from, message, type, to, group } = params;
-		
-		// Find the true project root (handling worktrees)
-		let sharedRoadmapDir = join(this.filesystem.projectRoot, "roadmap");
-		try {
-			const { $ } = require("bun");
-			const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
-			if (gitRoot) {
-				sharedRoadmapDir = join(gitRoot, "roadmap");
-			}
-		} catch {
-			// Fallback to local project root
-		}
-
-		const messagesDir = join(sharedRoadmapDir, "messages");
-		
-		// Ensure the directory exists
 		const fs = require("node:fs");
-		if (!fs.existsSync(messagesDir)) {
-			fs.mkdirSync(messagesDir, { recursive: true });
-		}
+		const messagesDir = await this.getMessagesDir();
 
 		let fileName = "PUBLIC.md";
 		let channelName = "Public Announcement";

@@ -1,4 +1,5 @@
 import {
+	MCP_CHAT_SKILL,
 	MCP_STATE_CREATION_GUIDE,
 	MCP_STATE_EXECUTION_GUIDE,
 	MCP_STATE_FINALIZATION_GUIDE,
@@ -7,7 +8,7 @@ import {
 } from "../guidelines/mcp/index.ts";
 
 export interface WorkflowGuideDefinition {
-	key: "overview" | "state-creation" | "state-execution" | "state-finalization";
+	key: "overview" | "state-creation" | "state-execution" | "state-finalization" | "chat-skill";
 	uri: string;
 	name: string;
 	description: string;
@@ -59,6 +60,16 @@ export const WORKFLOW_GUIDES: WorkflowGuideDefinition[] = [
 		resourceText: MCP_STATE_FINALIZATION_GUIDE,
 		toolName: "get_state_finalization_guide",
 		toolDescription: "Retrieve the Roadmap.md state finalization guide in markdown format",
+	},
+	{
+		key: "chat-skill",
+		uri: "roadmap://skills/chat",
+		name: "Chat Skill: Listen & Respond",
+		description: "How to listen to project chat channels and respond to messages from humans and other agents",
+		mimeType: "text/markdown",
+		resourceText: MCP_CHAT_SKILL,
+		toolName: "get_chat_skill",
+		toolDescription: "Retrieve the chat skill guide: how to listen to channels and respond to messages using message_read, message_send, and message_channels tools",
 	},
 ];
 
