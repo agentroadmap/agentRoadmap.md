@@ -161,7 +161,7 @@ Ensure that the state is structured in a way that it can be easily understood an
 |-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Create state             | `roadmap state create "Add OAuth System"`                                                                                                                      |
 | Create with description | `roadmap state create "Feature" -d "Add authentication system"`                                                                                                |
-| Create with assignee    | `roadmap state create "Feature" -a @sara`                                                                                                                      |
+| Create with assignee    | `roadmap state create "Feature" -a @agent`                                                                                                                      |
 | Create with status      | `roadmap state create "Feature" -s "In Progress"`                                                                                                              |
 | Create with labels      | `roadmap state create "Feature" -l auth,backend`                                                                                                               |
 | Create with priority    | `roadmap state create "Feature" --priority high`                                                                                                               |
@@ -170,12 +170,12 @@ Ensure that the state is structured in a way that it can be easily understood an
 | Create with notes       | `roadmap state create "Feature" --notes "Started initial research"`                                                                                            |
 | Create with deps        | `roadmap state create "Feature" --dep state-1,state-2`                                                                                                           |
 | Create sub state         | `roadmap state create -p 14 "Add Login with Google"`                                                                                                           |
-| Create (all options)    | `roadmap state create "Feature" -d "Description" -a @sara -s "To Do" -l auth --priority high --ac "Must work" --notes "Initial setup done" --dep state-1 -p 14` |
+| Create (all options)    | `roadmap state create "Feature" -d "Description" -a @agent -s "To Do" -l auth --priority high --ac "Must work" --notes "Initial setup done" --dep state-1 -p 14` |
 | List states              | `roadmap state list [-s <status>] [-a <assignee>] [-p <parent>]`                                                                                               |
 | List by parent          | `roadmap state list --parent 42` or `roadmap state list -p state-42`                                                                                             |
 | View detail             | `roadmap state 7` (interactive UI, press 'E' to edit in editor)                                                                                                |
 | View (AI mode)          | `roadmap state 7 --plain`                                                                                                                                      |
-| Edit                    | `roadmap state edit 7 -a @sara -l auth,backend`                                                                                                                |
+| Edit                    | `roadmap state edit 7 -a @agent -l auth,backend`                                                                                                                |
 | Add plan                | `roadmap state edit 7 --plan "Implementation approach"`                                                                                                        |
 | Add AC                  | `roadmap state edit 7 --ac "New criterion,Another one"`                                                                                                        |
 | Add notes               | `roadmap state edit 7 --notes "Completed X, working on Y"`                                                                                                     |

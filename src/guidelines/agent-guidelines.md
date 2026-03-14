@@ -172,7 +172,7 @@ roadmap state edit 7 -s "In Progress" -a @agent-k  # Multiple commands: change s
 id: state-42
 title: Add GraphQL resolver
 status: To Do
-assignee: [@sara]
+assignee: [@agent]
 labels: [backend, api]
 ---
 
@@ -219,7 +219,7 @@ PR-style summary of what was implemented.
 |-------------------------|----------------------------------------------------------|
 | Title                   | `roadmap state edit 42 -t "New Title"`                    |
 | Status                  | `roadmap state edit 42 -s "In Progress"`                  |
-| Assignee                | `roadmap state edit 42 -a @sara`                          |
+| Assignee                | `roadmap state edit 42 -a @agent`                          |
 | Labels                  | `roadmap state edit 42 -l backend,api`                    |
 | Description             | `roadmap state edit 42 -d "New description"`              |
 | Add AC                  | `roadmap state edit 42 --ac "New criterion"`              |
@@ -562,7 +562,7 @@ roadmap search "bug" --priority high --plain
 | With final summary | `roadmap state create "Title" --final-summary "PR-style summary"`                 |
 | With references  | `roadmap state create "Title" --ref src/api.ts --ref https://github.com/issue/123`   |
 | With documentation | `roadmap state create "Title" --doc https://design-docs.example.com`               |
-| With all options | `roadmap state create "Title" -d "Desc" -a @sara -s "To Do" -l auth --priority high --ref src/api.ts --doc docs/spec.md` |
+| With all options | `roadmap state create "Title" -d "Desc" -a @agent -s "To Do" -l auth --priority high --ref src/api.ts --doc docs/spec.md` |
 | Create draft     | `roadmap state create "Title" --draft`                                               |
 | Create substate   | `roadmap state create "Title" -p 42`                                                 |
 
@@ -573,7 +573,7 @@ roadmap search "bug" --priority high --plain
 | Edit title       | `roadmap state edit 42 -t "New Title"`       |
 | Edit description | `roadmap state edit 42 -d "New description"` |
 | Change status    | `roadmap state edit 42 -s "In Progress"`     |
-| Assign           | `roadmap state edit 42 -a @sara`             |
+| Assign           | `roadmap state edit 42 -a @agent`             |
 | Add labels       | `roadmap state edit 42 -l backend,api`       |
 | Set priority     | `roadmap state edit 42 --priority high`      |
 
@@ -664,7 +664,7 @@ Tests:
 | Search states       | `roadmap search "topic" --plain`              |
 | Search with filter | `roadmap search "api" --status "To Do" --plain` |
 | Filter by status   | `roadmap state list -s "In Progress" --plain` |
-| Filter by assignee | `roadmap state list -a @sara --plain`         |
+| Filter by assignee | `roadmap state list -a @agent --plain`         |
 | Archive state       | `roadmap state archive 42`                    |
 | Demote to draft    | `roadmap state demote 42`                     |
 

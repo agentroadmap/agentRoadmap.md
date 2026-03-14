@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { basename, join } from "node:path";
+import { $ } from "bun";
 import { stdin as input } from "node:process";
 import { createInterface } from "node:readline/promises";
 import * as clack from "@clack/prompts";
@@ -3139,6 +3140,107 @@ decisionCmd
 		console.log(`Created decision ${id}`);
 	});
 
+program
+	.command("talk <message> [target]")
+	.description("send a message to the project chat or an agent (@name)")
+	.action(async (message, target) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const config = await core.filesystem.loadConfig();
+			
+			let type: "public" | "group" | "private" = "group";
+			let group = "project";
+			let to: string | undefined;
+
+			if (target) {
+				if (target.startsWith("@")) {
+					type = "private";
+					to = target.substring(1);
+				} else if (target === "public") {
+					type = "public";
+				} else {
+					group = target;
+				}
+			} else if (config?.projectName) {
+				group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+			}
+
+			// Get sender name
+			let from = "agent";
+			try {
+				
+				const name = await $`git config user.name`.quiet().text();
+				from = name.trim() || "agent";
+			} catch {}
+
+			const filePath = await core.sendMessage({ from, message, type, group, to });
+			console.log(`Message sent to ${group}${to ? ` (to @${to})` : ""}`);
+		} catch (err) {
+			console.error("Failed to send message:", err);
+			process.exit(1);
+		}
+	});
+
+program
+	.command("log [target]")
+	.description("view communication logs for project or agent (@name)")
+	.option("-f, --tail", "tail the log file")
+	.action(async (target, options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const config = await core.filesystem.loadConfig();
+			const { join, resolve } = await import("node:path");
+			const { existsSync, readFileSync } = await import("node:fs");
+
+			let fileName = "PUBLIC.md";
+			let group = "project";
+			if (config?.projectName) group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+
+			if (target) {
+				if (target.startsWith("@")) {
+					
+					const nameResult = await $`git config user.name`.quiet().text();
+					let from = nameResult.trim().replace(/\s*\(.*\)/, "").toLowerCase() || "agent";
+					const agents = [from, target.substring(1).toLowerCase()].sort();
+					fileName = `private-${agents[0]}-${agents[1]}.md`;
+				} else if (target === "public") {
+					fileName = "PUBLIC.md";
+				} else {
+					fileName = `group-${target.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+				}
+			} else {
+				fileName = `group-${group}.md`;
+			}
+
+			// Resolve shared roadmap dir (handling worktrees)
+			let sharedRoadmapDir = join(cwd, "roadmap");
+			try {
+				
+				const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+				if (gitRoot) sharedRoadmapDir = join(gitRoot, "roadmap");
+			} catch {}
+
+			const logPath = join(sharedRoadmapDir, "messages", fileName);
+			
+			if (!existsSync(logPath)) {
+				console.log(`Log channel '${fileName}' is empty.`);
+				return;
+			}
+
+			if (options.tail) {
+				const { spawn } = await import("node:child_process");
+				spawn("tail", ["-f", logPath], { stdio: "inherit" });
+			} else {
+				console.log(readFileSync(logPath, "utf-8"));
+			}
+		} catch (err) {
+			console.error("Failed to read log:", err);
+			process.exit(1);
+		}
+	});
+
 // Agents command group
 const agentsCmd = program.command("agents");
 
@@ -3177,7 +3279,7 @@ agentsCmd
 			let from = options.from;
 			if (!from) {
 				try {
-					const { $ } = await import("bun");
+					
 					from = await $`git config user.name`.quiet().text();
 					from = from.trim() || "agent";
 				} catch {
@@ -3196,6 +3298,49 @@ agentsCmd
 			console.log(`Message sent to ${filePath}`);
 		} catch (err) {
 			console.error("Failed to send message:", err);
+			process.exit(1);
+		}
+	});
+
+agentsCmd
+	.command("log")
+	.description("monitor agent conversations")
+	.option("--public", "show public announcements (default)")
+	.option("--group <name>", "show a specific group chat channel")
+	.option("--to <agent>", "show a private DM channel with an agent")
+	.option("-f, --tail", "output appended data as the file grows")
+	.action(async (options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const { join } = await import("node:path");
+			const { existsSync, readFileSync } = await import("node:fs");
+			
+			let fileName = "PUBLIC.md";
+			if (options.group) fileName = `group-${options.group.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+			else if (options.to) {
+				
+				let from = await $`git config user.name`.quiet().text();
+				from = from.trim() || "agent";
+				const agents = [from.replace("@", "").toLowerCase(), options.to.replace("@", "").toLowerCase()].sort();
+				fileName = `private-${agents[0]}-${agents[1]}.md`;
+			}
+
+			const logPath = join(cwd, "roadmap", "messages", fileName);
+			
+			if (!existsSync(logPath)) {
+				console.log(`Log channel '${fileName}' is empty or does not exist.`);
+				return;
+			}
+
+			if (options.tail) {
+				console.log(`--- Tailing ${fileName} (Press Ctrl+C to stop) ---\n`);
+				const { spawn } = await import("node:child_process");
+				spawn("tail", ["-f", logPath], { stdio: "inherit" });
+			} else {
+				console.log(readFileSync(logPath, "utf-8"));
+			}
+		} catch (err) {
+			console.error("Failed to read agent log:", err);
 			process.exit(1);
 		}
 	});
