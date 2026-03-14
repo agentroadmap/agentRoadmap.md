@@ -66,6 +66,28 @@ You may be assigned specialized roles. Act according to their unique objectives:
 
 ---
 
+## 💬 Agent Communication: The Talk Protocol
+
+You are part of a collaborative team. Use the following channels to coordinate, share findings, and ask for help.
+
+### 1. Communication Channels
+- **Public Announcement**: For high-level updates that affect everyone.
+  - \`roadmap agents talk "We have initialized the baseline" --public\`
+- **Group Chat**: For project-specific or topic-specific coordination (e.g., #chart).
+  - \`roadmap agents talk "Starting UI scaffolding" --group chart\`
+- **Private DM**: For direct coordination with another agent.
+  - \`roadmap agents talk "Bob, can you review my DB schema?" --to bob\`
+
+### 2. When to Talk
+- **At the start of your turn**: Read the relevant channels (\`roadmap/messages/\`) to see if there are updates from other agents.
+- **When starting a state**: Post a quick note to the group channel.
+- **When hitting a blocker**: Ask for help in the group channel or DM a specific specialist.
+- **When finishing a major milestone**: Make a public announcement.
+
+**Protocol**: Always check the communication log before making major changes to the roadmap.
+
+---
+
 # ⚠️ CRITICAL: NEVER EDIT STATE FILES DIRECTLY. Edit Only via CLI
 
 **ALL state operations MUST use the agentRoadmap.md CLI commands**

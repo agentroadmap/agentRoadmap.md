@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { spawn } from "bun";
 import {
 	type AgentInstructionFile,
@@ -172,6 +173,19 @@ export async function initializeProject(
 		await core.filesystem.ensureRoadmapStructure();
 		await core.filesystem.saveConfig(config);
 		await core.ensureConfigLoaded();
+
+		// Generate DNA.md (Vision & Principles)
+		const dnaContent = `# DNA: ${projectName}
+
+## Vision
+${description || "A new project managed with Roadmap.md."}
+
+## Principles
+- **Seed-to-Vision**: Every task moves us from the initial seed to the final goal.
+- **Evidence-Based**: Mark states reached only with technical proof or terminal output.
+- **Autonomous Discovery**: Agents are encouraged to refine the DAG as they discover more.
+`;
+		await Bun.write(join(projectRoot, "roadmap", "DNA.md"), dnaContent);
 	}
 
 	const initialStates: { id: string; title: string }[] = [];
@@ -220,6 +234,16 @@ export async function initializeProject(
 				});
 				initialStates.push({ id: canonicalId, title: bs.title });
 			}
+
+			// Generate MAP.md (Visual representation)
+			let mapContent = `# MAP: ${projectName} Evolution\n\n## Project Graph\n\`\`\`text\n`;
+			for (const bs of blueprint.states) {
+				const canonicalId = idMap.get(bs.id)!;
+				const indent = "  ".repeat(Math.max(0, bs.dependsOnIds?.length ?? 0));
+				mapContent += `${indent}+-- [${canonicalId}] ${bs.title}\n`;
+			}
+			mapContent += "```\n";
+			await Bun.write(join(projectRoot, "roadmap", "MAP.md"), mapContent);
 		} else if (description) {
 			// Single baseline fallback
 			const id = config.zeroPaddedIds ? `${statePrefix}-${"0".repeat(config.zeroPaddedIds - 1)}0` : `${statePrefix}-0`;
