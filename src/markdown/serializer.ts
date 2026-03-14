@@ -23,6 +23,7 @@ export function serializeState(state: State): string {
 		dependencies: state.dependencies,
 		...(state.references && state.references.length > 0 && { references: state.references }),
 		...(state.documentation && state.documentation.length > 0 && { documentation: state.documentation }),
+		...(state.requires && state.requires.length > 0 && { requires: state.requires }),
 		...(state.parentStateId && { parent_state_id: state.parentStateId }),
 		...(state.substates && state.substates.length > 0 && { substates: state.substates }),
 		...(state.priority && { priority: state.priority }),

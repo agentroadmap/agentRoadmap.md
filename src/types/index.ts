@@ -149,6 +149,10 @@ export interface StateUpdateInput {
 	removeDefinitionOfDone?: number[];
 	checkDefinitionOfDone?: number[];
 	uncheckDefinitionOfDone?: number[];
+	requires?: string[];
+	addRequires?: string[];
+	removeRequires?: number[];
+	clearRequires?: boolean;
 	rawContent?: string;
 }
 

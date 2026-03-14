@@ -200,5 +200,23 @@ export function buildStateUpdateInput(args: StateEditArgs): StateUpdateInput {
 		updateInput.uncheckDefinitionOfDone = [...args.definitionOfDoneUncheck];
 	}
 
+	const requires = sanitizeStringArray(args.requires);
+	if (requires) {
+		updateInput.requires = requires;
+	}
+
+	const requiresAdd = sanitizeStringArray(args.requiresAdd);
+	if (requiresAdd) {
+		updateInput.addRequires = requiresAdd;
+	}
+
+	if (Array.isArray(args.requiresRemove) && args.requiresRemove.length > 0) {
+		updateInput.removeRequires = [...args.requiresRemove];
+	}
+
+	if (args.requiresClear) {
+		updateInput.clearRequires = true;
+	}
+
 	return updateInput;
 }

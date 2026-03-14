@@ -8,6 +8,7 @@ export interface BlueprintState extends Partial<State> {
 	description: string;
 	dependsOnIds?: string[];
 	assignee?: string[];
+	requires?: string[];
 	/** This state represents the guiding Vision/Goal of the project */
 	isVision?: boolean;
 	/** This state represents the starting point of exploration */
@@ -33,6 +34,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				description: "Starting from the seed inspiration. Research the ecosystem, analyze competitors, and gather initial user feedback to validate the path.",
 				assignee: ["@explorer"],
 				labels: ["discovery"],
+				requires: ["capability:research", "cost:low"],
 				isInitial: true,
 			},
 			{
@@ -42,6 +44,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["0"],
 				assignee: ["@architect", "@analyst"],
 				labels: ["discovery", "planning"],
+				requires: ["capability:high-reasoning", "model:premium"],
 			},
 			{
 				id: "2",
@@ -50,6 +53,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1"],
 				assignee: ["@backend"],
 				labels: ["engineering"],
+				requires: ["capability:coding", "model:fast"],
 			},
 			{
 				id: "3",
@@ -58,6 +62,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1", "2"],
 				assignee: ["@frontend", "@designer"],
 				labels: ["engineering"],
+				requires: ["capability:ui-ux", "model:fast"],
 			},
 			{
 				id: "4",
@@ -66,6 +71,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["3"],
 				assignee: ["@promoter", "@strategist"],
 				labels: ["discovery", "marketing"],
+				requires: ["capability:social-engagement", "cost:flexible"],
 			},
 			{
 				id: "5",
@@ -74,6 +80,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["3", "4"],
 				assignee: ["@manager"],
 				labels: ["vision", "goal"],
+				requires: ["capability:orchestration"],
 				isVision: true,
 			},
 		],
@@ -89,6 +96,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				description: "We have a guiding question. Explore the existing landscape and formalize the initial hypothesis.",
 				assignee: ["@researcher"],
 				labels: ["discovery"],
+				requires: ["capability:research"],
 				isInitial: true,
 			},
 			{
@@ -98,6 +106,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["0"],
 				assignee: ["@methodologist"],
 				labels: ["planning"],
+				requires: ["capability:high-reasoning"],
 			},
 			{
 				id: "2",
@@ -106,6 +115,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1"],
 				assignee: ["@operator"],
 				labels: ["execution"],
+				requires: ["capability:data-processing", "model:fast"],
 			},
 			{
 				id: "3",
@@ -114,6 +124,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["2"],
 				assignee: ["@analyst"],
 				labels: ["analysis"],
+				requires: ["capability:critical-thinking", "model:premium"],
 			},
 			{
 				id: "4",
@@ -122,6 +133,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["3"],
 				assignee: ["@writer"],
 				labels: ["vision", "goal"],
+				requires: ["capability:writing"],
 				isVision: true,
 			},
 		],
@@ -137,6 +149,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				description: "Start with the seed idea. Explore who this is for and what will resonate most.",
 				assignee: ["@strategist"],
 				labels: ["discovery"],
+				requires: ["capability:audience-analysis"],
 				isInitial: true,
 			},
 			{
@@ -146,6 +159,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["0"],
 				assignee: ["@writer"],
 				labels: ["drafting"],
+				requires: ["capability:storytelling"],
 			},
 			{
 				id: "2",
@@ -154,6 +168,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1"],
 				assignee: ["@producer", "@designer"],
 				labels: ["production"],
+				requires: ["capability:asset-generation", "model:multimodal"],
 			},
 			{
 				id: "3",
@@ -162,6 +177,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["2"],
 				assignee: ["@promoter"],
 				labels: ["marketing"],
+				requires: ["capability:social-engagement"],
 			},
 			{
 				id: "4",
@@ -170,6 +186,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["3"],
 				assignee: ["@manager"],
 				labels: ["vision", "goal"],
+				requires: ["capability:curation"],
 				isVision: true,
 			},
 		],
@@ -185,6 +202,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				description: "Analyze the existing codebase or project structure. Identify the gap between the current state and the desired improvements.",
 				assignee: ["@explorer", "@analyst"],
 				labels: ["discovery", "analysis"],
+				requires: ["capability:codebase-analysis", "model:high-context"],
 				isInitial: true,
 			},
 			{
@@ -194,6 +212,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["0"],
 				assignee: ["@architect", "@strategist"],
 				labels: ["analysis", "risk-management"],
+				requires: ["capability:risk-assessment", "model:premium"],
 			},
 			{
 				id: "2",
@@ -202,14 +221,16 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1"],
 				assignee: ["@manager"],
 				labels: ["planning"],
+				requires: ["capability:orchestration"],
 			},
 			{
 				id: "3",
 				title: "Implementation: Core Improvements",
 				description: "Execute the planned improvements and evolutionary changes.",
 				dependsOnIds: ["2"],
-				assignee: ["@builder"],
+				assignee: ["@builder", "@backend", "@frontend"],
 				labels: ["engineering", "evolution"],
+				requires: ["capability:coding", "model:fast"],
 			},
 			{
 				id: "4",
@@ -218,6 +239,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["3"],
 				assignee: ["@reviewer"],
 				labels: ["testing"],
+				requires: ["capability:testing"],
 			},
 			{
 				id: "5",
@@ -226,6 +248,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["4"],
 				assignee: ["@manager"],
 				labels: ["vision", "goal"],
+				requires: ["capability:curation"],
 				isVision: true,
 			},
 		],
@@ -241,6 +264,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				description: "We have a seed. Time to explore the possibilities and map the first steps.",
 				assignee: ["@planner"],
 				labels: ["discovery"],
+				requires: ["capability:research"],
 				isInitial: true,
 			},
 			{
@@ -250,6 +274,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["0"],
 				assignee: ["@builder"],
 				labels: ["execution"],
+				requires: ["capability:execution"],
 			},
 			{
 				id: "2",
@@ -258,6 +283,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["1"],
 				assignee: ["@reviewer"],
 				labels: ["refinement"],
+				requires: ["capability:testing"],
 			},
 			{
 				id: "3",
@@ -266,6 +292,7 @@ export const BLUEPRINTS: Record<BlueprintType, Blueprint> = {
 				dependsOnIds: ["2"],
 				assignee: ["@manager"],
 				labels: ["vision", "goal"],
+				requires: ["capability:curation"],
 				isVision: true,
 			},
 		],

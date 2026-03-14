@@ -185,7 +185,10 @@ function hasCreateFieldFlags(options: Record<string, unknown>): boolean {
 			options.dependsOn !== undefined ||
 			options.dep !== undefined ||
 			options.ref !== undefined ||
-			options.doc !== undefined,
+			options.doc !== undefined ||
+			options.requires !== undefined ||
+			options.removeRequires !== undefined ||
+			options.clearRequires,
 	);
 }
 
@@ -220,7 +223,10 @@ function hasEditFieldFlags(options: Record<string, unknown>): boolean {
 			options.dependsOn !== undefined ||
 			options.dep !== undefined ||
 			options.ref !== undefined ||
-			options.doc !== undefined,
+			options.doc !== undefined ||
+			options.requires !== undefined ||
+			options.removeRequires !== undefined ||
+			options.clearRequires,
 	);
 }
 
@@ -235,7 +241,7 @@ function getDefaultAdvancedConfig(existingConfig?: RoadmapConfig | null): Partia
 		remoteOperations: existingConfig?.remoteOperations ?? true,
 		activeBranchDays: existingConfig?.activeBranchDays ?? 30,
 		bypassGitHooks: existingConfig?.bypassGitHooks ?? false,
-		autoCommit: existingConfig?.autoCommit ?? false,
+		autoCommit: existingConfig?.autoCommit ?? true,
 		zeroPaddedIds: existingConfig?.zeroPaddedIds,
 		defaultEditor: existingConfig?.defaultEditor,
 		definitionOfDone: existingConfig?.definitionOfDone ? [...existingConfig.definitionOfDone] : undefined,
@@ -576,13 +582,13 @@ program
 					const selectedBlueprint = await clack.select({
 						message: "Select a project blueprint (DAG structure):",
 						options: [
-							{ label: "None (Empty Roadmap)", value: "none" },
 							...Object.values(BLUEPRINTS).map((b) => ({
 								label: `${b.name} — ${b.description}`,
 								value: b.type,
 							})),
+							{ label: "None (Empty Roadmap)", value: "none" },
 						],
-						initialValue: "none",
+						initialValue: "versatile",
 					});
 
 					if (clack.isCancel(selectedBlueprint)) {
@@ -622,6 +628,7 @@ program
 						process.env.EDITOR ||
 						process.env.VISUAL ||
 						undefined;
+					result.autoCommit = parseBoolean(options.autoCommit, result.autoCommit ?? true);
 					result.defaultPort = parseNumber(options.webPort, result.defaultPort ?? 6420);
 					result.autoOpenBrowser = parseBoolean(options.autoOpenBrowser, result.autoOpenBrowser ?? true);
 					return result;
@@ -1372,6 +1379,21 @@ function buildStateFromOptions(id: string, title: string, options: Record<string
 				: [],
 	);
 
+	// Handle resource requirements
+	const requires = normalizeStringList(
+		Array.isArray(options.requires)
+			? options.requires.flatMap((r: string) =>
+					String(r)
+						.split(",")
+						.map((s: string) => s.trim()),
+				)
+			: options.requires
+				? String(options.requires)
+						.split(",")
+						.map((s: string) => s.trim())
+				: [],
+	);
+
 	// Validate priority option
 	const priority = options.priority ? String(options.priority).toLowerCase() : undefined;
 	const validPriorities = ["high", "medium", "low"];
@@ -1393,6 +1415,7 @@ function buildStateFromOptions(id: string, title: string, options: Record<string
 		dependencies,
 		references,
 		documentation,
+		requires,
 		rawContent: "",
 		...(options.description || options.desc ? { description: String(options.description || options.desc) } : {}),
 		...(normalizedParent && { parentStateId: normalizedParent }),
@@ -1446,6 +1469,14 @@ stateCmd
 	.option(
 		"--doc <documentation>",
 		"add documentation URL or file path (can be used multiple times)",
+		(value, previous) => {
+			const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
+			return [...soFar, value];
+		},
+	)
+	.option(
+		"--requires <requirement>",
+		"add resource requirement (e.g. capability:high-reasoning) (can be used multiple times)",
 		(value, previous) => {
 			const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 			return [...soFar, value];
@@ -2139,6 +2170,16 @@ stateCmd
 		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
 		return [...soFar, value];
 	})
+	.option("--requires <requirement>", "add resource requirement (can be used multiple times)", (value, previous) => {
+		const soFar = Array.isArray(previous) ? previous : previous ? [previous] : [];
+		return [...soFar, value];
+	})
+	.option(
+		"--remove-requires <index>",
+		"remove resource requirement by index (1-based, can be used multiple times)",
+		createMultiValueAccumulator(),
+	)
+	.option("--clear-requires", "remove all resource requirements")
 	.action(async (stateId: string | undefined, options) => {
 		const shouldUseWizard = hasInteractiveTTY && !hasEditFieldFlags(options);
 		if (!shouldUseWizard && !stateId) {
@@ -2401,6 +2442,19 @@ stateCmd
 		}
 		if (uncheckDod) {
 			editArgs.definitionOfDoneUncheck = uncheckDod;
+		}
+
+		// Handle resource requirements
+		const requiresAddValues = toStringArray(options.requires);
+		if (requiresAddValues.length > 0) {
+			editArgs.requiresAdd = requiresAddValues;
+		}
+		const requiresRemoveIndices = parsePositiveIndexList(options.removeRequires);
+		if (requiresRemoveIndices.length > 0) {
+			editArgs.requiresRemove = requiresRemoveIndices;
+		}
+		if (options.clearRequires) {
+			editArgs.requiresClear = true;
 		}
 
 		let updatedState: State;

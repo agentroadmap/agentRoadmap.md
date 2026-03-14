@@ -36,6 +36,10 @@ export interface StateEditArgs {
 	definitionOfDoneRemove?: number[];
 	definitionOfDoneCheck?: number[];
 	definitionOfDoneUncheck?: number[];
+	requires?: string[];
+	requiresAdd?: string[];
+	requiresRemove?: number[];
+	requiresClear?: boolean;
 }
 
 export type StateEditRequest = StateEditArgs & { id: string };

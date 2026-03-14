@@ -1323,6 +1323,50 @@ export class Core {
 
 		resolveDocumentation();
 
+		const resolveRequires = (): void => {
+			let currentRequires = [...(state.requires ?? [])];
+			if (input.requires !== undefined) {
+				const sanitizedRequires = normalizeStringList(input.requires) ?? [];
+				if (!stringArraysEqual(sanitizedRequires, currentRequires)) {
+					state.requires = sanitizedRequires;
+					mutated = true;
+				}
+				currentRequires = sanitizedRequires;
+			}
+
+			const requiresToAdd = normalizeStringList(input.addRequires) ?? [];
+			if (requiresToAdd.length > 0) {
+				const reqSet = new Set(currentRequires);
+				for (const req of requiresToAdd) {
+					if (!reqSet.has(req)) {
+						currentRequires.push(req);
+						reqSet.add(req);
+						mutated = true;
+					}
+				}
+				state.requires = currentRequires;
+			}
+
+			if (input.clearRequires) {
+				if (currentRequires.length > 0) {
+					state.requires = [];
+					mutated = true;
+				}
+				currentRequires = [];
+			}
+
+			const requiresToRemove = input.removeRequires ?? [];
+			if (requiresToRemove.length > 0) {
+				const filtered = currentRequires.filter((_, idx) => !requiresToRemove.includes(idx + 1));
+				if (!stringArraysEqual(filtered, currentRequires)) {
+					state.requires = filtered;
+					mutated = true;
+				}
+			}
+		};
+
+		resolveRequires();
+
 		const sanitizeAppendInput = (values: string[] | undefined): string[] => {
 			if (!values) return [];
 			return values.map((value) => String(value).trim()).filter((value) => value.length > 0);
@@ -2805,8 +2849,15 @@ export class Core {
 		// Commit if auto-commit is enabled
 		await this.ensureConfigLoaded();
 		if (this.config?.autoCommit) {
-			await this.gitOps.addFiles([filePath]);
-			await this.gitOps.commitChanges(`${from} sent a message to ${channelName}`);
+			try {
+				const { $ } = require("bun");
+				const fileDir = dirname(filePath);
+				// Use direct git commands in the file's directory
+				await $`git add ${basename(filePath)}`.cwd(fileDir).quiet();
+				await $`git commit -m "${from} sent a message to ${channelName}"`.cwd(fileDir).quiet();
+			} catch (e) {
+				// Ignore if commit fails
+			}
 		}
 
 		return filePath;

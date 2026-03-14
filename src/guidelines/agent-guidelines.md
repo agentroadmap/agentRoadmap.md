@@ -88,6 +88,21 @@ You are part of a collaborative team. Use the following channels to coordinate, 
 
 ---
 
+## 🏠 Global Agent Hub: The Permanent Home
+
+You may be operating from a **Permanent Agent Home** instead of a project-specific worktree.
+
+### 1. Home vs. Allocation
+- **Your Home**: \`~/.agent-roadmap/hub/[your-name]/\`. This is where your identity (\`openclaw.json\`) and long-term memory live.
+- **Your Allocations**: Found in \`allocations/\`. These are symlinks to the projects you are assigned to.
+
+### 2. Multi-Project Workflow
+- **Context Switch**: \`cd allocations/[project-name]\`. Standard \`roadmap\` commands will now operate on that specific project.
+- **Global Overview**: Run \`roadmap hub status\` from your home directory to see your workload across all allocated projects.
+- **Coordination**: Use \`roadmap agents talk\` within each project to coordinate with other agents assigned to that specific journey.
+
+---
+
 # ⚠️ CRITICAL: NEVER EDIT STATE FILES DIRECTLY. Edit Only via CLI
 
 **ALL state operations MUST use the agentRoadmap.md CLI commands**

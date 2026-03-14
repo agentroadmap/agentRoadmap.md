@@ -60,7 +60,7 @@ export const DEFAULT_INIT_CONFIG = {
 	remoteOperations: true,
 	activeBranchDays: 30,
 	bypassGitHooks: false,
-	autoCommit: false,
+	autoCommit: true,
 	zeroPaddedIds: undefined as number | undefined,
 	defaultEditor: undefined as string | undefined,
 	defaultPort: 6420,

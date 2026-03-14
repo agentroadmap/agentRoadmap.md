@@ -113,45 +113,45 @@ export async function initializeProject(
 		defaultStatus: "To Do",
 		dateFormat: "yyyy-mm-dd",
 		maxColumnWidth: 20,
-		autoCommit: advancedConfig.autoCommit ?? existingConfig?.autoCommit ?? d.autoCommit,
-		remoteOperations: advancedConfig.remoteOperations ?? existingConfig?.remoteOperations ?? d.remoteOperations,
-		bypassGitHooks: advancedConfig.bypassGitHooks ?? existingConfig?.bypassGitHooks ?? d.bypassGitHooks,
-		checkActiveBranches:
-			advancedConfig.checkActiveBranches ?? existingConfig?.checkActiveBranches ?? d.checkActiveBranches,
-		activeBranchDays: advancedConfig.activeBranchDays ?? existingConfig?.activeBranchDays ?? d.activeBranchDays,
-		defaultPort: advancedConfig.defaultPort ?? existingConfig?.defaultPort ?? d.defaultPort,
-		autoOpenBrowser: advancedConfig.autoOpenBrowser ?? existingConfig?.autoOpenBrowser ?? d.autoOpenBrowser,
+		autoCommit: true, // Default to true for agent orchestration
+		remoteOperations: true,
+		bypassGitHooks: false,
+		checkActiveBranches: true,
+		activeBranchDays: 30,
+		defaultPort: 6420,
+		autoOpenBrowser: true,
 		stateResolutionStrategy: existingConfig?.stateResolutionStrategy || "most_recent",
 		// Preserve existing prefixes on re-init, or use custom prefix if provided during first init
 		prefixes: existingConfig?.prefixes || {
 			state: advancedConfig.statePrefix || "state",
 		},
 	};
+	
 	const config: RoadmapConfig = {
 		...baseConfig,
 		...(existingConfig ?? {}),
 		projectName,
-		autoCommit: advancedConfig.autoCommit ?? existingConfig?.autoCommit ?? d.autoCommit,
-		remoteOperations: advancedConfig.remoteOperations ?? existingConfig?.remoteOperations ?? d.remoteOperations,
-		bypassGitHooks: advancedConfig.bypassGitHooks ?? existingConfig?.bypassGitHooks ?? d.bypassGitHooks,
-		checkActiveBranches:
-			advancedConfig.checkActiveBranches ?? existingConfig?.checkActiveBranches ?? d.checkActiveBranches,
-		activeBranchDays: advancedConfig.activeBranchDays ?? existingConfig?.activeBranchDays ?? d.activeBranchDays,
-		defaultPort: advancedConfig.defaultPort ?? existingConfig?.defaultPort ?? d.defaultPort,
-		autoOpenBrowser: advancedConfig.autoOpenBrowser ?? existingConfig?.autoOpenBrowser ?? d.autoOpenBrowser,
-		prefixes: existingConfig?.prefixes || {
-			state: advancedConfig.statePrefix || "state",
-		},
-		...(hasDefaultEditorOverride && advancedConfig.defaultEditor
-			? { defaultEditor: advancedConfig.defaultEditor }
-			: {}),
-		...(hasZeroPaddedIdsOverride && typeof advancedConfig.zeroPaddedIds === "number" && advancedConfig.zeroPaddedIds > 0
-			? { zeroPaddedIds: advancedConfig.zeroPaddedIds }
-			: {}),
-		...(hasDefinitionOfDoneOverride && Array.isArray(advancedConfig.definitionOfDone)
-			? { definitionOfDone: [...advancedConfig.definitionOfDone] }
-			: {}),
 	};
+
+	// Explicitly apply advancedConfig overrides if provided
+	if (advancedConfig.autoCommit !== undefined) config.autoCommit = advancedConfig.autoCommit;
+	if (advancedConfig.remoteOperations !== undefined) config.remoteOperations = advancedConfig.remoteOperations;
+	if (advancedConfig.bypassGitHooks !== undefined) config.bypassGitHooks = advancedConfig.bypassGitHooks;
+	if (advancedConfig.checkActiveBranches !== undefined) config.checkActiveBranches = advancedConfig.checkActiveBranches;
+	if (advancedConfig.activeBranchDays !== undefined) config.activeBranchDays = advancedConfig.activeBranchDays;
+	if (advancedConfig.defaultPort !== undefined) config.defaultPort = advancedConfig.defaultPort;
+	if (advancedConfig.autoOpenBrowser !== undefined) config.autoOpenBrowser = advancedConfig.autoOpenBrowser;
+
+	if (hasDefaultEditorOverride && advancedConfig.defaultEditor) {
+		config.defaultEditor = advancedConfig.defaultEditor;
+	}
+	if (hasZeroPaddedIdsOverride && typeof advancedConfig.zeroPaddedIds === "number" && advancedConfig.zeroPaddedIds > 0) {
+		config.zeroPaddedIds = advancedConfig.zeroPaddedIds;
+	}
+	if (hasDefinitionOfDoneOverride && Array.isArray(advancedConfig.definitionOfDone)) {
+		config.definitionOfDone = [...advancedConfig.definitionOfDone];
+	}
+
 	// Preserve all non-init-managed fields, but allow init-managed optional fields to be explicitly cleared.
 	if (hasDefaultEditorOverride && !advancedConfig.defaultEditor) {
 		delete config.defaultEditor;
@@ -231,7 +231,8 @@ ${description || "A new project managed with Roadmap.md."}
 					createdDate: new Date().toISOString().slice(0, 10),
 					rawContent: "",
 					dependencies: dependsOn,
-				});
+					requires: bs.requires ?? [],
+				}, false);
 				initialStates.push({ id: canonicalId, title: bs.title });
 			}
 
@@ -257,7 +258,7 @@ ${description || "A new project managed with Roadmap.md."}
 				createdDate: new Date().toISOString().slice(0, 10),
 				rawContent: "",
 				dependencies: [],
-			});
+			}, false);
 			initialStates.push({ id, title: "Project Baseline & Requirements" });
 		}
 	}
@@ -268,62 +269,16 @@ ${description || "A new project managed with Roadmap.md."}
 	if (integrationMode === "mcp" && mcpClients.length > 0) {
 		for (const client of mcpClients) {
 			try {
-				if (client === "claude") {
-					const result = await runMcpClientCommand("Claude Code", "claude", [
-						"mcp",
-						"add",
-						"-s",
-						"user",
-						MCP_SERVER_NAME,
-						"--",
-						"roadmap",
-						"mcp",
-						"start",
-					]);
-					mcpResults.claude = result;
-					await ensureMcpGuidelines(projectRoot, "CLAUDE.md");
-				} else if (client === "codex") {
-					const result = await runMcpClientCommand("OpenAI Codex", "codex", [
-						"mcp",
-						"add",
-						MCP_SERVER_NAME,
-						"roadmap",
-						"mcp",
-						"start",
-					]);
-					mcpResults.codex = result;
-					await ensureMcpGuidelines(projectRoot, "AGENTS.md");
-				} else if (client === "gemini") {
-					const result = await runMcpClientCommand("Gemini CLI", "gemini", [
-						"mcp",
-						"add",
-						"-s",
-						"user",
-						MCP_SERVER_NAME,
-						"roadmap",
-						"mcp",
-						"start",
-					]);
-					mcpResults.gemini = result;
-					await ensureMcpGuidelines(projectRoot, "GEMINI.md");
-				} else if (client === "kiro") {
-					const result = await runMcpClientCommand("Kiro", "kiro-cli", [
-						"mcp",
-						"add",
-						"--scope",
-						"global",
-						"--name",
-						MCP_SERVER_NAME,
-						"--command",
-						"roadmap",
-						"--args",
-						"mcp,start",
-					]);
-					mcpResults.kiro = result;
-					await ensureMcpGuidelines(projectRoot, "AGENTS.md");
-				} else if (client === "guide") {
-					mcpResults.guide = `Setup guide: ${MCP_GUIDE_URL}`;
-				}
+				const result = await runMcpClientCommand(client, client, [
+					"mcp",
+					"add",
+					MCP_SERVER_NAME,
+					"roadmap",
+					"mcp",
+					"start",
+				]);
+				mcpResults[client] = result;
+				await ensureMcpGuidelines(projectRoot, client);
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				mcpResults[client] = `Failed: ${message}`;
@@ -331,22 +286,16 @@ ${description || "A new project managed with Roadmap.md."}
 		}
 	}
 
-	// Handle CLI integration - agent instruction files
+	// Handle CLI integration
 	if (integrationMode === "cli" && agentInstructions.length > 0) {
-		try {
-			await addAgentInstructions(projectRoot, core.gitOps, agentInstructions, config.autoCommit);
-			mcpResults.agentFiles = `Created: ${agentInstructions.join(", ")}`;
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			mcpResults.agentFiles = `Failed: ${message}`;
-		}
+		await addAgentInstructions(projectRoot, agentInstructions);
 	}
 
-	// Handle Claude agent installation
-	if (integrationMode === "cli" && installClaudeAgentFlag) {
+	// Install Claude Agent if requested
+	if (installClaudeAgentFlag) {
 		try {
 			await installClaudeAgent(projectRoot);
-			mcpResults.claudeAgent = "Installed to .claude/agents/";
+			mcpResults.claudeAgent = "Successfully installed Claude Code agent";
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			mcpResults.claudeAgent = `Failed: ${message}`;
