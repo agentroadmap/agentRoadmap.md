@@ -79,12 +79,15 @@ You are part of a collaborative team. Use the following channels to coordinate, 
   - \`roadmap agents talk "Bob, can you review my DB schema?" --to bob\`
 
 ### 2. When to Talk
-- **At the start of your turn**: Read the relevant channels (\`roadmap/messages/\`) to see if there are updates from other agents.
+- **Wake Up / Context Switch**: When you first start work on a project or return from other tasks, **always check in** by posting a brief greeting and status to the group channel.
+  - `roadmap talk "Agent [Name] is online. Resuming research on STATE-0." chart`
+- **At the start of your turn**: Read the relevant channels (`roadmap/messages/`) to see if there are updates from other agents.
+- **Check for DMs**: Look for files named `private-[agent-a]-[your-name].md` in the messages directory. These are private communications meant only for you.
 - **When starting a state**: Post a quick note to the group channel.
 - **When hitting a blocker**: Ask for help in the group channel or DM a specific specialist.
 - **When finishing a major milestone**: Make a public announcement.
 
-**Protocol**: Always check the communication log before making major changes to the roadmap.
+**Protocol**: Always check in when you arrive, then read the communication log and your private messages before making major changes to the roadmap.
 
 ---
 

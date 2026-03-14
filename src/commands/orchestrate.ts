@@ -164,10 +164,11 @@ You are operating as ${gitUserName}.
 Your primary role is: ${role}.
 
 ## 🚀 YOUR FIRST MISSION
-1. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
-2. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
-3. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
-4. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
+1. **Check-in**: Say hello in the group channel using \`roadmap talk\`.
+2. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
+3. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
+4. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
+5. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
 
 **Directives:**
 - Always check the \`roadmap/\` directory in the project root to understand your objectives.
@@ -181,10 +182,11 @@ You are operating as ${gitUserName}.
 Your primary role is: ${role}.
 
 ## 🚀 YOUR FIRST MISSION
-1. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
-2. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
-3. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
-4. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
+1. **Check-in**: Say hello in the group channel using \`roadmap talk\`.
+2. **Understand the Vision**: Read \`../../roadmap/DNA.md\`.
+3. **Scout the Roadmap**: Read \`../../roadmap/MAP.md\` and run \`roadmap state list -a @${agentName} --plain\`.
+4. **Take Ownership**: Pick your first state, move it to "In Progress", and start the Discovery phase.
+5. **Refine**: If you discover technical gaps or risks, create new states or obstacles.
 
 **Directives:**
 - Operate strictly within this worktree.

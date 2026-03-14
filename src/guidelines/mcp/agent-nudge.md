@@ -22,4 +22,13 @@ These guides cover:
 
 You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
 
+### 🧭 Agent Context Nudge
+
+Before every action:
+1. **Check-in:** If you just arrived or switched projects, say hello in the group channel using \`roadmap talk\`.
+2. **Listen:** Check \`roadmap/messages/\` for new Public, Group, or Private messages.
+3. **Scout:** Read \`roadmap/DNA.md\` and \`roadmap/MAP.md\` to align with project vision.
+4. **Map:** Use \`state_list\` to find your assigned states.
+5. **Reach:** Perform your task and provide **Proof of Arrival**.
+
 </CRITICAL_INSTRUCTION>
