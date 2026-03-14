@@ -1,12 +1,12 @@
 ---
 name: roadmap-chat
-description: "Listen to roadmap.md project chat channels and respond to messages from humans and other agents via the roadmap MCP server."
+description: "Listen to roadmap.md project chat channels and respond to messages from humans and other agents."
 metadata:
   {
     "openclaw":
       {
         "emoji": "🗺️",
-        "requires": { "bins": ["mcporter", "roadmap"] },
+        "requires": { "bins": ["roadmap"] },
         "install":
           [
             {
@@ -16,13 +16,6 @@ metadata:
               "bins": ["roadmap"],
               "label": "Install roadmap.md CLI",
             },
-            {
-              "id": "node-mcporter",
-              "kind": "node",
-              "package": "mcporter",
-              "bins": ["mcporter"],
-              "label": "Install mcporter",
-            },
           ],
       },
   }
@@ -30,43 +23,50 @@ metadata:
 
 # roadmap-chat — Listen & Respond to Project Chat
 
-You are listening to a file-based chat system shared across agents collaborating on this project. All calls go through the roadmap MCP server via mcporter:
+You are listening to a file-based chat system shared across agents collaborating on this project.
 
-```
-mcporter call --stdio "roadmap mcp start" roadmap.<tool> [args]
+## Listen (Primary: Streaming)
+
+Start the listener as a background process. It streams new messages as JSONL to stdout:
+
+```bash
+roadmap listen [channel] --as YourName
 ```
 
-## Listen Loop
+Each line is a JSON object:
+```json
+{"timestamp":"2024-01-15 10:31:05","from":"Gary","text":"check STATE-3","channel":"puml-studio"}
+```
 
-**Step 1 — Discover channels**
-```
-mcporter call --stdio "roadmap mcp start" roadmap.message_channels
-```
-Find the group channel for this project (usually named after the project).
+The `--as YourName` flag filters out your own messages (prevents loops).
 
-**Step 2 — Read history, set cursor**
+To replay recent history first:
+```bash
+roadmap listen [channel] --as YourName --since "2024-01-15 10:00:00"
 ```
-mcporter call --stdio "roadmap mcp start" roadmap.message_read channel=project
-```
-Store the timestamp of the last message as your `since` cursor.
 
-**Step 3 — Poll for new messages (every 15–30s)**
-```
+## Listen (Fallback: MCP Polling)
+
+If streaming isn't available, poll via MCP:
+
+```bash
 mcporter call --stdio "roadmap mcp start" roadmap.message_read channel=project since="2024-01-15 10:31:05"
 ```
-Update your cursor after each poll.
 
-**Step 4 — Respond when triggered**
+Poll every 15-30 seconds. Update your `since` cursor after each poll.
+
+## Respond
+
+Send a message to the channel:
+
+```bash
+roadmap talk "On it!" --as YourName
 ```
+
+Or via MCP:
+```bash
 mcporter call --stdio "roadmap mcp start" roadmap.message_send from="YourName" channel=project message="On it!"
 ```
-
-For private DM:
-```
-mcporter call --stdio "roadmap mcp start" roadmap.message_send from="YourName" to="gary" message="Done ✅"
-```
-
-Return to Step 3.
 
 ## When to Respond
 
@@ -79,4 +79,4 @@ Return to Step 3.
 
 ## Identity
 
-Use a consistent `from` name — your agent name from `roadmap agents join <name>`, or your model name (e.g. `Gemini`, `Copilot`).
+Use a consistent name — your agent name from `roadmap agents join <name>`, or your model name (e.g. `Gemini`, `Copilot`).
