@@ -3143,7 +3143,8 @@ decisionCmd
 program
 	.command("talk <message> [target]")
 	.description("send a message to the project chat or an agent (@name)")
-	.action(async (message, target) => {
+	.option("--as <name>", "specify your identity (e.g. 'Coordinator')")
+	.action(async (message, target, options) => {
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
@@ -3167,12 +3168,15 @@ program
 			}
 
 			// Get sender name
-			let from = "agent";
-			try {
-				
-				const name = await $`git config user.name`.quiet().text();
-				from = name.trim() || "agent";
-			} catch {}
+			let from = options.as;
+			if (!from) {
+				try {
+					const name = await $`git config user.name`.quiet().text();
+					from = name.trim() || "agent";
+				} catch {
+					from = "agent";
+				}
+			}
 
 			const filePath = await core.sendMessage({ from, message, type, group, to });
 			console.log(`Message sent to ${group}${to ? ` (to @${to})` : ""}`);
