@@ -3343,6 +3343,7 @@ program
 	.command("listen [channel]")
 	.description("watch a chat channel and stream new messages as JSONL (like a Discord gateway)")
 	.option("--as <name>", "your identity — messages from you are skipped")
+	.option("--mention <name>", "only emit messages that @mention this name")
 	.option("--since <timestamp>", "replay messages after this ISO timestamp before streaming live")
 	.option("--all", "include your own messages (don't filter by identity)")
 	.action(async (channel, options) => {
@@ -3380,11 +3381,15 @@ program
 				writeFileSync(filePath, `# Group Chat: #${channel}\n\n`);
 			}
 
-			process.stderr.write(`Listening on #${channel}${identity ? ` as ${identity}` : ""} (Ctrl+C to stop)\n`);
+			const label = [`#${channel}`];
+			if (identity) label.push(`as ${identity}`);
+			if (options.mention) label.push(`filtering @${options.mention}`);
+			process.stderr.write(`Listening on ${label.join(" ")} (Ctrl+C to stop)\n`);
 
 			await core.watchMessages({
 				channel,
 				identity: options.all ? undefined : identity,
+				mention: options.mention,
 				since: options.since,
 				onMessage: (msg) => {
 					process.stdout.write(JSON.stringify(msg) + "\n");

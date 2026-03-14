@@ -2828,7 +2828,7 @@ export class Core {
 	async readMessages(params: {
 		channel: string;
 		since?: string;
-	}): Promise<{ channel: string; messages: { timestamp: string; from: string; text: string }[] }> {
+	}): Promise<{ channel: string; messages: { timestamp: string; from: string; text: string; mentions: string[] }[] }> {
 		const fs = require("node:fs");
 		const { channel, since } = params;
 		const messagesDir = await this.getMessagesDir();
@@ -2839,7 +2839,6 @@ export class Core {
 		} else if (channel.startsWith("private-")) {
 			fileName = `${channel}.md`;
 		} else {
-			// Default to group channel — group names can contain hyphens (e.g. puml-studio)
 			fileName = `group-${channel.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.md`;
 		}
 
@@ -2851,15 +2850,12 @@ export class Core {
 		const raw: string = fs.readFileSync(filePath, "utf-8");
 		const sinceDate = since ? new Date(since) : null;
 
-		const messages: { timestamp: string; from: string; text: string }[] = [];
+		const messages: { timestamp: string; from: string; text: string; mentions: string[] }[] = [];
 		for (const line of raw.split("\n")) {
-			const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
-			if (!match) continue;
-			const timestamp = match[1] as string;
-			const from = match[2] as string;
-			const text = match[3] as string;
-			if (sinceDate && new Date(timestamp) <= sinceDate) continue;
-			messages.push({ timestamp, from, text });
+			const parsed = Core.parseLine(line);
+			if (!parsed) continue;
+			if (sinceDate && new Date(parsed.timestamp) <= sinceDate) continue;
+			messages.push(parsed);
 		}
 
 		return { channel, messages };
@@ -2878,10 +2874,12 @@ export class Core {
 	/**
 	 * Parse a single log line into a structured message (or null if not a message line)
 	 */
-	private static parseLine(line: string): { timestamp: string; from: string; text: string } | null {
+	private static parseLine(line: string): { timestamp: string; from: string; text: string; mentions: string[] } | null {
 		const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
 		if (!match) return null;
-		return { timestamp: match[1] as string, from: match[2] as string, text: match[3] as string };
+		const text = match[3] as string;
+		const mentions = [...text.matchAll(/@([a-zA-Z0-9_-]+)/g)].map((m) => m[1].toLowerCase());
+		return { timestamp: match[1] as string, from: match[2] as string, text, mentions };
 	}
 
 	/**
@@ -2893,12 +2891,20 @@ export class Core {
 	async watchMessages(params: {
 		channel: string;
 		identity?: string;
+		mention?: string;
 		since?: string;
-		onMessage: (msg: { timestamp: string; from: string; text: string; channel: string }) => void;
+		onMessage: (msg: { timestamp: string; from: string; text: string; mentions: string[]; channel: string }) => void;
 	}): Promise<() => void> {
 		const fs = require("node:fs");
-		const { channel, identity, since, onMessage } = params;
+		const { channel, identity, mention, since, onMessage } = params;
 		const filePath = await this.resolveChannelFile(channel);
+		const mentionLower = mention?.toLowerCase();
+
+		const shouldEmit = (parsed: { from: string; mentions: string[] }) => {
+			if (identity && parsed.from.toLowerCase() === identity.toLowerCase()) return false;
+			if (mentionLower && !parsed.mentions.includes(mentionLower)) return false;
+			return true;
+		};
 
 		// Track character offset to detect new appended content
 		let knownLength = 0;
@@ -2912,7 +2918,7 @@ export class Core {
 					const parsed = Core.parseLine(line);
 					if (!parsed) continue;
 					if (sinceDate && new Date(parsed.timestamp) <= sinceDate) continue;
-					if (identity && parsed.from.toLowerCase() === identity.toLowerCase()) continue;
+					if (!shouldEmit(parsed)) continue;
 					onMessage({ ...parsed, channel });
 				}
 			}
@@ -2931,7 +2937,7 @@ export class Core {
 					for (const line of newContent.split("\n")) {
 						const parsed = Core.parseLine(line);
 						if (!parsed) continue;
-						if (identity && parsed.from.toLowerCase() === identity.toLowerCase()) continue;
+						if (!shouldEmit(parsed)) continue;
 						onMessage({ ...parsed, channel });
 					}
 					knownLength = content.length;
