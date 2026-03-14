@@ -2836,11 +2836,11 @@ export class Core {
 		let fileName: string;
 		if (channel === "public") {
 			fileName = "PUBLIC.md";
-		} else if (channel.startsWith("private-") || channel.includes("-")) {
-			// Could be a private channel name like "alice-bob" or "private-alice-bob"
-			fileName = channel.startsWith("private-") ? `${channel}.md` : `private-${channel}.md`;
+		} else if (channel.startsWith("private-")) {
+			fileName = `${channel}.md`;
 		} else {
-			fileName = `group-${channel.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+			// Default to group channel — group names can contain hyphens (e.g. puml-studio)
+			fileName = `group-${channel.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.md`;
 		}
 
 		const filePath = join(messagesDir, fileName);
@@ -2866,6 +2866,88 @@ export class Core {
 	}
 
 	/**
+	 * Resolve the file path for a channel name
+	 */
+	async resolveChannelFile(channel: string): Promise<string> {
+		const messagesDir = await this.getMessagesDir();
+		if (channel === "public") return join(messagesDir, "PUBLIC.md");
+		if (channel.startsWith("private-")) return join(messagesDir, `${channel}.md`);
+		return join(messagesDir, `group-${channel.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.md`);
+	}
+
+	/**
+	 * Parse a single log line into a structured message (or null if not a message line)
+	 */
+	private static parseLine(line: string): { timestamp: string; from: string; text: string } | null {
+		const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
+		if (!match) return null;
+		return { timestamp: match[1] as string, from: match[2] as string, text: match[3] as string };
+	}
+
+	/**
+	 * Watch a channel for new messages. Calls `onMessage` for each new message.
+	 * Returns an unsubscribe function to stop watching.
+	 *
+	 * Optionally replays messages after `since` timestamp before starting the live watch.
+	 */
+	async watchMessages(params: {
+		channel: string;
+		identity?: string;
+		since?: string;
+		onMessage: (msg: { timestamp: string; from: string; text: string; channel: string }) => void;
+	}): Promise<() => void> {
+		const fs = require("node:fs");
+		const { channel, identity, since, onMessage } = params;
+		const filePath = await this.resolveChannelFile(channel);
+
+		// Track character offset to detect new appended content
+		let knownLength = 0;
+		if (fs.existsSync(filePath)) {
+			const existing: string = fs.readFileSync(filePath, "utf-8");
+			knownLength = existing.length;
+			const sinceDate = since ? new Date(since) : null;
+
+			if (since) {
+				for (const line of existing.split("\n")) {
+					const parsed = Core.parseLine(line);
+					if (!parsed) continue;
+					if (sinceDate && new Date(parsed.timestamp) <= sinceDate) continue;
+					if (identity && parsed.from.toLowerCase() === identity.toLowerCase()) continue;
+					onMessage({ ...parsed, channel });
+				}
+			}
+		}
+
+		// Watch for file changes and emit new content beyond known offset
+		let debounce: ReturnType<typeof setTimeout> | null = null;
+		const watcher = fs.watch(filePath, { persistent: true }, () => {
+			if (debounce) clearTimeout(debounce);
+			debounce = setTimeout(() => {
+				try {
+					const content: string = fs.readFileSync(filePath, "utf-8");
+					if (content.length <= knownLength) return;
+
+					const newContent = content.slice(knownLength);
+					for (const line of newContent.split("\n")) {
+						const parsed = Core.parseLine(line);
+						if (!parsed) continue;
+						if (identity && parsed.from.toLowerCase() === identity.toLowerCase()) continue;
+						onMessage({ ...parsed, channel });
+					}
+					knownLength = content.length;
+				} catch {
+					// File may have been deleted/moved; ignore
+				}
+			}, 50);
+		});
+
+		return () => {
+			watcher.close();
+			if (debounce) clearTimeout(debounce);
+		};
+	}
+
+	/**
 	 * Send a message to a communication channel
 	 */
 	async sendMessage(params: {
@@ -2883,7 +2965,7 @@ export class Core {
 		let channelName = "Public Announcement";
 
 		if (type === "group" && group) {
-			fileName = `group-${group.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
+			fileName = `group-${group.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.md`;
 			channelName = `Group Chat: #${group}`;
 		} else if (type === "private" && to) {
 			const fromName = from.replace("@", "").toLowerCase();

@@ -3145,7 +3145,45 @@ program
 	.description("send a message to the project chat or an agent (@name)")
 	.option("--as <name>", "specify your identity (e.g. 'Coordinator')")
 	.action(async (message, target, options) => {
-		// ... existing talk implementation ...
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const config = await core.filesystem.loadConfig();
+			
+			let type: "public" | "group" | "private" = "group";
+			let group = "project";
+			let to: string | undefined;
+
+			if (target) {
+				if (target.startsWith("@")) {
+					type = "private";
+					to = target.substring(1);
+				} else if (target === "public") {
+					type = "public";
+				} else {
+					group = target;
+				}
+			} else if (config?.projectName) {
+				group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+			}
+
+			// Get sender name
+			let from = options.as;
+			if (!from) {
+				try {
+					const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
+					from = nameResult.trim() || "agent";
+				} catch {
+					from = "agent";
+				}
+			}
+
+			const filePath = await core.sendMessage({ from, message, type, group, to });
+			console.log(`Message sent to ${group}${to ? ` (to @${to})` : ""}`);
+		} catch (err) {
+			console.error("Failed to send message:", err);
+			process.exit(1);
+		}
 	});
 
 program
@@ -3183,6 +3221,9 @@ program
 					group = target;
 					fileName = `group-${target.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
 				}
+			} else {
+				// Use the resolved project group as the default target
+				target = `#${group}`;
 			}
 
 			let sharedRoadmapDir = join(cwd, "roadmap");
@@ -3198,9 +3239,8 @@ program
 			let from = options.as;
 			if (!from) {
 				try {
-					const { $ } = await import("bun");
-					const name = await $`git config user.name`.quiet().text();
-					from = name.trim() || "agent";
+					const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
+					from = nameResult.trim() || "agent";
 				} catch {
 					from = "agent";
 				}
@@ -3299,6 +3339,66 @@ program
 		}
 	});
 
+program
+	.command("listen [channel]")
+	.description("watch a chat channel and stream new messages as JSONL (like a Discord gateway)")
+	.option("--as <name>", "your identity — messages from you are skipped")
+	.option("--since <timestamp>", "replay messages after this ISO timestamp before streaming live")
+	.option("--all", "include your own messages (don't filter by identity)")
+	.action(async (channel, options) => {
+		try {
+			const cwd = await requireProjectRoot();
+			const core = new Core(cwd);
+			const config = await core.filesystem.loadConfig();
+
+			if (!channel) {
+				if (config?.projectName) {
+					channel = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
+				} else {
+					channel = "project";
+				}
+			}
+
+			let identity = options.as;
+			if (!identity && !options.all) {
+				try {
+					const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
+					identity = nameResult.trim() || undefined;
+				} catch {
+					// no identity filtering
+				}
+			}
+
+			const filePath = await core.resolveChannelFile(channel);
+			const { existsSync } = await import("node:fs");
+
+			// If the channel file doesn't exist yet, create it so the watcher has something to attach to
+			if (!existsSync(filePath)) {
+				const { writeFileSync, mkdirSync } = await import("node:fs");
+				const { dirname } = await import("node:path");
+				mkdirSync(dirname(filePath), { recursive: true });
+				writeFileSync(filePath, `# Group Chat: #${channel}\n\n`);
+			}
+
+			process.stderr.write(`Listening on #${channel}${identity ? ` as ${identity}` : ""} (Ctrl+C to stop)\n`);
+
+			await core.watchMessages({
+				channel,
+				identity: options.all ? undefined : identity,
+				since: options.since,
+				onMessage: (msg) => {
+					process.stdout.write(JSON.stringify(msg) + "\n");
+				},
+			});
+
+			// Keep process alive
+			await new Promise(() => {});
+		} catch (err) {
+			console.error("Listen failed:", err);
+			process.exit(1);
+		}
+	});
+
 // Agents command group
 const agentsCmd = program.command("agents");
 
@@ -3337,9 +3437,8 @@ agentsCmd
 			let from = options.from;
 			if (!from) {
 				try {
-					
-					from = await $`git config user.name`.quiet().text();
-					from = from.trim() || "agent";
+					const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
+					from = nameResult.trim() || "agent";
 				} catch {
 					from = "agent";
 				}
@@ -3376,9 +3475,8 @@ agentsCmd
 			let fileName = "PUBLIC.md";
 			if (options.group) fileName = `group-${options.group.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
 			else if (options.to) {
-				
-				let from = await $`git config user.name`.quiet().text();
-				from = from.trim() || "agent";
+				const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
+				let from = nameResult.trim() || "agent";
 				const agents = [from.replace("@", "").toLowerCase(), options.to.replace("@", "").toLowerCase()].sort();
 				fileName = `private-${agents[0]}-${agents[1]}.md`;
 			}
