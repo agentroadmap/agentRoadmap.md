@@ -42,11 +42,11 @@
     "tailwindcss": "4.1.18"
   },
   "optionalDependencies": {
-    "agent-roadmap-linux-x64": "0.1.6",
-    "agent-roadmap-linux-arm64": "0.1.6",
-    "agent-roadmap-darwin-x64": "0.1.6",
-    "agent-roadmap-darwin-arm64": "0.1.6",
-    "agent-roadmap-windows-x64": "0.1.6"
+    "agent-roadmap-linux-x64": "0.1.9",
+    "agent-roadmap-linux-arm64": "0.1.9",
+    "agent-roadmap-darwin-x64": "0.1.9",
+    "agent-roadmap-darwin-arm64": "0.1.9",
+    "agent-roadmap-windows-x64": "0.1.9"
   },
   "scripts": {
     "test": "bun test",
