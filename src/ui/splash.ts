@@ -3,6 +3,7 @@
 
 type SplashOptions = {
 	version: string;
+	revision?: string | null;
 	initialized: boolean;
 	plain?: boolean;
 	color?: boolean;
@@ -63,7 +64,8 @@ function osc8(text: string, url: string, enabled: boolean): string {
 }
 
 export async function printSplash(opts: SplashOptions): Promise<void> {
-	const { version, initialized, plain, color } = opts;
+	const { version, revision, initialized, plain, color } = opts;
+	const versionLabel = revision ? `v${version} • rev ${revision}` : `v${version}`;
 
 	const width = Math.max(0, Number(process.stdout.columns || 0));
 	// Fixed accent color; no terminal theme detection
@@ -79,14 +81,14 @@ export async function printSplash(opts: SplashOptions): Promise<void> {
 		lines.push("");
 		lines.push(...getWideLogoLines(color));
 		lines.push("");
-		lines.push(`${bold(color, "Roadmap.md")} ${dim(color, `v${version}`)}`);
+		lines.push(`${bold(color, "Roadmap.md")} ${dim(color, versionLabel)}`);
 	} else if (!plain && (width === 0 || width >= 20)) {
 		// Also add space before the narrow logo variant
 		lines.push("");
 		lines.push(...getNarrowLogoLines(color));
-		lines.push(dim(color, `v${version}`));
+		lines.push(dim(color, versionLabel));
 	} else {
-		lines.push(`${bold(color, "Roadmap.md")} v${version}`);
+		lines.push(`${bold(color, "Roadmap.md")} ${versionLabel}`);
 	}
 
 	lines.push("");

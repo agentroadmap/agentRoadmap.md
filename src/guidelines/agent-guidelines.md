@@ -341,12 +341,26 @@ Bad Example (Implementation Step):
 - "Add a new function handleLogin() in auth.ts"
 - "Define expected behavior and document supported input patterns"
 
-### State Breakdown Strategy
+### State Breakdown Strategy (Building the DAG)
 
-1. Identify foundational components first
-2. Create states in dependency order (foundations before features)
-3. Ensure each state delivers value independently
-4. Avoid creating states that block each other
+You are not just making a list; you are constructing a **Directed Acyclic Graph (DAG)**. Each state is a node. Dependencies are directed edges. 
+
+**Rule 1: True Dependencies Only**
+- `A depends on B` means **A is physically impossible to start or test without B existing first.**
+- Do NOT add dependencies just because "B should logically happen before A." If A can be mocked, stubbed, or worked on in parallel, it is NOT a dependency.
+- **Example of True Dependency:** You cannot query a database (`state-3`) if the database schema and connection (`state-2`) do not exist.
+- **Example of False Dependency:** You do not need the UI design finalized (`state-4`) to start building the backend API (`state-5`). They can be done in parallel.
+
+**Rule 2: Granularity and Parallelism**
+1. Identify foundational components first.
+2. Break large monolithic tasks into smaller, parallelizable branches.
+3. If two states do not share code or infrastructure, they should not depend on each other. Widen the graph.
+
+**Rule 3: Obstacles as Nodes**
+If you encounter a blocker (e.g., "We need to choose an OAuth provider before we can build Login"):
+1. Create a new intermediate "Discovery/Spike" state (e.g., `state-X: Research OAuth Providers`).
+2. Update the blocked state to depend on `state-X`.
+3. Resolve `state-X` to unblock the path.
 
 ### State Requirements
 
@@ -354,6 +368,7 @@ Bad Example (Implementation Step):
 - Each state should represent a single unit of work for one PR
 - **Never** reference future states (only states with id < current state id)
 - Ensure states are **independent** and don't depend on future work
+- A state is complete ONLY when its Acceptance Criteria are empirically proven.
 
 ---
 

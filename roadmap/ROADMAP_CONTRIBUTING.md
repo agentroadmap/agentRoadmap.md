@@ -2,29 +2,25 @@
 
 ## The Loop: Scout -> Map -> Reach
 
-1.  **Scout:** Analyze the `DNA.md` and the current codebase to identify the next necessary **State** in the DAG.
+1.  **Scout:** Analyze `DNA.md`, the current codebase, and the roadmap DAG (`roadmap state list --plain`) to identify the gap between the current state and the project Vision.
 2.  **Map:**
-    - Create a new file in `roadmap/nodes/`.
-    - Link it in `roadmap/MAP.md`.
-    - Define its type (terminal, transitional, operational, spike).
-    - Set its `assigned_role`.
-    - List its dependencies in `requires`.
+    - Use the `roadmap` CLI to create and refine the DAG.
+    - **Never create false dependencies.** A depends on B ONLY if A is physically impossible to start without B. Do not use dependencies for logical sequencing if tasks can be parallelized.
+    - Widen the graph: break monolithic tasks down into independent parallel states.
+    - **Add new states via CLI:** `roadmap state create "My State" -d "Description" --ac "Done when X"`
+    - **Add dependencies:** `roadmap state edit <id> --dep <blocked-by-id>`
 3.  **Reach:**
-    - Perform the technical work required.
-    - Append the **Proof of Arrival** (terminal logs/test results).
-    - Transition status to `reached`.
-    - Update the **Hype** section.
+    - Assign the state to yourself: `roadmap state edit <id> -a @yourname -s "In Progress"`
+    - Plan and execute the technical work.
+    - Validate your changes empirically.
+    - Check ACs: `roadmap state edit <id> --check-ac <index>`
+    - Write Final Summary: `roadmap state edit <id> --final-summary "..."`
+    - Transition to Done: `roadmap state edit <id> -s "Done"`
 
-## Role Expectations
+## Handling Obstacles (Dynamic DAG Routing)
 
-- **Manager:** Primarily responsible for Scouting and Mapping. Spawns new nodes. Resolves Obstacles.
-- **Executor:** Primarily responsible for Reaching states. Implements technical deltas.
-- **Promoter:** Monitors for `reached` states and broadcasts the Hype to communication channels.
-
-## Handling Obstacles
-
-If a path is blocked:
-1.  Create a new `type: obstacle` node.
-2.  Assign it to the `Manager` role.
-3.  Link it as a dependency for the currently blocked state.
-4.  The path remains `locked` until the obstacle is `resolved`.
+If your assigned path is blocked or requires research before implementation:
+1.  Do NOT wait in a deadlock. 
+2.  Create an intermediate Spike/Discovery state: `roadmap state create "Research X" --ac "Decision made"`
+3.  Update the blocked state to depend on the new spike: `roadmap state edit <blocked-id> --dep <new-spike-id>`
+4.  Switch your assignment to the new spike state and execute it immediately to unblock the DAG.

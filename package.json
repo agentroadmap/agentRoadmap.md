@@ -55,7 +55,7 @@
     "check": "biome check .",
     "check:types": "bunx tsc --noEmit",
     "build:css": "bun ./node_modules/@tailwindcss/cli/dist/index.mjs -i src/web/styles/source.css -o src/web/styles/style.css --minify",
-    "build": "bun run build:css && bun build --production --compile --minify --define __EMBEDDED_VERSION__=\"\\\"$npm_package_version\\\"\" --outfile=dist/roadmap src/cli.ts",
+    "build": "REV=$(git rev-parse --short HEAD 2>/dev/null || printf '') && bun run build:css && bun build --production --compile --minify --define __EMBEDDED_VERSION__=\"\\\"$npm_package_version\\\"\" --define __EMBEDDED_REVISION__=\"\\\"$REV\\\"\" --outfile=dist/roadmap src/cli.ts",
     "cli": "bun run build:css && bun src/cli.ts",
     "mcp": "bun src/cli.ts mcp start",
     "update-nix": "sh scripts/update-nix.sh",

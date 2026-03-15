@@ -1,5 +1,5 @@
 import { rename as moveFile, unlink } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { DEFAULT_DIRECTORIES, DEFAULT_STATUSES, FALLBACK_STATUS } from "../constants/index.ts";
 import { FileSystem } from "../file-system/operations.ts";
 import { GitOperations } from "../git/operations.ts";
@@ -19,6 +19,7 @@ import {
 	type StateUpdateInput,
 } from "../types/index.ts";
 import { normalizeAssignee } from "../utils/assignee.ts";
+import { formatLocalDateTime } from "../utils/date-time.ts";
 import { documentIdsEqual } from "../utils/document-id.ts";
 import { openInEditor } from "../utils/editor.ts";
 import {
@@ -2793,7 +2794,7 @@ export class Core {
 		let sharedRoadmapDir = join(this.filesystem.rootDir, "roadmap");
 		try {
 			const { $ } = require("bun");
-			const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
+			const gitRoot = (await $`git rev-parse --show-toplevel`.cwd(this.filesystem.rootDir).quiet().text()).trim();
 			if (gitRoot) sharedRoadmapDir = join(gitRoot, "roadmap");
 		} catch {
 			// Fallback to local project root
@@ -2871,14 +2872,38 @@ export class Core {
 		return join(messagesDir, `group-${channel.toLowerCase().replace(/[^a-z0-9-]/g, "-")}.md`);
 	}
 
+	private static readonly MULTILINE_MESSAGE_PREFIX = "__roadmap_msg_b64__:";
+
+	private static decodeStoredMessageText(text: string): string {
+		if (!text.startsWith(Core.MULTILINE_MESSAGE_PREFIX)) {
+			return text;
+		}
+
+		try {
+			return Buffer.from(text.slice(Core.MULTILINE_MESSAGE_PREFIX.length), "base64").toString("utf-8");
+		} catch {
+			return text;
+		}
+	}
+
+	private static encodeStoredMessageText(text: string): string {
+		const normalized = text.replace(/\r\n?/g, "\n");
+		if (!normalized.includes("\n")) {
+			return normalized;
+		}
+		return `${Core.MULTILINE_MESSAGE_PREFIX}${Buffer.from(normalized, "utf-8").toString("base64")}`;
+	}
+
 	/**
 	 * Parse a single log line into a structured message (or null if not a message line)
 	 */
-	private static parseLine(line: string): { timestamp: string; from: string; text: string; mentions: string[] } | null {
+	static parseLine(line: string): { timestamp: string; from: string; text: string; mentions: string[] } | null {
 		const match = line.match(/^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\] ([^:]+): (.+)$/);
 		if (!match) return null;
-		const text = match[3] as string;
-		const mentions = [...text.matchAll(/@([a-zA-Z0-9_-]+)/g)].map((m) => m[1].toLowerCase());
+		const text = Core.decodeStoredMessageText(match[3] as string);
+		const mentions = [...text.matchAll(/@([a-zA-Z0-9_-]+)/g)]
+			.map((match) => match[1]?.toLowerCase())
+			.filter((mention): mention is string => Boolean(mention));
 		return { timestamp: match[1] as string, from: match[2] as string, text, mentions };
 	}
 
@@ -2954,6 +2979,117 @@ export class Core {
 	}
 
 	/**
+	 * Get a list of all known users (agents and humans) in the project
+	 */
+	async getKnownUsers(): Promise<string[]> {
+		const users = new Set<string>();
+		const fs = require("node:fs");
+
+		// 1. From worktrees
+		const worktreesDir = join(this.filesystem.rootDir, "worktrees");
+		if (fs.existsSync(worktreesDir)) {
+			try {
+				const dirs = fs.readdirSync(worktreesDir);
+				for (const dir of dirs) {
+					if (fs.statSync(join(worktreesDir, dir)).isDirectory()) {
+						users.add(dir);
+					}
+				}
+			} catch (_e) {
+				// Ignore
+			}
+		}
+
+		// 2. From states (assignees)
+		try {
+			const states = await this.queryStates();
+			for (const state of states) {
+				if (state.assignee) {
+					for (const a of state.assignee) {
+						users.add(a.replace("@", ""));
+					}
+				}
+			}
+		} catch (_e) {
+			// Ignore
+		}
+
+		// 3. From message history
+		try {
+			const messagesDir = await this.getMessagesDir();
+			if (fs.existsSync(messagesDir)) {
+				const files = fs.readdirSync(messagesDir);
+				for (const file of files) {
+					if (file.endsWith(".md")) {
+						const content = fs.readFileSync(join(messagesDir, file), "utf-8");
+						const lines = content.split("\n");
+						for (const line of lines) {
+							const parsed = Core.parseLine(line);
+							if (parsed) {
+								users.add(parsed.from);
+							}
+						}
+					}
+				}
+			}
+		} catch (_e) {
+			// Ignore
+		}
+
+		return Array.from(users).sort();
+	}
+
+	/**
+	 * Format a message for pretty display (Discord-style)
+	 */
+	static formatMessagePretty(
+		msg: { timestamp: string; from: string; text: string; mentions: string[] },
+		options: { color?: boolean; markdown?: boolean } = {},
+	): string {
+		const { timestamp, from, text, mentions } = msg;
+		const { color = true, markdown = false } = options;
+
+		const date = new Date(timestamp.replace(" ", "T"));
+		const now = new Date();
+		const isToday = date.toDateString() === now.toDateString();
+		const yesterday = new Date(now);
+		yesterday.setDate(now.getDate() - 1);
+		const isYesterday = date.toDateString() === yesterday.toDateString();
+
+		const timeStr = date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+		let dateStr = "";
+		if (isToday) dateStr = "Today";
+		else if (isYesterday) dateStr = "Yesterday";
+		else dateStr = date.toLocaleDateString();
+
+		const fullTimestamp = `${dateStr} at ${timeStr}`;
+
+		// ANSI colors
+		const cyan = (s: string) => (color ? `\x1b[1;36m${s}\x1b[0m` : s);
+		const green = (s: string) => (color ? `\x1b[32m${s}\x1b[0m` : s);
+		const gray = (s: string) => (color ? `\x1b[2m${s}\x1b[0m` : s);
+		let header = "";
+		if (markdown) {
+			header = `**${from}** — ${fullTimestamp}`;
+		} else {
+			header = `${cyan(from)} ${gray(`— ${fullTimestamp}`)}`;
+		}
+
+		let body = text;
+		// Highlight mentions
+		for (const mention of mentions) {
+			const regex = new RegExp(`@${mention}\\b`, "gi");
+			if (markdown) {
+				body = body.replace(regex, `**@${mention}**`);
+			} else {
+				body = body.replace(regex, green(`@${mention}`));
+			}
+		}
+
+		return `${header}\n${body}\n`;
+	}
+
+	/**
 	 * Send a message to a communication channel
 	 */
 	async sendMessage(params: {
@@ -2982,8 +3118,10 @@ export class Core {
 		}
 
 		const filePath = join(messagesDir, fileName);
-		const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-		const logEntry = `[${timestamp}] ${from}: ${message}\n`;
+		const timestamp = formatLocalDateTime(new Date(), true);
+		const normalizedMessage = message.replace(/\r\n?/g, "\n");
+		const encodedMessage = Core.encodeStoredMessageText(normalizedMessage);
+		const logEntry = `[${timestamp}] ${from}: ${encodedMessage}\n`;
 
 		// Check if file exists, if not add header
 		let content = "";
@@ -3005,7 +3143,7 @@ export class Core {
 				// Use direct git commands in the file's directory
 				await $`git add ${basename(filePath)}`.cwd(fileDir).quiet();
 				await $`git commit -m "${from} sent a message to ${channelName}"`.cwd(fileDir).quiet();
-			} catch (e) {
+			} catch (_e) {
 				// Ignore if commit fails
 			}
 		}

@@ -30,9 +30,10 @@ describe("CLI packaging", () => {
 		// Read version from package.json
 		const packageJson = await Bun.file("package.json").json();
 		const version = packageJson.version;
+		const revision = (await $`git rev-parse --short HEAD`.quiet().text()).trim();
 
 		try {
-			await $`bun build src/cli.ts --compile --define __EMBEDDED_VERSION__="\"${version}\"" --outfile ${OUTFILE}`.quiet();
+			await $`bun build src/cli.ts --compile --define __EMBEDDED_VERSION__="\"${version}\"" --define __EMBEDDED_REVISION__="\"${revision}\"" --outfile ${OUTFILE}`.quiet();
 		} catch (error: unknown) {
 			// Skip test if build fails due to cross-filesystem issues (e.g., virtiofs)
 			// This is environment-specific and doesn't indicate a code problem
@@ -53,5 +54,9 @@ describe("CLI packaging", () => {
 		const versionResult = await $`${OUTFILE} --version`.quiet();
 		const versionOutput = versionResult.stdout.toString().trim();
 		expect(versionOutput).toBe(version);
+
+		const splashResult = await $`${OUTFILE} --plain`.quiet();
+		const splashOutput = splashResult.stdout.toString();
+		expect(splashOutput).toContain(`rev ${revision}`);
 	});
 });

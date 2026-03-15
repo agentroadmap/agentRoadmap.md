@@ -1,13 +1,11 @@
 #!/usr/bin/env node
 
 import { basename, join } from "node:path";
-import { $ } from "bun";
 import { stdin as input } from "node:process";
 import { createInterface } from "node:readline/promises";
 import * as clack from "@clack/prompts";
 import { $, spawn } from "bun";
 import { Command } from "commander";
-import { runAdvancedConfigWizard } from "./commands/advanced-config-wizard.ts";
 import { type CompletionInstallResult, installCompletion, registerCompletionCommand } from "./commands/completion.ts";
 import { configureAdvancedSettings } from "./commands/configure-advanced-settings.ts";
 import { registerMcpCommand } from "./commands/mcp.ts";
@@ -30,7 +28,6 @@ import {
 	updateReadmeWithBoard,
 } from "./index.ts";
 import {
-	type RoadmapConfig,
 	type Decision,
 	type DecisionSearchResult,
 	type Document as DocType,
@@ -38,6 +35,7 @@ import {
 	EntityType,
 	isLocalEditableState,
 	type Milestone,
+	type RoadmapConfig,
 	type SearchPriorityFilter,
 	type SearchResult,
 	type SearchResultType,
@@ -51,11 +49,20 @@ import { createLoadingScreen } from "./ui/loading.ts";
 import { viewStateEnhanced } from "./ui/state-viewer-with-search.ts";
 import { scrollableViewer } from "./ui/tui.ts";
 import { type AgentSelectionValue, processAgentSelection } from "./utils/agent-selection.ts";
+import {
+	acceptChatMention,
+	applyChatComposerKey,
+	type ChatComposerState,
+	completeChatPath,
+	createChatComposerState,
+	cycleChatMention,
+	getChatMentionSuggestions,
+	renderChatComposerLines,
+} from "./utils/chat-composer.ts";
 import { findRoadmapRoot } from "./utils/find-roadmap-root.ts";
 import { createMilestoneFilterValueResolver, resolveClosestMilestoneFilterValue } from "./utils/milestone-filter.ts";
 import { hasAnyPrefix } from "./utils/prefix-config.ts";
 import { type RuntimeCwdResolution, resolveRuntimeCwd } from "./utils/runtime-cwd.ts";
-import { formatValidStatuses, getCanonicalStatus, getValidStatuses } from "./utils/status.ts";
 import {
 	buildDefinitionOfDoneItems,
 	normalizeStringList,
@@ -66,7 +73,8 @@ import {
 import { buildStateUpdateInput } from "./utils/state-edit-builder.ts";
 import { normalizeStateId, stateIdsEqual } from "./utils/state-path.ts";
 import { sortStates } from "./utils/state-sorting.ts";
-import { getVersion } from "./utils/version.ts";
+import { formatValidStatuses, getCanonicalStatus, getValidStatuses } from "./utils/status.ts";
+import { formatVersionLabel, getVersionInfo } from "./utils/version.ts";
 
 type IntegrationMode = "mcp" | "cli" | "none";
 
@@ -299,8 +307,9 @@ if (process.env.BUN_OPTIONS) {
 	delete process.env.BUN_OPTIONS;
 }
 
-// Get version from package.json
-const version = await getVersion();
+// Get version metadata up front for splash/help/chat banners
+const versionInfo = await getVersionInfo();
+const version = versionInfo.version;
 
 // Bare-run splash screen handling (before Commander parses commands)
 // Show a welcome splash when invoked without subcommands, unless help/version requested
@@ -323,7 +332,6 @@ try {
 	const onlyPlain = rawArgs.length === 1 && rawArgs[0] === "--plain";
 	const isBare = rawArgs.length === 0 || onlyPlain;
 	if (isBare && !wantsHelp && !wantsVersion) {
-		const isTTY = !!process.stdout.isTTY;
 		const forcePlain = rawArgs.includes("--plain");
 		const noColor = !!process.env.NO_COLOR;
 
@@ -345,7 +353,8 @@ try {
 		const termWidth = Math.max(0, Number(process.stdout.columns || 0));
 		const autoPlain = termWidth > 0 && termWidth < 60;
 		await printSplash({
-			version,
+			version: versionInfo.version,
+			revision: versionInfo.revision,
 			initialized,
 			plain: forcePlain || autoPlain,
 			color: !noColor,
@@ -603,7 +612,7 @@ program
 				}
 
 				// Get state prefix (first-time init only, preserved on re-init)
-				let statePrefix = options.statePrefix || "state";
+				const statePrefix = options.statePrefix || "state";
 				// Validate state prefix if provided
 				if (statePrefix && !/^[a-zA-Z]+$/.test(statePrefix)) {
 					console.error("State prefix must contain only letters (a-z, A-Z).");
@@ -932,11 +941,11 @@ program
 				}
 
 				let advancedConfig: Partial<RoadmapConfig> = { ...defaultAdvancedConfig };
-				let advancedConfigured = false;
+				const advancedConfigured = false;
 				let installClaudeAgentSelection = false;
-				let installShellCompletionsSelection = false;
-				let completionInstallResult: CompletionInstallResult | null = null;
-				let completionInstallError: string | null = null;
+				const installShellCompletionsSelection = false;
+				const completionInstallResult: CompletionInstallResult | null = null;
+				const completionInstallError: string | null = null;
 
 				if (isNonInteractive) {
 					advancedConfig = applyAdvancedOptionOverrides();
@@ -946,18 +955,19 @@ program
 					// User explicitly wants advanced config if they used the flags, otherwise skip to keep init fast.
 					const hasAdvancedFlags = Boolean(
 						options.checkBranches ||
-						options.includeRemote ||
-						options.branchDays ||
-						options.bypassGitHooks ||
-						options.zeroPaddedIds ||
-						options.defaultEditor ||
-						options.webPort ||
-						options.autoOpenBrowser
+							options.includeRemote ||
+							options.branchDays ||
+							options.bypassGitHooks ||
+							options.zeroPaddedIds ||
+							options.defaultEditor ||
+							options.webPort ||
+							options.autoOpenBrowser,
 					);
 
 					if (hasAdvancedFlags) {
 						advancedConfig = applyAdvancedOptionOverrides();
-						installClaudeAgentSelection = integrationMode === "cli" ? parseBoolean(options.installClaudeAgent, false) : false;
+						installClaudeAgentSelection =
+							integrationMode === "cli" ? parseBoolean(options.installClaudeAgent, false) : false;
 					} else {
 						// Skip advanced wizard to keep init simple and fast ("log default").
 						advancedConfig = { ...defaultAdvancedConfig };
@@ -3149,7 +3159,7 @@ program
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 			const config = await core.filesystem.loadConfig();
-			
+
 			let type: "public" | "group" | "private" = "group";
 			let group = "project";
 			let to: string | undefined;
@@ -3178,7 +3188,7 @@ program
 				}
 			}
 
-			const filePath = await core.sendMessage({ from, message, type, group, to });
+			await core.sendMessage({ from, message, type, group, to });
 			console.log(`Message sent to ${group}${to ? ` (to @${to})` : ""}`);
 		} catch (err) {
 			console.error("Failed to send message:", err);
@@ -3196,8 +3206,9 @@ program
 			const core = new Core(cwd);
 			const config = await core.filesystem.loadConfig();
 			const { join } = await import("node:path");
-			const { existsSync, readFileSync, watch } = await import("node:fs");
-			const { createInterface } = await import("node:readline/promises");
+			const { existsSync, mkdirSync, writeFileSync } = await import("node:fs");
+			const { createInterface: createLineInterface, emitKeypressEvents } = await import("node:readline");
+			const versionLabel = formatVersionLabel(versionInfo);
 
 			let group = "project";
 			if (config?.projectName) group = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
@@ -3209,7 +3220,11 @@ program
 				if (target.startsWith("@")) {
 					const { $ } = await import("bun");
 					const nameResult = await $`git config user.name`.quiet().text();
-					let from = nameResult.trim().replace(/\s*\(.*\)/, "").toLowerCase() || "agent";
+					const from =
+						nameResult
+							.trim()
+							.replace(/\s*\(.*\)/, "")
+							.toLowerCase() || "agent";
 					to = target.substring(1).toLowerCase();
 					const agents = [from, to].sort();
 					fileName = `private-${agents[0]}-${agents[1]}.md`;
@@ -3221,10 +3236,8 @@ program
 					group = target;
 					fileName = `group-${target.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
 				}
-			} else {
-				// Use the resolved project group as the default target
-				target = `#${group}`;
 			}
+			const chatLabel = target ?? `#${group}`;
 
 			let sharedRoadmapDir = join(cwd, "roadmap");
 			try {
@@ -3234,7 +3247,13 @@ program
 			} catch {}
 
 			const logPath = join(sharedRoadmapDir, "messages", fileName);
-			
+			const channelKey =
+				type === "public"
+					? "public"
+					: type === "private"
+						? fileName.replace(/\.md$/u, "")
+						: group.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+
 			// Get sender name
 			let from = options.as;
 			if (!from) {
@@ -3246,34 +3265,223 @@ program
 				}
 			}
 
-			process.stdout.write("\x1Bc"); // Clear screen
-			console.log(`💬 Chatting in ${target || group} as ${from} (Ctrl+C to exit)\n`);
-			
-			// Show existing history
-			if (existsSync(logPath)) {
-				console.log(readFileSync(logPath, "utf-8"));
+			if (!existsSync(logPath)) {
+				mkdirSync(join(sharedRoadmapDir, "messages"), { recursive: true });
+				const header =
+					type === "public"
+						? "# Public Announcement\n\n"
+						: type === "private"
+							? `# Private DM: ${from} <-> ${to}\n\n`
+							: `# Group Chat: #${group}\n\n`;
+				writeFileSync(logPath, header);
 			}
 
-			// Watch for updates
-			if (existsSync(logPath)) {
-				watch(logPath, (event) => {
-					if (event === "change") {
-						process.stdout.write("\x1Bc");
-						console.log(`💬 Chatting in ${target || group} as ${from} (Ctrl+C to exit)\n`);
-						console.log(readFileSync(logPath, "utf-8"));
-						process.stdout.write("> "); // Re-print prompt
+			const knownUsers = await core.getKnownUsers();
+			let draft: ChatComposerState = createChatComposerState();
+			const interactiveInput =
+				Boolean(process.stdin.isTTY && process.stdout.isTTY) && typeof process.stdin.setRawMode === "function";
+			let stopWatchingMessages: (() => void) | undefined;
+			let shuttingDown = false;
+			let isSending = false;
+			let lastComposerRows = 0;
+			const channelHeading =
+				type === "public"
+					? "# Public Announcement"
+					: type === "private"
+						? `# Private DM: ${from} <-> ${to}`
+						: `# Group Chat: #${group}`;
+
+			const clearComposer = () => {
+				if (!interactiveInput || lastComposerRows === 0) return;
+
+				process.stdout.write("\r");
+				if (lastComposerRows > 1) {
+					process.stdout.write(`\x1b[${lastComposerRows - 1}A`);
+				}
+				process.stdout.write("\x1b[J");
+				lastComposerRows = 0;
+			};
+
+			const renderComposer = () => {
+				if (!interactiveInput) return;
+
+				const suggestions = getChatMentionSuggestions(draft, knownUsers);
+				const suggestionLines =
+					suggestions.length > 0
+						? [
+								"  mentions:",
+								...suggestions.map((suggestion) =>
+									suggestion.selected ? `  \x1b[1;36m> ${suggestion.value}\x1b[0m` : `    ${suggestion.value}`,
+								),
+							]
+						: [];
+				const composerLines = [...suggestionLines, ...renderChatComposerLines(draft)];
+
+				clearComposer();
+				process.stdout.write(composerLines.join("\n"));
+				lastComposerRows = composerLines.length;
+			};
+
+			const appendChatOutput = (output: string) => {
+				if (interactiveInput) {
+					clearComposer();
+				}
+
+				process.stdout.write(output);
+
+				if (interactiveInput) {
+					renderComposer();
+				}
+			};
+
+			const renderChatScreen = async () => {
+				if (interactiveInput) {
+					process.stdout.write("\x1b[2J\x1b[H");
+				}
+				console.log(`💬 Chatting in ${chatLabel} as ${from} — ${versionLabel}`);
+				if (interactiveInput) {
+					console.log(
+						"   Enter/→ accept @mentions or send • Alt/Shift+Enter adds newline • Tab/↑/↓ cycle @mentions • Tab completes /paths • Ctrl+C exits\n",
+					);
+				} else {
+					console.log("   Enter sends • Ctrl+C exits\n");
+				}
+
+				process.stdout.write(`\x1b[1m${channelHeading}\x1b[0m\n\n`);
+
+				const history = await core.readMessages({ channel: channelKey });
+				for (const message of history.messages) {
+					process.stdout.write(Core.formatMessagePretty(message));
+				}
+
+				if (interactiveInput) {
+					lastComposerRows = 0;
+					renderComposer();
+				}
+			};
+
+			const cleanup = () => {
+				if (shuttingDown) return;
+				shuttingDown = true;
+				stopWatchingMessages?.();
+				if (interactiveInput) {
+					process.stdin.removeListener("keypress", handleKeypress);
+					if (typeof process.stdin.setRawMode === "function") {
+						process.stdin.setRawMode(false);
 					}
+				}
+				process.stdin.pause();
+			};
+
+			const handleKeypress = (
+				chunk: string,
+				key: { name?: string; ctrl?: boolean; meta?: boolean; shift?: boolean; sequence?: string },
+			) => {
+				void (async () => {
+					const acceptMentionSelection = () => {
+						const acceptedMention = acceptChatMention(draft, knownUsers);
+						if (acceptedMention === draft) {
+							return false;
+						}
+
+						draft = acceptedMention;
+						renderComposer();
+						return true;
+					};
+
+					if ((key.name === "return" || key.name === "enter") && !key.meta && !key.shift) {
+						if (acceptMentionSelection()) {
+							return;
+						}
+					}
+
+					if (key.name === "right") {
+						acceptMentionSelection();
+						return;
+					}
+
+					if (key.name === "tab") {
+						const mentionCompleted = cycleChatMention(draft, knownUsers, key.shift ? -1 : 1);
+						draft =
+							mentionCompleted !== draft ? mentionCompleted : completeChatPath(draft, { homeDir: process.env.HOME });
+						renderComposer();
+						return;
+					}
+
+					if (key.name === "up" || key.name === "down") {
+						const mentionCompleted = cycleChatMention(draft, knownUsers, key.name === "up" ? -1 : 1);
+						if (mentionCompleted !== draft) {
+							draft = mentionCompleted;
+							renderComposer();
+						}
+						return;
+					}
+
+					const result = applyChatComposerKey(draft, key, chunk);
+					if (result.type === "exit") {
+						cleanup();
+						process.exit(0);
+					}
+					if (result.type === "send") {
+						if (isSending) return;
+						isSending = true;
+						draft = result.state;
+						renderComposer();
+						try {
+							await core.sendMessage({ from, message: result.message, type, group, to });
+						} finally {
+							isSending = false;
+							renderComposer();
+						}
+						return;
+					}
+
+					draft = result.state;
+					renderComposer();
+				})();
+			};
+
+			await renderChatScreen();
+
+			if (interactiveInput) {
+				stopWatchingMessages = await core.watchMessages({
+					channel: channelKey,
+					onMessage: (message) => {
+						appendChatOutput(Core.formatMessagePretty(message));
+					},
 				});
 			}
 
-			const rl = createInterface({ input: process.stdin, output: process.stdout });
-			
-			while (true) {
-				const message = await rl.question("> ");
-				if (message.trim()) {
+			if (!interactiveInput) {
+				const rl = createLineInterface({
+					input: process.stdin,
+					output: process.stdout,
+				});
+				rl.on("line", async (line) => {
+					const message = line.replace(/\s+$/u, "");
+					if (message.trim().length === 0) return;
 					await core.sendMessage({ from, message, type, group, to });
-				}
+				});
+				return new Promise(() => {
+					rl.on("SIGINT", () => {
+						rl.close();
+						cleanup();
+						process.exit(0);
+					});
+				});
 			}
+
+			emitKeypressEvents(process.stdin);
+			process.stdin.setRawMode(true);
+			process.stdin.resume();
+			process.stdin.on("keypress", handleKeypress);
+
+			return new Promise(() => {
+				process.on("SIGINT", () => {
+					cleanup();
+					process.exit(0);
+				});
+			});
 		} catch (err) {
 			console.error("Chat session ended:", err);
 			process.exit(0);
@@ -3284,12 +3492,13 @@ program
 	.command("log [target]")
 	.description("view communication logs for project or agent (@name)")
 	.option("-f, --tail", "tail the log file")
+	.option("--plain", "output raw markdown instead of pretty-formatted text")
 	.action(async (target, options) => {
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 			const config = await core.filesystem.loadConfig();
-			const { join, resolve } = await import("node:path");
+			const { join } = await import("node:path");
 			const { existsSync, readFileSync } = await import("node:fs");
 
 			let fileName = "PUBLIC.md";
@@ -3298,9 +3507,12 @@ program
 
 			if (target) {
 				if (target.startsWith("@")) {
-					
 					const nameResult = await $`git config user.name`.quiet().text();
-					let from = nameResult.trim().replace(/\s*\(.*\)/, "").toLowerCase() || "agent";
+					const from =
+						nameResult
+							.trim()
+							.replace(/\s*\(.*\)/, "")
+							.toLowerCase() || "agent";
 					const agents = [from, target.substring(1).toLowerCase()].sort();
 					fileName = `private-${agents[0]}-${agents[1]}.md`;
 				} else if (target === "public") {
@@ -3315,13 +3527,12 @@ program
 			// Resolve shared roadmap dir (handling worktrees)
 			let sharedRoadmapDir = join(cwd, "roadmap");
 			try {
-				
 				const gitRoot = (await $`git rev-parse --show-toplevel`.quiet().text()).trim();
 				if (gitRoot) sharedRoadmapDir = join(gitRoot, "roadmap");
 			} catch {}
 
 			const logPath = join(sharedRoadmapDir, "messages", fileName);
-			
+
 			if (!existsSync(logPath)) {
 				console.log(`Log channel '${fileName}' is empty.`);
 				return;
@@ -3331,7 +3542,20 @@ program
 				const { spawn } = await import("node:child_process");
 				spawn("tail", ["-f", logPath], { stdio: "inherit" });
 			} else {
-				console.log(readFileSync(logPath, "utf-8"));
+				const content = readFileSync(logPath, "utf-8");
+				if (options.plain) {
+					console.log(content);
+				} else {
+					const lines = content.split("\n");
+					for (const line of lines) {
+						const parsed = Core.parseLine(line);
+						if (parsed) {
+							process.stdout.write(Core.formatMessagePretty(parsed));
+						} else if (line.startsWith("#")) {
+							process.stdout.write(`\x1b[1m${line}\x1b[0m\n\n`);
+						}
+					}
+				}
 			}
 		} catch (err) {
 			console.error("Failed to read log:", err);
@@ -3346,19 +3570,15 @@ program
 	.option("--mention <name>", "only emit messages that @mention this name")
 	.option("--since <timestamp>", "replay messages after this ISO timestamp before streaming live")
 	.option("--all", "include your own messages (don't filter by identity)")
+	.option("--pretty", "output messages in a human-friendly Discord-style format")
+	.option("--markdown", "output messages in Discord-style markdown (without ANSI colors)")
 	.action(async (channel, options) => {
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
 			const config = await core.filesystem.loadConfig();
-
-			if (!channel) {
-				if (config?.projectName) {
-					channel = config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-");
-				} else {
-					channel = "project";
-				}
-			}
+			const resolvedChannel =
+				channel ?? (config?.projectName ? config.projectName.toLowerCase().replace(/[^a-z0-9]/g, "-") : "project");
 
 			let identity = options.as;
 			if (!identity && !options.all) {
@@ -3370,7 +3590,7 @@ program
 				}
 			}
 
-			const filePath = await core.resolveChannelFile(channel);
+			const filePath = await core.resolveChannelFile(resolvedChannel);
 			const { existsSync } = await import("node:fs");
 
 			// If the channel file doesn't exist yet, create it so the watcher has something to attach to
@@ -3378,21 +3598,33 @@ program
 				const { writeFileSync, mkdirSync } = await import("node:fs");
 				const { dirname } = await import("node:path");
 				mkdirSync(dirname(filePath), { recursive: true });
-				writeFileSync(filePath, `# Group Chat: #${channel}\n\n`);
+				writeFileSync(filePath, `# Group Chat: #${resolvedChannel}\n\n`);
 			}
 
-			const label = [`#${channel}`];
+			const label = [`#${resolvedChannel}`];
 			if (identity) label.push(`as ${identity}`);
 			if (options.mention) label.push(`filtering @${options.mention}`);
-			process.stderr.write(`Listening on ${label.join(" ")} (Ctrl+C to stop)\n`);
+
+			if (!options.pretty && !options.markdown) {
+				process.stderr.write(`Listening on ${label.join(" ")} (Ctrl+C to stop)\n`);
+			}
 
 			await core.watchMessages({
-				channel,
+				channel: resolvedChannel,
 				identity: options.all ? undefined : identity,
 				mention: options.mention,
 				since: options.since,
 				onMessage: (msg) => {
-					process.stdout.write(JSON.stringify(msg) + "\n");
+					if (options.pretty || options.markdown) {
+						process.stdout.write(
+							Core.formatMessagePretty(msg, {
+								color: options.pretty && !options.markdown,
+								markdown: options.markdown,
+							}),
+						);
+					} else {
+						process.stdout.write(`${JSON.stringify(msg)}\n`);
+					}
 				},
 			});
 
@@ -3434,7 +3666,7 @@ agentsCmd
 		try {
 			const cwd = await requireProjectRoot();
 			const core = new Core(cwd);
-			
+
 			let type: "public" | "group" | "private" = "public";
 			if (options.group) type = "group";
 			else if (options.to) type = "private";
@@ -3454,7 +3686,7 @@ agentsCmd
 				message,
 				type,
 				group: options.group,
-				to: options.to
+				to: options.to,
 			});
 
 			console.log(`Message sent to ${filePath}`);
@@ -3471,23 +3703,25 @@ agentsCmd
 	.option("--group <name>", "show a specific group chat channel")
 	.option("--to <agent>", "show a private DM channel with an agent")
 	.option("-f, --tail", "output appended data as the file grows")
+	.option("--plain", "output raw markdown instead of pretty-formatted text")
+	.option("--markdown", "output pretty formatting as markdown")
 	.action(async (options) => {
 		try {
 			const cwd = await requireProjectRoot();
 			const { join } = await import("node:path");
 			const { existsSync, readFileSync } = await import("node:fs");
-			
+
 			let fileName = "PUBLIC.md";
 			if (options.group) fileName = `group-${options.group.toLowerCase().replace(/[^a-z0-9]/g, "-")}.md`;
 			else if (options.to) {
 				const nameResult = await $`git config user.name`.cwd(cwd).quiet().text();
-				let from = nameResult.trim() || "agent";
+				const from = nameResult.trim() || "agent";
 				const agents = [from.replace("@", "").toLowerCase(), options.to.replace("@", "").toLowerCase()].sort();
 				fileName = `private-${agents[0]}-${agents[1]}.md`;
 			}
 
 			const logPath = join(cwd, "roadmap", "messages", fileName);
-			
+
 			if (!existsSync(logPath)) {
 				console.log(`Log channel '${fileName}' is empty or does not exist.`);
 				return;
@@ -3498,7 +3732,25 @@ agentsCmd
 				const { spawn } = await import("node:child_process");
 				spawn("tail", ["-f", logPath], { stdio: "inherit" });
 			} else {
-				console.log(readFileSync(logPath, "utf-8"));
+				const content = readFileSync(logPath, "utf-8");
+				if (options.plain) {
+					console.log(content);
+				} else {
+					const lines = content.split("\n");
+					for (const line of lines) {
+						const parsed = Core.parseLine(line);
+						if (parsed) {
+							process.stdout.write(
+								Core.formatMessagePretty(parsed, {
+									color: !options.markdown,
+									markdown: !!options.markdown,
+								}),
+							);
+						} else if (line.startsWith("#")) {
+							process.stdout.write(`\x1b[1m${line}\x1b[0m\n\n`);
+						}
+					}
+				}
 			}
 		} catch (err) {
 			console.error("Failed to read agent log:", err);
